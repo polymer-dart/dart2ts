@@ -1,1 +1,3 @@
-lib/sample1.ts
+/lib/sample1.ts
+*.js
+*.js.map

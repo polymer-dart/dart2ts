@@ -13,11 +13,9 @@ import 'package:path/path.dart' as path;
 Logger _logger = new Logger('dart2ts.lib.code_generator');
 
 class Dart2TsCommand extends Command<bool> {
-  // TODO: implement description
   @override
   String get description => "Build a file";
 
-  // TODO: implement name
   @override
   String get name => 'build';
 
