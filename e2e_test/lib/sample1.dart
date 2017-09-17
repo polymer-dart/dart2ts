@@ -1,12 +1,16 @@
-void main(List<String> args) {
-  sayHello('Hello Dart2TS');
+import 'sample2.dart' as xy;
 
-  print(((String x) => (String y) {
+void main(List<String> args) {
+  xy.sayHello('Hello Dart2TS');
+
+  ciao(String x) {
+    xy.sayHello(x);
+  }
+
+  ciao(((String x) => (String y) {
     return (z) => "$x $y $z";
   })('Hello')('world')('Mario'));
 
+  print('bye!');
 }
 
-void sayHello(String msg) {
-  print(msg);
-}

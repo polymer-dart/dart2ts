@@ -86,21 +86,28 @@ class Dart2TsBuilder extends _BaseBuilder {
 
 class Dart2TsVisitor extends GeneralizingAstVisitor<dynamic> {
   StringSink _consumer;
+  FileContext _context;
   Dart2TsVisitor(this._consumer);
 
   @override
   visitCompilationUnit(CompilationUnit node) {
-    _consumer.writeln("import {print} from 'dart_sdk/core';");
+    _context = new FileContext(node.element.library);
     _consumer.writeln('// Generated code');
     super.visitCompilationUnit(node);
+    _context._prefixes.values.forEach((i)=>_consumer.writeln('import * as ${i.prefix} from "${i.path}";'));
   }
 
   @override
   visitFunctionDeclaration(FunctionDeclaration node) {
+    if (node.element.enclosingElement==_context._current.definingCompilationUnit) {
+      _consumer.write('export ');
+    }
     _consumer.write("function ${node.name}");
     node.functionExpression.parameters.accept(this);
-    _consumer.write(" : ");
-    node.returnType.accept(this);
+    if (node.returnType != null) {
+      _consumer.write(" : ");
+      node.returnType.accept(this);
+    }
     node.functionExpression.body.accept(this);
   }
 
@@ -126,14 +133,13 @@ class Dart2TsVisitor extends GeneralizingAstVisitor<dynamic> {
 
   @override
   visitArgumentList(ArgumentList node) {
-    _actualParameterVisitor v = new _actualParameterVisitor();
+    _ExpressionBuilderVisitor v = new _ExpressionBuilderVisitor(_context);
     _consumer.write(node.accept(v));
   }
 
   @override
   visitMethodInvocation(MethodInvocation node) {
-    _consumer.write(node.methodName.name);
-    super.visitMethodInvocation(node);
+    _consumer.write(node.accept(new _ExpressionBuilderVisitor(_context)));
   }
 
   @override
@@ -167,7 +173,9 @@ class Dart2TsVisitor extends GeneralizingAstVisitor<dynamic> {
   }
 }
 
-class _actualParameterVisitor extends GeneralizingAstVisitor<String> {
+class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
+  _ExpressionBuilderVisitor(this._context);
+
   @override
   String visitSimpleStringLiteral(SimpleStringLiteral node) {
     return node.literal.toString();
@@ -183,15 +191,43 @@ class _actualParameterVisitor extends GeneralizingAstVisitor<String> {
     if (node.element is FunctionElement) {
       String body;
       if (node.body is ExpressionFunctionBody) {
-        body = (node.body as ExpressionFunctionBody).expression.accept(this);
-      } else if (node.body is BlockFunctionBody) {
         body = node.body.accept(this);
+      } else if (node.body is BlockFunctionBody) {
+        body = "=> ${node.body.accept(this)}";
       }
 
-      return "${node.element.name}${node.parameters.accept(this)} => ${body}";
+      return "${node.element.name}${node.parameters.accept(this)}${body}";
     }
 
     return "/* TODO : ${node.element.toString()}*/";
+  }
+
+  FunctionElement _findEnclosingFunction(AstNode node) {
+    if (node is FunctionExpression) {
+      return node.element;
+    }
+    return _findEnclosingFunction(node.parent);
+  }
+
+  FileContext _context;
+
+  String _resolve(Element ele,{FunctionElement from}) {
+    if (ele.library==from.library) {
+      return ele.name;
+    }
+
+    return "${_context.namespace(ele.library)}.${ele.name}";
+  }
+
+
+  @override
+  String visitMethodInvocation(MethodInvocation node) {
+    // get the function name for ts
+    FunctionElement el = _findEnclosingFunction(node);
+
+    String reference = _resolve(node.methodName.staticElement,from:el);
+    
+    return "${reference}${node.argumentList.accept(this)}";
   }
 
   @override
@@ -210,15 +246,9 @@ class _actualParameterVisitor extends GeneralizingAstVisitor<String> {
   String visitExpressionFunctionBody(ExpressionFunctionBody node) =>
       "=> ${node.expression.accept(this)}";
 
-  /*
-  @override
-  String visitNormalFormalParameter(NormalFormalParameter node) {
-    return "${node.identifier} : ${node.element.type}";
-  }*/
-
   @override
   String visitSimpleFormalParameter(SimpleFormalParameter node) =>
-      "${node.identifier} : ${node.type}";
+      "${node.identifier} : ${toTsType(node.type)}";
 
   @override
   String visitTypeName(TypeName node) => toTsType(node);
@@ -254,7 +284,7 @@ class _actualParameterVisitor extends GeneralizingAstVisitor<String> {
   String visitInterpolationString(InterpolationString node) => node.value;
 }
 
-class _typeNameVisitor extends GeneralizingAstVisitor<String> {
+class _TypeNameVisitor extends GeneralizingAstVisitor<String> {
   @override
   String visitTypeName(TypeName node) {
     return toTsType(node);
@@ -266,13 +296,13 @@ class _typeNameVisitor extends GeneralizingAstVisitor<String> {
   }
 }
 
-class _typeArgumentListVisitor extends GeneralizingAstVisitor<String> {
+class _TypeArgumentListVisitor extends GeneralizingAstVisitor<String> {
   @override
   String visitTypeArgumentList(TypeArgumentList node) {
     if (node?.arguments == null) {
       return "";
     }
-    _typeNameVisitor v = new _typeNameVisitor();
+    _TypeNameVisitor v = new _TypeNameVisitor();
     return "<${node.arguments.map((x)=> x.accept(v)).join(',')}>";
   }
 }
@@ -288,6 +318,58 @@ String toTsType(TypeName annotation) {
     actualName = annotation.name.name;
   }
   String res =
-      "${actualName}${annotation.typeArguments?.accept(new _typeArgumentListVisitor())??''}";
+      "${actualName}${annotation?.typeArguments?.accept(new _TypeArgumentListVisitor())??''}";
   return res;
 }
+
+
+class TSImport {
+  String prefix;
+  String path;
+  LibraryElement library;
+
+  TSImport({this.prefix,this.path,this.library});
+}
+
+class FileContext {
+  LibraryElement _current;
+  FileContext(this._current);
+  Map<String,TSImport> _prefixes = {};
+
+  String _nextPrefix() => "lib${_prefixes.length}";
+
+  AssetId _toAssetId(String uri) {
+    if (uri.startsWith('asset:')) {
+      List<String> parts = path.split(uri.substring(7));
+      return new AssetId(parts.first, path.joinAll(parts.sublist(1)));
+    }
+    throw "Cannot convert to assetId : ${uri}";
+  }
+
+  String namespace(LibraryElement lib) {
+    String uri = lib.source.uri.toString();
+
+    AssetId currentId = _toAssetId(_current.source.uri.toString());
+    return _prefixes.putIfAbsent(uri, () {
+      if (_current.context.sourceFactory.dartSdk.uris.contains(uri)) {
+        // Replace with ts_sdk
+        return new TSImport(prefix:_nextPrefix(),path:"./dart_sdk/${lib.name.substring(5)}.js",library: lib);
+      }
+
+      // TODO : If same package produce a relative path
+
+      AssetId id = _toAssetId(uri);
+
+      String libPath;
+
+      if (id.package==currentId.package) {
+        libPath = "./${path.withoutExtension(path.relative(id.path,from:path.dirname(currentId.path)))}.js";
+      }
+
+      // TODO : Extract package name and path and produce a nodemodule path
+      return new TSImport(prefix: _nextPrefix(),path:libPath,library: lib);
+
+    }).prefix;
+  }
+}
+
