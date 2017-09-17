@@ -27,9 +27,10 @@ class Dart2TsCommand extends Command<bool> {
 
   @override
   void run() {
-    build([new BuildAction(new Dart2TsBuilder(), 'dart2ts')],
-        packageGraph: new PackageGraph.forPath(argResults['dir']),
-        onLog: (_) {});
+    PackageGraph graph = new PackageGraph.forPath(argResults['dir']);
+
+    build([new BuildAction(new Dart2TsBuilder(), graph.root.name)],
+        packageGraph: graph, onLog: (_) {});
   }
 }
 
