@@ -90,7 +90,7 @@ class Dart2TsVisitor extends GeneralizingAstVisitor<dynamic> {
 
   @override
   visitCompilationUnit(CompilationUnit node) {
-    _consumer.writeln("import {print} from 'dart_sdk/core.ts';");
+    _consumer.writeln("import {print} from 'dart_sdk/core';");
     _consumer.writeln('// Generated code');
     super.visitCompilationUnit(node);
   }
@@ -127,7 +127,7 @@ class Dart2TsVisitor extends GeneralizingAstVisitor<dynamic> {
   @override
   visitArgumentList(ArgumentList node) {
     _actualParameterVisitor v = new _actualParameterVisitor();
-    _consumer.write("(${node.arguments.map((e)=>e.accept(v)).join(',')})");
+    _consumer.write(node.accept(v));
   }
 
   @override
@@ -177,6 +177,81 @@ class _actualParameterVisitor extends GeneralizingAstVisitor<String> {
   String visitSimpleIdentifier(SimpleIdentifier node) {
     return node.name;
   }
+
+  @override
+  String visitFunctionExpression(FunctionExpression node) {
+    if (node.element is FunctionElement) {
+      String body;
+      if (node.body is ExpressionFunctionBody) {
+        body = (node.body as ExpressionFunctionBody).expression.accept(this);
+      } else if (node.body is BlockFunctionBody) {
+        body = node.body.accept(this);
+      }
+
+      return "${node.element.name}${node.parameters.accept(this)} => ${body}";
+    }
+
+    return "/* TODO : ${node.element.toString()}*/";
+  }
+
+  @override
+  String visitReturnStatement(ReturnStatement node) =>
+      "return ${node.expression.accept(this)}";
+
+  @override
+  String visitBlockFunctionBody(BlockFunctionBody node) =>
+      node.block.accept(this);
+
+  @override
+  String visitBlock(Block node) =>
+      "{${node.statements.map((s)=>s.accept(this)).join(';')}}";
+
+  @override
+  String visitExpressionFunctionBody(ExpressionFunctionBody node) =>
+      "=> ${node.expression.accept(this)}";
+
+  /*
+  @override
+  String visitNormalFormalParameter(NormalFormalParameter node) {
+    return "${node.identifier} : ${node.element.type}";
+  }*/
+
+  @override
+  String visitSimpleFormalParameter(SimpleFormalParameter node) =>
+      "${node.identifier} : ${node.type}";
+
+  @override
+  String visitTypeName(TypeName node) => toTsType(node);
+
+  @override
+  String visitFormalParameterList(FormalParameterList node) {
+    return "(${node.parameters.map((p)=>p.accept(this)).join(',')})";
+  }
+
+  @override
+  String visitParenthesizedExpression(ParenthesizedExpression node) =>
+      "(${node.expression.accept(this)})";
+
+  @override
+  String visitFunctionExpressionInvocation(FunctionExpressionInvocation node) {
+    return "${node.function.accept(this)} ${node.argumentList.accept(this)}";
+  }
+
+  @override
+  String visitArgumentList(ArgumentList node) {
+    return "(${node.arguments.map((e)=>e.accept(this)).join(',')})";
+  }
+
+  @override
+  String visitStringInterpolation(StringInterpolation node) =>
+      "`${node.elements.map((e)=>e.accept(this)).join()}`";
+
+  @override
+  String visitInterpolationExpression(InterpolationExpression node) =>
+      "\${${node.expression.accept(this)}}";
+
+  @override
+  String visitInterpolationString(InterpolationString node) => node.value;
 }
 
 class _typeNameVisitor extends GeneralizingAstVisitor<String> {
@@ -205,7 +280,9 @@ class _typeArgumentListVisitor extends GeneralizingAstVisitor<String> {
 String toTsType(TypeName annotation) {
   // Todo : check it better if it's a  list
   String actualName;
-  if (annotation.name.name == 'List') {
+  if (annotation == null) {
+    actualName = "any";
+  } else if (annotation.name.name == 'List') {
     actualName = 'Array';
   } else {
     actualName = annotation.name.name;
