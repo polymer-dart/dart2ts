@@ -5,6 +5,6 @@ import 'package:logging/logging.dart';
 
 
 Future main(List<String> args) {
-  Logger.root.onRecord.listen((record)=>print('${record.time} ${record.level} ::: ${record.loggerName}, ${record.message}'));
+  Logger.root.onRecord.listen((record)=>print('${record.time} ${record.level} ::: ${record.loggerName}, ${record.message} ${record.error} / ${record.stackTrace}'));
   return new Dart2TsCommandRunner().run(args);
 }

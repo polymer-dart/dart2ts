@@ -1,3 +1,7 @@
 void main(List<String> args) {
-	print("Hello Dart2TS");
+  sayHello('Hello Dart2TS');
+}
+
+void sayHello(String msg) {
+  print(msg);
 }
