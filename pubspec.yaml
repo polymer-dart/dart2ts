@@ -1,0 +1,9 @@
+name: dart2ts
+description: A better interface for TS
+varsion: 0.0.1
+dependencies:
+  build: ^0.10.0
+  build_runner: any
+  analyzer: ^0.30.0
+  args: any
+  source_gen: any
