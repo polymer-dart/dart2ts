@@ -1,14 +1,13 @@
 import 'dart:async';
-import 'dart:io';
+
 import 'package:analyzer/analyzer.dart';
 import 'package:analyzer/dart/element/element.dart';
-import 'package:analyzer/dart/element/type.dart';
 import 'package:args/command_runner.dart';
-import 'package:logging/logging.dart';
 import 'package:build/build.dart';
-import 'package:source_gen/source_gen.dart';
 import 'package:build_runner/build_runner.dart';
+import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
+import 'package:source_gen/source_gen.dart';
 
 Logger _logger = new Logger('dart2ts.lib.code_generator');
 
@@ -87,40 +86,78 @@ class Dart2TsBuilder extends _BaseBuilder {
 class Dart2TsVisitor extends GeneralizingAstVisitor<dynamic> {
   StringSink _consumer;
   FileContext _context;
+
   Dart2TsVisitor(this._consumer);
+
+  _ExpressionBuilderVisitor _expressionBuilderVisitor;
 
   @override
   visitCompilationUnit(CompilationUnit node) {
     _context = new FileContext(node.element.library);
+    _expressionBuilderVisitor = new _ExpressionBuilderVisitor(_context);
     _consumer.writeln('// Generated code');
     super.visitCompilationUnit(node);
-    _context._prefixes.values.forEach((i)=>_consumer.writeln('import * as ${i.prefix} from "${i.path}";'));
+    _context._prefixes.values.forEach(
+        (i) => _consumer.writeln('import * as ${i.prefix} from "${i.path}";'));
   }
 
   @override
   visitFunctionDeclaration(FunctionDeclaration node) {
-   _consumer.write(node.accept(new _ExpressionBuilderVisitor(_context)));
+    _consumer.write(node.accept(_expressionBuilderVisitor));
   }
 
+  @override
+  visitClassDeclaration(ClassDeclaration node) {
+    _consumer.write(node.accept(new _ClassBuilderVisitor(this)));
+  }
+}
+
+class _ClassBuilderVisitor extends GeneralizingAstVisitor<String> {
+  Dart2TsVisitor _parentVisitor;
+
+  _ClassBuilderVisitor(this._parentVisitor);
+
+  @override
+  String visitClassDeclaration(ClassDeclaration node) {
+    return "export class ${node.name.name} {"
+        "${node.members.map((m) => m.accept(this)).join('\n')}"
+        "}";
+  }
+
+  @override
+  String visitConstructorDeclaration(ConstructorDeclaration node) {
+    return "constructor/*${node.name}*/${node.parameters.accept(_parentVisitor._expressionBuilderVisitor)}${node.body.accept(this)}";
+  }
+
+  @override
+  String visitMethodDeclaration(MethodDeclaration node) {
+    return "${node.name.name}${node.parameters.accept(_parentVisitor._expressionBuilderVisitor)}${node.body.accept(this)}";
+  }
+
+  @override
+  String visitExpressionFunctionBody(ExpressionFunctionBody node) {
+    return "{ return ${node.expression.accept(_parentVisitor._expressionBuilderVisitor)};}";
+  }
+
+  @override
+  String visitBlockFunctionBody(BlockFunctionBody node) =>
+      node.accept(_parentVisitor._expressionBuilderVisitor);
 }
 
 class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   _ExpressionBuilderVisitor(this._context);
 
-
   @override
   String visitFunctionDeclaration(FunctionDeclaration node) {
-    String res = "function ${node.functionExpression.element?.name??''}${node.functionExpression.parameters.accept(this)}${node.functionExpression.body.accept(this)}";
+    String res =
+        "function ${node.functionExpression.element?.name ?? ''}${node.functionExpression.parameters.accept(this)}${node.functionExpression.body.accept(this)}";
 
-    if (node.element.enclosingElement==_context._current.definingCompilationUnit) {
-      return 'export ${res}';
-    }
-    return res;
+    return _context.export(res, node.element);
   }
 
-
   @override
-  String visitFunctionDeclarationStatement(FunctionDeclarationStatement node) => '${node.functionDeclaration.accept(this)}';
+  String visitFunctionDeclarationStatement(FunctionDeclarationStatement node) =>
+      '${node.functionDeclaration.accept(this)}';
 
   @override
   String visitSimpleStringLiteral(SimpleStringLiteral node) {
@@ -141,31 +178,38 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     return "/* TODO : ${node.element.toString()}*/";
   }
 
-  FunctionElement _findEnclosingFunction(AstNode node) {
+  Element _findEnclosingScope(AstNode node) {
     if (node is FunctionExpression) {
       return node.element;
     }
-    return _findEnclosingFunction(node.parent);
+    if (node is MethodDeclaration) {
+      return node.element;
+    }
+
+    if (node is ConstructorDeclaration) {
+      return node.element;
+    }
+
+    return _findEnclosingScope(node.parent);
   }
 
   FileContext _context;
 
-  String _resolve(Element ele,{FunctionElement from}) {
-    if (ele.library==from.library) {
+  String _resolve(Element ele, {Element from}) {
+    if (ele.library == from.library) {
       return ele.name;
     }
 
     return "${_context.namespace(ele.library)}.${ele.name}";
   }
 
-
   @override
   String visitMethodInvocation(MethodInvocation node) {
     // get the function name for ts
-    FunctionElement el = _findEnclosingFunction(node);
+    Element el = _findEnclosingScope(node);
 
-    String reference = _resolve(node.methodName.staticElement,from:el);
-    
+    String reference = _resolve(node.methodName.staticElement, from: el);
+
     return "${reference}${node.argumentList.accept(this)}";
   }
 
@@ -177,13 +221,13 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   String visitBlockFunctionBody(BlockFunctionBody node) =>
       node.block.accept(this);
 
-
   @override
-  String visitExpressionStatement(ExpressionStatement node) => "${node.expression.accept(this)};";
+  String visitExpressionStatement(ExpressionStatement node) =>
+      "${node.expression.accept(this)};";
 
   @override
   String visitBlock(Block node) =>
-      "{${node.statements.map((s)=>s.accept(this)).join('\n')}}";
+      "{${node.statements.map((s) => s.accept(this)).join('\n')}}";
 
   @override
   String visitExpressionFunctionBody(ExpressionFunctionBody node) =>
@@ -198,7 +242,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   String visitFormalParameterList(FormalParameterList node) {
-    return "(${node.parameters.map((p)=>p.accept(this)).join(',')})";
+    return "(${node.parameters.map((p) => p.accept(this)).join(',')})";
   }
 
   @override
@@ -212,12 +256,12 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   String visitArgumentList(ArgumentList node) {
-    return "(${node.arguments.map((e)=>e.accept(this)).join(',')})";
+    return "(${node.arguments.map((e) => e.accept(this)).join(',')})";
   }
 
   @override
   String visitStringInterpolation(StringInterpolation node) =>
-      "`${node.elements.map((e)=>e.accept(this)).join()}`";
+      "`${node.elements.map((e) => e.accept(this)).join()}`";
 
   @override
   String visitInterpolationExpression(InterpolationExpression node) =>
@@ -246,7 +290,7 @@ class _TypeArgumentListVisitor extends GeneralizingAstVisitor<String> {
       return "";
     }
     _TypeNameVisitor v = new _TypeNameVisitor();
-    return "<${node.arguments.map((x)=> x.accept(v)).join(',')}>";
+    return "<${node.arguments.map((x) => x.accept(v)).join(',')}>";
   }
 }
 
@@ -261,23 +305,24 @@ String toTsType(TypeName annotation) {
     actualName = annotation.name.name;
   }
   String res =
-      "${actualName}${annotation?.typeArguments?.accept(new _TypeArgumentListVisitor())??''}";
+      "${actualName}${annotation?.typeArguments?.accept(new _TypeArgumentListVisitor()) ?? ''}";
   return res;
 }
-
 
 class TSImport {
   String prefix;
   String path;
   LibraryElement library;
 
-  TSImport({this.prefix,this.path,this.library});
+  TSImport({this.prefix, this.path, this.library});
 }
 
 class FileContext {
   LibraryElement _current;
+
   FileContext(this._current);
-  Map<String,TSImport> _prefixes = {};
+
+  Map<String, TSImport> _prefixes = {};
 
   String _nextPrefix() => "lib${_prefixes.length}";
 
@@ -296,7 +341,10 @@ class FileContext {
     return _prefixes.putIfAbsent(uri, () {
       if (_current.context.sourceFactory.dartSdk.uris.contains(uri)) {
         // Replace with ts_sdk
-        return new TSImport(prefix:_nextPrefix(),path:"./dart_sdk/${lib.name.substring(5)}",library: lib);
+        return new TSImport(
+            prefix: _nextPrefix(),
+            path: "./dart_sdk/${lib.name.substring(5)}",
+            library: lib);
       }
 
       // TODO : If same package produce a relative path
@@ -305,14 +353,20 @@ class FileContext {
 
       String libPath;
 
-      if (id.package==currentId.package) {
-        libPath = "./${path.withoutExtension(path.relative(id.path,from:path.dirname(currentId.path)))}";
+      if (id.package == currentId.package) {
+        libPath =
+            "./${path.withoutExtension(path.relative(id.path, from: path.dirname(currentId.path)))}";
       }
 
       // TODO : Extract package name and path and produce a nodemodule path
-      return new TSImport(prefix: _nextPrefix(),path:libPath,library: lib);
-
+      return new TSImport(prefix: _nextPrefix(), path: libPath, library: lib);
     }).prefix;
   }
-}
 
+  String export(String res, Element e) {
+    if (e.enclosingElement == _current.definingCompilationUnit) {
+      return 'export ${res}';
+    }
+    return res;
+  }
+}

@@ -11,25 +11,25 @@ module.exports = {
 */
 module.exports = {
     entry: './lib/index.ts',
-   devtool: 'inline-source-map',
+    devtool: 'inline-source-map',
     module: {
-      rules: [
-        {
-          test: /\.tsx?$/,
-          use: 'ts-loader',
-          exclude: /node_modules/,
-        }
-      ]
+        rules: [
+            {
+                test: /\.tsx?$/,
+                use: 'ts-loader',
+                exclude: /node_modules/,
+            }
+        ]
     },
     resolve: {
-    	modules: [path.resolve(__dirname, "lib"), "node_modules"],
-      extensions: [ ".tsx", ".ts", ".js" ]
+        modules: [path.resolve(__dirname, "lib"), "node_modules"],
+        extensions: [".tsx", ".ts", ".js"]
     },
     output: {
-      filename: 'bundle.js',
-      path: path.resolve(__dirname, 'dist')
+        filename: 'bundle.js',
+        path: path.resolve(__dirname, 'dist')
     }
-  };
+};
 
 
 
