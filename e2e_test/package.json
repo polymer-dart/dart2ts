@@ -4,13 +4,15 @@
   "description": "a test for it",
   "main": "lib/index.html",
   "scripts": {
-    "start": "webpack --config webpack.config.js"
+    "start": "webpack --config webpack.config.js",
+    "serve": "webpack-dev-server --config webpack.config.js"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "ts-loader": "^2.3.7",
     "typescript": "^2.5.2",
-    "webpack": "^3.6.0"
+    "webpack": "^3.6.0",
+    "webpack-dev-server": "^2.8.2"
   }
 }

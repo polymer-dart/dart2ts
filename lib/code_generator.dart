@@ -119,19 +119,23 @@ class _ClassBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   String visitClassDeclaration(ClassDeclaration node) {
+
+    // TODO : need a strategy for "named" constructor and "factory"
+    // probably we end up in static factory methods or to a constructor with and added parameter
+
     return "export class ${node.name.name} {"
         "${node.members.map((m) => m.accept(this)).join('\n')}"
         "}";
   }
 
   @override
-  String visitConstructorDeclaration(ConstructorDeclaration node) {
-    return "constructor/*${node.name}*/${node.parameters.accept(_parentVisitor._expressionBuilderVisitor)}${node.body.accept(this)}";
+  String visitMethodDeclaration(MethodDeclaration node) {
+    return "${node.name.name}${node.parameters.accept(_parentVisitor._expressionBuilderVisitor)}${node.body.accept(this)}";
   }
 
   @override
-  String visitMethodDeclaration(MethodDeclaration node) {
-    return "${node.name.name}${node.parameters.accept(_parentVisitor._expressionBuilderVisitor)}${node.body.accept(this)}";
+  String visitConstructorDeclaration(ConstructorDeclaration node) {
+    return "constructor/*${node.name}*/${node.parameters.accept(_parentVisitor._expressionBuilderVisitor)}${node.body.accept(this)}";
   }
 
   @override
@@ -203,14 +207,52 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     return "${_context.namespace(ele.library)}.${ele.name}";
   }
 
+
+  @override
+  String visitVariableDeclaration(VariableDeclaration node) {
+    // TODO : variable type
+    return "${node.name.name}${node.initializer!=null? '= '+node.initializer.accept(this):''}";
+  }
+
+
+  @override
+  String visitVariableDeclarationStatement(VariableDeclarationStatement node) {
+    return "${node.variables.accept(this)};";
+  }
+
+  @override
+  String visitInstanceCreationExpression(InstanceCreationExpression node) {
+    Element el = _findEnclosingScope(node);
+    // TODO : handle named constructors, factory "constructors"
+    // (and initializers, etc.)
+
+    return "new ${_resolve(node.staticElement.enclosingElement,from:el)}${node.argumentList.accept(this)}";
+  }
+
   @override
   String visitMethodInvocation(MethodInvocation node) {
-    // get the function name for ts
-    Element el = _findEnclosingScope(node);
+    Expression t = node.realTarget;
+    String reference;
 
-    String reference = _resolve(node.methodName.staticElement, from: el);
+    if (t==null||(t is SimpleIdentifier && t.staticElement is PrefixElement)) {
+      // get the function name for ts
+      Element el = _findEnclosingScope(node);
+
+      reference = _resolve(node.methodName.staticElement, from: el);
+    } else {
+
+      reference = "${t.accept(this)}.${node.methodName}";
+
+
+    }
 
     return "${reference}${node.argumentList.accept(this)}";
+  }
+
+
+  @override
+  String visitVariableDeclarationList(VariableDeclarationList node) {
+    return "let ${node.variables.map((v)=>v.accept(this)).join(',')}";
   }
 
   @override

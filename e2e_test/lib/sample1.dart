@@ -11,6 +11,11 @@ void main(List<String> args) {
     return (z) => "$x $y $z";
   })('Hello')('world')('Mario'));
 
+  new xy.MySampleClass1().sayIt('once');
+
+  xy.MySampleClass1 other = new xy.MySampleClass1();
+  other.sayIt2('twice');
+
   print('bye!');
 }
 

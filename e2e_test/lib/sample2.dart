@@ -6,7 +6,7 @@ void sayHello(String msg) {
 
 class MySampleClass1 {
   MySampleClass1() {
-    print('hi man');
+    print('hi man!');
   }
 
 
