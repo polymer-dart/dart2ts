@@ -19,18 +19,26 @@ class Dart2TsCommand extends Command<bool> {
   String get name => 'build';
 
   Dart2TsCommand() {
-    this.argParser.addOption('dir',
+    this.argParser
+      ..addOption('dir',
         defaultsTo: '.',
         abbr: 'd',
-        help: 'the base path of the package to process');
+        help: 'the base path of the package to process')
+      ..addFlag('watch',abbr: 'w',defaultsTo: false,help:'watch for changes');
   }
 
   @override
   void run() {
     PackageGraph graph = new PackageGraph.forPath(argResults['dir']);
+    List<BuildAction> actions = [new BuildAction(new Dart2TsBuilder(), graph.root.name)];
 
-    build([new BuildAction(new Dart2TsBuilder(), graph.root.name)],
-        packageGraph: graph, onLog: (_) {}, deleteFilesByDefault: true);
+    if (argResults['watch']==true) {
+      watch(actions,
+                packageGraph: graph, onLog: (_) {}, deleteFilesByDefault: true);
+    } else {
+      build(actions,
+                packageGraph: graph, onLog: (_) {}, deleteFilesByDefault: true);
+    }
   }
 }
 

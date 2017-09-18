@@ -14,11 +14,14 @@ Only translating `e2e_test` project, that means:
  - invocation
  - import of other modules (only core and current package for now)
  - string interpolation
+ - basic class definition
+ - basic instance creation
  
 ## Roadmap
 
  - make class definition work
  - complete expression
+ - named constructors, factory constructors
  - deal with more complicated constructs like cascade operator, etc.
  - async
  - manage scope reference to "this." things

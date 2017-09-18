@@ -16,6 +16,6 @@ void main(List<String> args) {
   xy.MySampleClass1 other = new xy.MySampleClass1();
   other.sayIt2('twice');
 
-  print('bye!');
+  print('bye!!!!!!');
 }
 
