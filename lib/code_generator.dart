@@ -111,12 +111,12 @@ class Dart2TsVisitor extends GeneralizingAstVisitor<dynamic> {
 
   @override
   visitFunctionDeclaration(FunctionDeclaration node) {
-    _consumer.write(node.accept(_expressionBuilderVisitor));
+    _consumer.writeln(node.accept(_expressionBuilderVisitor));
   }
 
   @override
   visitClassDeclaration(ClassDeclaration node) {
-    _consumer.write(node.accept(new _ClassBuilderVisitor(this)));
+    _consumer.writeln(node.accept(new _ClassBuilderVisitor(this)));
   }
 }
 
@@ -161,8 +161,17 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   String visitFunctionDeclaration(FunctionDeclaration node) {
-    String res =
-        "function ${node.functionExpression.element?.name ?? ''}${node.functionExpression.parameters.accept(this)}${node.functionExpression.body.accept(this)}";
+    String res;
+    if (node.functionExpression.body is ExpressionFunctionBody) {
+      res =
+      "function ${node.functionExpression.element?.name ?? ''}${node.functionExpression.parameters.accept(this)} { return ${node.functionExpression.body.accept(this)}; }";
+
+    } else {
+      res =
+      "function ${node.functionExpression.element?.name ?? ''}${node.functionExpression.parameters.accept(this)}${node.functionExpression.body.accept(this)}";
+
+    }
+
 
     return _context.export(res, node.element);
   }
