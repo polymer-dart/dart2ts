@@ -1,0 +1,16 @@
+{
+  "name": "e2e_test",
+  "version": "1.0.0",
+  "description": "a test for it",
+  "main": "lib/index.html",
+  "scripts": {
+    "start": "webpack --config webpack.config.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "ts-loader": "^2.3.7",
+    "typescript": "^2.5.2",
+    "webpack": "^3.6.0"
+  }
+}

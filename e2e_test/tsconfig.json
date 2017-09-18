@@ -1,10 +1,14 @@
 {
   "compilerOptions": {
-    "module": "es6",
-    "target": "es2016",
-    "sourceMap": true
+    "module": "es2015",
+    "target": "es2015",
+    "sourceMap": true,
+    "rootDir":"./lib/"
   },
   "exclude": [
     "node_modules"
+  ],
+  "include": [
+    "lib/**/*.ts"
   ]
 }

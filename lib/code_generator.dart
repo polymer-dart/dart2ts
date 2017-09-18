@@ -99,82 +99,28 @@ class Dart2TsVisitor extends GeneralizingAstVisitor<dynamic> {
 
   @override
   visitFunctionDeclaration(FunctionDeclaration node) {
-    if (node.element.enclosingElement==_context._current.definingCompilationUnit) {
-      _consumer.write('export ');
-    }
-    _consumer.write("function ${node.name}");
-    node.functionExpression.parameters.accept(this);
-    if (node.returnType != null) {
-      _consumer.write(" : ");
-      node.returnType.accept(this);
-    }
-    node.functionExpression.body.accept(this);
+   _consumer.write(node.accept(new _ExpressionBuilderVisitor(_context)));
   }
 
-  @override
-  visitFunctionBody(FunctionBody node) {
-    _consumer.writeln('{');
-    super.visitFunctionBody(node);
-    _consumer.writeln('}');
-  }
-
-  @override
-  visitFormalParameterList(FormalParameterList node) {
-    String x = '(';
-    node.parameters.forEach((expr) {
-      _consumer.write(x);
-      _consumer.write(expr.identifier.name);
-      _consumer.write(' : ');
-      expr.accept(this);
-      x = ',';
-    });
-    _consumer.write(')');
-  }
-
-  @override
-  visitArgumentList(ArgumentList node) {
-    _ExpressionBuilderVisitor v = new _ExpressionBuilderVisitor(_context);
-    _consumer.write(node.accept(v));
-  }
-
-  @override
-  visitMethodInvocation(MethodInvocation node) {
-    _consumer.write(node.accept(new _ExpressionBuilderVisitor(_context)));
-  }
-
-  @override
-  visitBlockFunctionBody(BlockFunctionBody node) {
-    _consumer.writeln('{');
-    node.block.statements.forEach((s) {
-      s.accept(this);
-      _consumer.writeln(';');
-    });
-    _consumer.writeln(('}'));
-  }
-
-  @override
-  visitInvocationExpression(InvocationExpression node) {
-    //_consumer.write("/*${node.runtimeType}*/");
-    super.visitInvocationExpression(node);
-  }
-
-  @override
-  visitTypeAnnotation(TypeAnnotation node) {
-    super.visitTypeAnnotation(node);
-    DartType t = node.type;
-    if (t is TypeParameterType) {
-      _consumer.write("IS PARAMETER");
-    }
-  }
-
-  @override
-  visitTypeName(TypeName node) {
-    _consumer.write(toTsType(node));
-  }
 }
 
 class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   _ExpressionBuilderVisitor(this._context);
+
+
+  @override
+  String visitFunctionDeclaration(FunctionDeclaration node) {
+    String res = "function ${node.functionExpression.element?.name??''}${node.functionExpression.parameters.accept(this)}${node.functionExpression.body.accept(this)}";
+
+    if (node.element.enclosingElement==_context._current.definingCompilationUnit) {
+      return 'export ${res}';
+    }
+    return res;
+  }
+
+
+  @override
+  String visitFunctionDeclarationStatement(FunctionDeclarationStatement node) => '${node.functionDeclaration.accept(this)}';
 
   @override
   String visitSimpleStringLiteral(SimpleStringLiteral node) {
@@ -189,14 +135,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   @override
   String visitFunctionExpression(FunctionExpression node) {
     if (node.element is FunctionElement) {
-      String body;
-      if (node.body is ExpressionFunctionBody) {
-        body = node.body.accept(this);
-      } else if (node.body is BlockFunctionBody) {
-        body = "=> ${node.body.accept(this)}";
-      }
-
-      return "${node.element.name}${node.parameters.accept(this)}${body}";
+      return "${node.element.name}${node.parameters.accept(this)} => ${node.body.accept(this)}";
     }
 
     return "/* TODO : ${node.element.toString()}*/";
@@ -232,19 +171,23 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   String visitReturnStatement(ReturnStatement node) =>
-      "return ${node.expression.accept(this)}";
+      "return ${node.expression.accept(this)};";
 
   @override
   String visitBlockFunctionBody(BlockFunctionBody node) =>
       node.block.accept(this);
 
+
+  @override
+  String visitExpressionStatement(ExpressionStatement node) => "${node.expression.accept(this)};";
+
   @override
   String visitBlock(Block node) =>
-      "{${node.statements.map((s)=>s.accept(this)).join(';')}}";
+      "{${node.statements.map((s)=>s.accept(this)).join('\n')}}";
 
   @override
   String visitExpressionFunctionBody(ExpressionFunctionBody node) =>
-      "=> ${node.expression.accept(this)}";
+      "${node.expression.accept(this)}";
 
   @override
   String visitSimpleFormalParameter(SimpleFormalParameter node) =>
@@ -353,7 +296,7 @@ class FileContext {
     return _prefixes.putIfAbsent(uri, () {
       if (_current.context.sourceFactory.dartSdk.uris.contains(uri)) {
         // Replace with ts_sdk
-        return new TSImport(prefix:_nextPrefix(),path:"./dart_sdk/${lib.name.substring(5)}.js",library: lib);
+        return new TSImport(prefix:_nextPrefix(),path:"./dart_sdk/${lib.name.substring(5)}",library: lib);
       }
 
       // TODO : If same package produce a relative path
@@ -363,7 +306,7 @@ class FileContext {
       String libPath;
 
       if (id.package==currentId.package) {
-        libPath = "./${path.withoutExtension(path.relative(id.path,from:path.dirname(currentId.path)))}.js";
+        libPath = "./${path.withoutExtension(path.relative(id.path,from:path.dirname(currentId.path)))}";
       }
 
       // TODO : Extract package name and path and produce a nodemodule path
