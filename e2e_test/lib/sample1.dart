@@ -7,8 +7,10 @@ void main(List<String> args) {
     xy.sayHello(x);
   }
 
+  String c="wow!";
+
   ciao(((String x) => (String y) {
-        return (z) => "$x $y $z";
+        return (z) => "${c} $x $y $z";
       })('Hello')('world')('Mario'));
 
   new xy.MySampleClass1().sayIt('once');
