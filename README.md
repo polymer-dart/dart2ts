@@ -15,6 +15,12 @@ Only translating `e2e_test` project, that means:
  - import of other modules (only core and current package for now)
  - string interpolation
  - basic class definition
+   - TODO
+     - named constructors
+     - calling super when needed
+     - named parameters
+     - optional parameters
+
  - basic instance creation
  
 ## Roadmap
