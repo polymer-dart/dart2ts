@@ -17,6 +17,7 @@ class MySampleClass1 extends AnotherClass {
     print('hi man!');
   }
 
+
   MySampleClass1.another(String who) : super.other('XX${who}xx') {
     print('Yo ${who}');
   }

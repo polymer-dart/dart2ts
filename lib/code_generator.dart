@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'dart:io';
 import 'package:analyzer/analyzer.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
@@ -133,7 +132,7 @@ class ConstructorBuilder {
   _ConstructorMethodBuilderVisitor _visitor;
   _ClassBuilderVisitor _classBuilderVisitor;
 
-  ConstructorBuilder(this.declaration,this._classBuilderVisitor)
+  ConstructorBuilder(this.declaration, this._classBuilderVisitor)
       : isDefault = declaration.element.isDefaultConstructor,
         symName = symbolFor(declaration.element) {
     _visitor = new _ConstructorMethodBuilderVisitor(_classBuilderVisitor, this);
@@ -143,44 +142,48 @@ class ConstructorBuilder {
    * Builds the instance method that will init the class
    */
   String buildMethod() {
-    return _visitor
-        .buildMethod();
+    return _visitor.buildMethod();
   }
 
-  static String symbolFor(ConstructorElement cons) => cons.isDefaultConstructor?'bare.init':
-      "${cons.enclosingElement.name}_${cons.name}";
+  static String symbolFor(ConstructorElement cons) => cons.isDefaultConstructor
+      ? 'bare.init'
+      : "${cons.enclosingElement.name}_${cons.name}";
 
   String buildSymbolDeclaration() => "export let ${symName}:symbol = Symbol();";
 
   String defineNamedConstructor() {
     return "bare.defineNamedConstructor(${declaration.element.enclosingElement.name},${symName});";
   }
-
 }
 
 class _ConstructorMethodBuilderVisitor extends _ClassBuilderVisitor {
   ConstructorBuilder _builder;
+  _FunctionExpressionVisitor _functionExpressionVisitor;
+
   _ConstructorMethodBuilderVisitor(
       _ClassBuilderVisitor _classBuilderVisitor, this._builder)
-      : super(_classBuilderVisitor._parentVisitor);
+      : super(_classBuilderVisitor._parentVisitor) {
+    _functionExpressionVisitor = new _FunctionExpressionVisitor(_classBuilderVisitor._parentVisitor._context);
+  }
 
   @override
   String visitFormalParameterList(FormalParameterList node) {
-    return node.accept(_parentVisitor._expressionBuilderVisitor);
+    return node.accept(_functionExpressionVisitor);
   }
 
   String buildMethod() {
+
     return "private [${_builder.symName}]${_builder.declaration.parameters.accept(this)}${_builder.declaration.body.accept(this)}";
   }
 
   @override
   String visitExpressionFunctionBody(ExpressionFunctionBody node) {
-    return "{ ${_initializers()}return ${node.expression.accept(_parentVisitor._expressionBuilderVisitor)};}";
+    return "{ ${_initializers()}return ${node.expression.accept(_functionExpressionVisitor)};}";
   }
 
   String _initializers() {
     // TODO : call super class default if no super initializers
-    return "${_builder.declaration.initializers.map((c)=>c.accept(this)).join('\n')}";
+    return "${_functionExpressionVisitor._blockPreamble()}${_builder.declaration.initializers.map((c) => c.accept(this)).join('\n')}";
   }
 
   @override
@@ -196,12 +199,12 @@ class _ConstructorMethodBuilderVisitor extends _ClassBuilderVisitor {
 
   @override
   String visitSuperConstructorInvocation(SuperConstructorInvocation node) {
-    return "super[${ConstructorBuilder.symbolFor(node.staticElement)}]${node.argumentList.accept(_parentVisitor._expressionBuilderVisitor)};";
+    return "super[${ConstructorBuilder.symbolFor(node.staticElement)}]${node.argumentList.accept(_functionExpressionVisitor)};";
   }
 
   @override
   String visitBlockFunctionBody(BlockFunctionBody node) {
-    return "{ ${_initializers()}${node.block.statements.map((s) => s.accept(_parentVisitor._expressionBuilderVisitor)).join('\n')}}";
+    return "{ ${_initializers()}${node.block.statements.map((s) => s.accept(_functionExpressionVisitor)).join('\n')}}";
   }
 }
 
@@ -220,12 +223,11 @@ class _ClassBuilderVisitor extends GeneralizingAstVisitor<String> {
 
     String namedConstructors = _namedConstructors();
     return "${_constructorSymbols()}\n"
-        "export class ${node.name.name}${node.extendsClause?.accept(this)??' extends bare.Object'} {\n"
+        "export class ${node.name.name}${node.extendsClause?.accept(this) ?? ' extends bare.Object'} {\n"
         "${members}"
         "}\n"
         "${namedConstructors}";
   }
-
 
   @override
   String visitExtendsClause(ExtendsClause node) {
@@ -233,33 +235,62 @@ class _ClassBuilderVisitor extends GeneralizingAstVisitor<String> {
   }
 
   String _namedConstructors() {
-    return "${constructors.where((c)=>!c.isDefault).map((c)=>c.defineNamedConstructor()).join('\n')}";
+    return "${constructors.where((c) => !c.isDefault).map((c) => c.defineNamedConstructor()).join('\n')}";
   }
 
   String _constructorSymbols() {
-    return "${constructors.where((b)=>!b.isDefault).map((b)=>b.buildSymbolDeclaration()).join('\n')}";
+    return "${constructors.where((b) => !b.isDefault).map((b) => b.buildSymbolDeclaration()).join('\n')}";
   }
 
   @override
   String visitMethodDeclaration(MethodDeclaration node) {
-    return "${node.name.name}${node.parameters.accept(_parentVisitor._expressionBuilderVisitor)}${node.body.accept(this)}";
+    return new _FunctionExpressionVisitor(_parentVisitor._context).buildMethodDeclaration(node);
   }
 
   @override
   String visitConstructorDeclaration(ConstructorDeclaration node) {
-    ConstructorBuilder builder = new ConstructorBuilder(node,this);
+    ConstructorBuilder builder = new ConstructorBuilder(node, this);
     constructors.add(builder);
     return builder.buildMethod();
   }
 
-  @override
-  String visitExpressionFunctionBody(ExpressionFunctionBody node) {
-    return "{ return ${node.expression.accept(_parentVisitor._expressionBuilderVisitor)};}";
+}
+
+class _FunctionExpressionVisitor extends _ExpressionBuilderVisitor {
+  _FunctionExpressionVisitor(FileContext context) : super(context);
+
+  String buildFunction(FunctionExpression node) {
+    return "${node.element.name}${node.parameters.accept(this)} => ${node.body.accept(this)}";
   }
 
   @override
-  String visitBlockFunctionBody(BlockFunctionBody node) =>
-      node.accept(_parentVisitor._expressionBuilderVisitor);
+  String visitSimpleFormalParameter(SimpleFormalParameter node) =>
+      "${node.identifier} : ${toTsType(node.element.type)}";
+
+  @override
+  String visitFormalParameterList(FormalParameterList node) {
+    return "(${node.parameters.map((p) => p.accept(this)).join(',')})";
+  }
+
+  String buildFunctionDeclaration(FunctionDeclaration node) {
+    String res;
+
+    res =
+    "function ${node.functionExpression.element?.name ?? ''}${node.functionExpression.parameters.accept(this)}${node.functionExpression.body.accept(this)}";
+
+    return _context.export(res, node.element);
+  }
+
+  String buildMethodDeclaration(MethodDeclaration node) {
+    return "${node.name.name}${node.parameters.accept(this)}${node.body.accept(this)}";
+  }
+
+  @override
+  String _blockPreamble() {
+    return "/* BLOCK PREAMBLE */";
+  }
+
+
 }
 
 class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
@@ -267,16 +298,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   String visitFunctionDeclaration(FunctionDeclaration node) {
-    String res;
-    if (node.functionExpression.body is ExpressionFunctionBody) {
-      res =
-          "function ${node.functionExpression.element?.name ?? ''}${node.functionExpression.parameters.accept(this)} { return ${node.functionExpression.body.accept(this)}; }";
-    } else {
-      res =
-          "function ${node.functionExpression.element?.name ?? ''}${node.functionExpression.parameters.accept(this)}${node.functionExpression.body.accept(this)}";
-    }
-
-    return _context.export(res, node.element);
+    return new _FunctionExpressionVisitor(_context).buildFunctionDeclaration(node);
   }
 
   @override
@@ -295,11 +317,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   String visitFunctionExpression(FunctionExpression node) {
-    if (node.element is FunctionElement) {
-      return "${node.element.name}${node.parameters.accept(this)} => ${node.body.accept(this)}";
-    }
-
-    return "/* TODO : ${node.element.toString()}*/";
+    return new _FunctionExpressionVisitor(_context).buildFunction(node);
   }
 
   Element _findEnclosingScope(AstNode node) {
@@ -320,7 +338,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   FileContext _context;
 
   String _resolve(Element ele, {Element from}) {
-    return "${_prefixFor(ele,from:from)}${ele.name}";
+    return "${_prefixFor(ele, from: from)}${ele.name}";
   }
 
   String _prefixFor(Element ele, {Element from}) {
@@ -339,7 +357,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   @override
   String visitVariableDeclaration(VariableDeclaration node) {
     // TODO : variable type
-    return "${node.name.name}${node.initializer!=null? '= ${node.initializer.accept(this)}':''}";
+    return "${node.name.name}${node.initializer != null ? '= ${node.initializer.accept(this)}' : ''}";
   }
 
   @override
@@ -352,7 +370,6 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     Element el = _findEnclosingScope(node);
     // TODO : handle named constructors, factory "constructors"
     // (and initializers, etc.)
-
 
     if (node.staticElement.isDefaultConstructor) {
       return "new ${_resolve(node.staticElement.enclosingElement, from: el)}${node.argumentList.accept(this)}";
@@ -383,16 +400,13 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   String visitVariableDeclarationList(VariableDeclarationList node) {
-    return "let ${node.variables.map((v)=>v.accept(this)).join(',')}";
+    return "let ${node.variables.map((v) => v.accept(this)).join(',')}";
   }
 
   @override
   String visitReturnStatement(ReturnStatement node) =>
       "return ${node.expression.accept(this)};";
 
-  @override
-  String visitBlockFunctionBody(BlockFunctionBody node) =>
-      node.block.accept(this);
 
   @override
   String visitExpressionStatement(ExpressionStatement node) =>
@@ -400,23 +414,21 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   String visitBlock(Block node) =>
-      "{${node.statements.map((s) => s.accept(this)).join('\n')}}";
+      "{${_blockPreamble()}${node.statements.map((s) => s.accept(this)).join('\n')}}";
+
+  String _blockPreamble() => "";
 
   @override
   String visitExpressionFunctionBody(ExpressionFunctionBody node) =>
-      "${node.expression.accept(this)}";
+      "{ ${_blockPreamble()}return ${node.expression.accept(this)}; }";
 
   @override
-  String visitSimpleFormalParameter(SimpleFormalParameter node) =>
-      "${node.identifier} : ${toTsType(node.element.type)}";
+  String visitBlockFunctionBody(BlockFunctionBody node) =>
+      node.block.accept(this);
+
 
   @override
   String visitTypeName(TypeName node) => toTsType(node.type);
-
-  @override
-  String visitFormalParameterList(FormalParameterList node) {
-    return "(${node.parameters.map((p) => p.accept(this)).join(',')})";
-  }
 
   @override
   String visitParenthesizedExpression(ParenthesizedExpression node) =>
@@ -433,7 +445,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   String visitListLiteral(ListLiteral node) {
-    return "[${node.elements.map((x)=>x.accept(this)).join(',')}]";
+    return "[${node.elements.map((x) => x.accept(this)).join(',')}]";
   }
 
   @override
@@ -463,31 +475,6 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   String visitInterpolationString(InterpolationString node) => node.value;
 }
 
-/*
-class _TypeNameVisitor extends GeneralizingAstVisitor<String> {
-  @override
-  String visitTypeName(TypeName node) {
-    return toTsType(node);
-  }
-
-  @override
-  String visitTypeAnnotation(TypeAnnotation node) {
-    return super.visitTypeAnnotation(node);
-  }
-}
-*/
-/*
-class _TypeArgumentListVisitor extends GeneralizingAstVisitor<String> {
-  @override
-  String visitTypeArgumentList(TypeArgumentList node) {
-    if (node?.arguments == null) {
-      return "";
-    }
-    _TypeNameVisitor v = new _TypeNameVisitor();
-    return "<${node.arguments.map((x) => x.accept(v)).join(',')}>";
-  }
-}
-*/
 String toTsType(DartType type) {
   if (type.isDynamic) {
     return "any";
@@ -503,28 +490,12 @@ String toTsType(DartType type) {
     actualName = type.name;
   }
   if (type is ParameterizedType && type.typeArguments.isNotEmpty) {
-    return "${actualName}<${type.typeArguments.map((t)=>toTsType(t)).join(',')}>";
+    return "${actualName}<${type.typeArguments.map((t) => toTsType(t)).join(',')}>";
   } else {
     return actualName;
   }
 }
 
-/*
-String toTsType(TypeName annotation) {
-  // Todo : check it better if it's a  list
-  String actualName;
-  if (annotation == null) {
-    actualName = "any";
-  } else if (annotation.name.name == 'List') {
-    actualName = 'Array';
-  } else {
-    actualName = annotation.name.name;
-  }
-  String res =
-      "${actualName}${annotation?.typeArguments?.accept(new _TypeArgumentListVisitor()) ?? ''}";
-  return res;
-}
-*/
 class TSImport {
   String prefix;
   String path;
@@ -538,7 +509,9 @@ class FileContext {
 
   FileContext(this._current);
 
-  Map<String, TSImport> _prefixes = {'#NOURI#': new TSImport(prefix:'bare',path:'./dart_sdk/bare')};
+  Map<String, TSImport> _prefixes = {
+    '#NOURI#': new TSImport(prefix: 'bare', path: './dart_sdk/bare')
+  };
 
   String _nextPrefix() => "lib${_prefixes.length}";
 
