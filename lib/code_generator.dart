@@ -147,30 +147,15 @@ class ConstructorBuilder {
         .buildMethod();
   }
 
-  static String symbolFor(ConstructorElement cons) =>
-      "${cons.enclosingElement.name}_${cons.isDefaultConstructor?'default':cons.name}";
+  static String symbolFor(ConstructorElement cons) => cons.isDefaultConstructor?'bare.init':
+      "${cons.enclosingElement.name}_${cons.name}";
 
   String buildSymbolDeclaration() => "export let ${symName}:symbol = Symbol();";
 
-  String buildConstructor() {
-
-    String pars = "${declaration.parameters.parameters.map((f)=>f.element.name).join(',')}";
-    if (isDefault) {
-      return "constructor${declaration.parameters.accept(_visitor)} {\n"
-          "${(declaration.parent as ClassDeclaration).extendsClause!=null?'super();\n':''}"
-          "this[${symName}](${pars});\n"
-          "}";
-    }
-
-    // Return the static method
-    String className = declaration.element.enclosingElement.name;
-
-    return "static [${symName}]${declaration.parameters.accept(_visitor)} : ${className} {\n"
-        "let obj : ${className} = Object.create(${className}.prototype);\n"
-        "obj[${symName}](${pars});\n"
-        "return obj;\n"
-        "}";
+  String defineNamedConstructor() {
+    return "bare.defineNamedConstructor(${declaration.element.enclosingElement.name},${symName});";
   }
+
 }
 
 class _ConstructorMethodBuilderVisitor extends _ClassBuilderVisitor {
@@ -211,7 +196,7 @@ class _ConstructorMethodBuilderVisitor extends _ClassBuilderVisitor {
 
   @override
   String visitSuperConstructorInvocation(SuperConstructorInvocation node) {
-    return "super[${ConstructorBuilder.symbolFor(node.staticElement)}]${node.argumentList.accept(_parentVisitor._expressionBuilderVisitor)}";
+    return "super[${ConstructorBuilder.symbolFor(node.staticElement)}]${node.argumentList.accept(_parentVisitor._expressionBuilderVisitor)};";
   }
 
   @override
@@ -233,11 +218,12 @@ class _ClassBuilderVisitor extends GeneralizingAstVisitor<String> {
 
     String members = node.members.map((m) => m.accept(this)).join('\n');
 
+    String namedConstructors = _namedConstructors();
     return "${_constructorSymbols()}\n"
-        "export class ${node.name.name}${node.extendsClause?.accept(this)??''} {\n"
-        "${_constructors()}\n"
+        "export class ${node.name.name}${node.extendsClause?.accept(this)??' extends bare.Object'} {\n"
         "${members}"
-        "}";
+        "}\n"
+        "${namedConstructors}";
   }
 
 
@@ -246,14 +232,12 @@ class _ClassBuilderVisitor extends GeneralizingAstVisitor<String> {
     return " extends ${toTsType(node.superclass.type)}";
   }
 
-  String _constructors() {
-    // Build the constructors
-
-    return "${constructors.map((b)=>b.buildConstructor()).join('\n')}";
+  String _namedConstructors() {
+    return "${constructors.where((c)=>!c.isDefault).map((c)=>c.defineNamedConstructor()).join('\n')}";
   }
 
   String _constructorSymbols() {
-    return "${constructors.map((b)=>b.buildSymbolDeclaration()).join('\n')}";
+    return "${constructors.where((b)=>!b.isDefault).map((b)=>b.buildSymbolDeclaration()).join('\n')}";
   }
 
   @override
@@ -375,7 +359,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     } else {
       // Calling named constructors
       String p = _prefixFor(node.staticElement.enclosingElement, from: el);
-      return "${p}${node.staticElement.enclosingElement.name}[${p}${ConstructorBuilder.symbolFor(node.staticElement)}]${node.argumentList.accept(this)}";
+      return "new ${p}${node.staticElement.enclosingElement.name}[${p}${ConstructorBuilder.symbolFor(node.staticElement)}]${node.argumentList.accept(this)}";
     }
   }
 
@@ -554,7 +538,7 @@ class FileContext {
 
   FileContext(this._current);
 
-  Map<String, TSImport> _prefixes = {};
+  Map<String, TSImport> _prefixes = {'#NOURI#': new TSImport(prefix:'bare',path:'./dart_sdk/bare')};
 
   String _nextPrefix() => "lib${_prefixes.length}";
 

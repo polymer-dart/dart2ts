@@ -14,17 +14,18 @@ Only translating `e2e_test` project, that means:
  - invocation
  - import of other modules (only core and current package for now)
  - string interpolation
+ - named constructors
+ - class extension
+ - calling named constructors
  - basic class definition
-   - TODO
-     - named constructors
-     - calling super when needed
-     - named parameters
-     - optional parameters
-
+  
  - basic instance creation
  
 ## Roadmap
 
+ - TODO
+     - named parameters
+     - optional parameters
  - make class definition work
  - complete expression
  - named constructors, factory constructors
