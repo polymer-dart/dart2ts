@@ -1,9 +1,10 @@
 {
   "compilerOptions": {
-    "module": "es2015",
-    "target": "es2015",
+    "module": "es6",
+    "target": "es6",
     "sourceMap": true,
-    "rootDir":"./lib/"
+    "rootDir":"./lib/",
+    "experimentalDecorators" :true
   },
   "exclude": [
     "node_modules"

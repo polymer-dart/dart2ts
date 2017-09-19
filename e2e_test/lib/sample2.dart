@@ -33,6 +33,10 @@ class MySampleClass2 extends AnotherClass {
   MySampleClass2() : super.other('x') {
 
   }
+
+  MySampleClass2.extra() : super() {
+
+  }
 }
 
 MySampleClass1 createSampleClass1() => new MySampleClass1();
