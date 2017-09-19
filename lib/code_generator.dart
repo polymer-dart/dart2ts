@@ -163,7 +163,7 @@ class ConstructorBuilder {
 
   String defineNamedConstructor() {
     return "static get ${declaration.element.name}() : ${_signature()} {\n"
-        "return bare.namedConstructor(${declaration.element.enclosingElement.name},${symName});\n"
+        "return bare.namedConstructor(${declaration.element.enclosingElement.name},'${declaration.element.name}');\n"
         "}";
    //return "static ${declaration.element.name}${declaration.parameters.accept(_visitor)} { (this[${symName}]).apply(this,arguments); }";
   }
@@ -181,7 +181,8 @@ class _ConstructorMethodBuilderVisitor extends _FunctionExpressionVisitor {
       : super(_classBuilderVisitor._parentVisitor._context) {}
 
   String buildMethod() {
-    return "[${_builder.symName}]${_builder.declaration.parameters.accept(this)}${_builder.declaration.body.accept(this)}";
+    String name = _builder.isDefault?"[${_builder.symName}]":_builder.declaration.element.name;
+    return "${name}${_builder.declaration.parameters.accept(this)}${_builder.declaration.body.accept(this)}";
   }
 
   String _initializers() {
@@ -202,7 +203,7 @@ class _ConstructorMethodBuilderVisitor extends _FunctionExpressionVisitor {
 
   @override
   String visitSuperConstructorInvocation(SuperConstructorInvocation node) {
-    return "super[${ConstructorBuilder.symbolFor(node.staticElement)}]${node.argumentList.accept(this)};";
+    return "super${ConstructorBuilder.accessorFor(node.staticElement)}${node.argumentList.accept(this)};";
   }
 
   @override
