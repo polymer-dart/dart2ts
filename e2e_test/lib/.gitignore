@@ -3,6 +3,7 @@ sample*.js
 sample*.js.map
 index.js
 index.js.map
+index.d.ts
 dart_sdk/*.js
 dart_sdk/*.js.map
 dart_sdk/*.d.ts
