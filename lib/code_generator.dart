@@ -153,7 +153,7 @@ class ConstructorBuilder {
       cons.isDefaultConstructor ? '[bare.init]' : ".${cons.name}";
 
   static String interfaceNameFor(ConstructorElement cons) =>
-      "${cons.enclosingElement.name}_${cons.name}";
+      "${cons.enclosingElement.name}.constructors.${cons.name}";
 
   String get symName => symbolFor(declaration.element);
 
@@ -175,7 +175,7 @@ class ConstructorBuilder {
   }
 
   String constructorInterface() {
-    return "export interface ${interfaceName()} {\n"
+    return "export interface ${declaration.element.name} {\n"
         " new ${parameters()}: ${declaration.element.enclosingElement.name};\n"
         "}";
   }
@@ -257,7 +257,10 @@ class _ClassBuilderVisitor extends GeneralizingAstVisitor<String> {
       extra = "constructor();\n";
     }
 
-    return "${_namedInterfaces()}export class ${node.name.name}${node.extendsClause?.accept(this) ?? ''} {\n"
+    return "export namespace ${node.name.name} {\n"
+        "export namespace constructors {\n"
+        "${_namedInterfaces()}"
+        "\n}\n}\nexport class ${node.name.name}${node.extendsClause?.accept(this) ?? ''} {\n"
         "${extra}"
         "constructor(...args){\n"
         " ${superCall}"

@@ -18,15 +18,5 @@ function namedConstructor(clazz, name) {
 
 let init: symbol = Symbol();
 
-class DartObject {
 
-    constructor(...args) {
-        this[init] && this[init].apply(this, args);
-    }
-
-    static named(name:String) {
-        return namedConstructor(this,name);
-    }
-}
-
-export {named, namedConstructor, init, DartObject as Object};
+export {named, namedConstructor, init};
