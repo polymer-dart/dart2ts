@@ -9,6 +9,7 @@ us to leverage the `tsc` to produce code that works on every browser and optimiz
 
 ## Targets
 
+ - obviously : semantic equivalence 
  - Produce "natural" and readable TS code, just like how you would have written that same code in TS.
  - Make it simple to use that code from TS and vice versa, like:
    - Allow extending a dart2ts class from ts and vice versa.
@@ -29,24 +30,48 @@ At the moment only translating `e2e_test` project, that means:
  - basic instance creation
  - named parameters
  - optional parameters
+ - cascading
+ - `(cond)?true:false` conditional expressions
  
 ## Roadmap
 
- - using other libraries
- - dart "typelibs" (libs with only declaration and all method declared external)
- - make class definition work
- - complete expression
- - factory constructors
- - deal with more complicated constructs like cascade operator, etc.
- - async
- - manage scope reference to "this." things
- - type name scope
- - mixin (with polymer approach)
- - interfaces
- - deal with "rewriting" some method calls, like : 
+ - using other libraries (tricky)
+ - dart "typelibs" (libs with only declaration and all method declared external) (boring)
+ - make class definition work (easy)
+  - redir constructors
+  - field initializers 
+  - field parameters
+  - properties & accessors
+    - initializers
+    - static
+  
+ - flow control statemets (easy)
+   - for
+   - while
+   - switch
+   - do
+   - break
+   - ecc.
+ - exports (medium ? easy ?)
+ - nullable expression (`??` operator `?=` operator) (super easy)
+ 
+ - complete expression (boring)
+    - whats missing ?
+ - factory constructors (super easy)
+ - `async`, `async*`, `sync*` (should be easy as TS supports 'em all)
+ - manage scope reference to "this." things (boring)
+ - type name scope (subtle)
+ - mixin (with polymer approach) (should be easy but no named constructor should be allowed)
+ - `implements` (very subtle)
+ - deal with "rewriting" some method calls, like : (tricky) 
    - List -> Array
    - Map<String,?> -> {}
- - deal with "@JS" things
+ - deal with "@JS" things (easy)
+ 
+ - dart_sdk port 
+    - collections (tricky)
+    - package:html (easy)
+    - what else ? (boh)
  
  ## Notes
  

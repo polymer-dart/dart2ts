@@ -410,6 +410,11 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   }
 
   @override
+  String visitCascadeExpression(CascadeExpression node) {
+    return "(((_) => {${node.cascadeSections.map((e)=>"_.${e.accept(this)};").join('\n')}\nreturn _;})(${node.target.accept(this)}))";
+  }
+
+  @override
   String visitFunctionDeclarationStatement(FunctionDeclarationStatement node) =>
       '${node.functionDeclaration.accept(this)}';
 
@@ -490,7 +495,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   String visitMethodInvocation(MethodInvocation node) {
-    Expression t = node.realTarget;
+    Expression t = node.target;
     String reference;
 
     if (t == null ||
@@ -498,12 +503,22 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
       // get the function name for ts
       Element el = _findEnclosingScope(node);
 
-      reference = _resolve(node.methodName.staticElement, from: el);
+      if (t == null && node.realTarget != null) {
+        //Cascade ?
+        reference = node.methodName.name;
+      } else
+        reference = _resolve(node.methodName.staticElement, from: el);
     } else {
       reference = "${t.accept(this)}.${node.methodName}";
     }
 
     return "${reference}${node.argumentList.accept(this)}";
+  }
+
+
+  @override
+  String visitConditionalExpression(ConditionalExpression node) {
+    return "${node.condition.accept(this)}?${node.thenExpression.accept(this)}:${node.elseExpression.accept(this)}";
   }
 
   @override

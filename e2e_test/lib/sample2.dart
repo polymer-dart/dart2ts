@@ -43,5 +43,11 @@ class MySampleClass2 extends AnotherClass {
   }
 }
 
+class MakeItReal extends MySampleClass2 {
+  MakeItReal():super.extra(namedOnNamed:'ciccio') {
+
+  }
+}
+
 MySampleClass1 createSampleClass1() => new MySampleClass1();
 MySampleClass1 createSampleClass2(String x) => new MySampleClass1.another(x);

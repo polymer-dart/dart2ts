@@ -29,13 +29,13 @@ void main(List<String> args) {
 
   xy.createSampleClass1().sayIt('final');
 
-  xy.createSampleClass2('ugo').sayIt2('picio',5);
+  xy.createSampleClass2('ugo').sayIt2('picio', 5);
 
-  xy.MySampleClass1 a = xy.createSampleClass2('ciro');
-  a.sayItWithNamed('some',x:5,other: 'oth');
-  a.sayItWithNamed('thing',x:4);
-  a.sayItWithNamed('has',other:'uuu');
-  a.sayItWithNamed('changed');
+  xy.MySampleClass1 a = xy.createSampleClass2('ciro')
+    ..sayItWithNamed('some', x: 5, other: 'oth')
+    ..sayItWithNamed('thing', x: 4)
+    ..sayItWithNamed('has', other: 'uuu')
+    ..sayItWithNamed('changed');
 
   new xy.MySampleClass1.another('ugo2').sayIt('ugo2 says');
 
@@ -43,7 +43,9 @@ void main(List<String> args) {
 
   new xy.MySampleClass2.extra();
 
-  new xy.MySampleClass2.extra(namedOnNamed: 'django');
+  new xy.MySampleClass2.extra(namedOnNamed: (1==1)?'django':'tango');
+
+  new xy.MakeItReal();
 
   print('bye!');
 }
