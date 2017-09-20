@@ -13,7 +13,7 @@ function namedConstructor(clazz, name) {
         initMethod.apply(this, args);
     };
     ctor.prototype = proto;
-    return ctor
+    return <any>ctor;
 }
 
 let init: symbol = Symbol();

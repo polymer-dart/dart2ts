@@ -152,19 +152,35 @@ class ConstructorBuilder {
   static String accessorFor(ConstructorElement cons) =>
       cons.isDefaultConstructor ? '[bare.init]' : ".${cons.name}";
 
+  static String interfaceNameFor(ConstructorElement cons) =>
+      "${cons.enclosingElement.name}_${cons.name}";
+
   String get symName => symbolFor(declaration.element);
 
   String get accessor => accessorFor(declaration.element);
 
-  String _signature() {
-    return "(${declaration.parameters.parameters.map((f) => toTsType(f.element.type)).join(',')}) => void";
+  String signature() {
+    return "${parameters()} => void";
+  }
+
+  String parameters() {
+    return declaration.parameters.accept(_visitor);
   }
 
   String defineNamedConstructor() {
-    return "static get ${declaration.element.name}() : ${_signature()} {\n"
-        "return ${declaration.element.enclosingElement.name}.named('${declaration.element.name}');\n"
+    return "static get ${declaration.element.name}() : ${interfaceName()} {\n"
+        "return bare.namedConstructor(${declaration.element.enclosingElement.name},'${declaration.element.name}');\n"
+        /*"return ${declaration.element.enclosingElement.name}.named('${declaration.element.name}');\n"*/
         "}";
   }
+
+  String constructorInterface() {
+    return "export interface ${interfaceName()} {\n"
+        " new ${parameters()}: ${declaration.element.enclosingElement.name};\n"
+        "}";
+  }
+
+  String interfaceName() => interfaceNameFor(declaration.element);
 }
 
 class _ConstructorMethodBuilderVisitor extends _FunctionExpressionVisitor {
@@ -189,12 +205,12 @@ class _ConstructorMethodBuilderVisitor extends _FunctionExpressionVisitor {
   @override
   String visitRedirectingConstructorInvocation(
       RedirectingConstructorInvocation node) {
-    return "REDIR";
+    return "/* TODO : REDIR constructor */";
   }
 
   @override
   String visitConstructorFieldInitializer(ConstructorFieldInitializer node) {
-    return "FIELD";
+    return "/* TODO: FIELD field initializer */";
   }
 
   @override
@@ -222,11 +238,39 @@ class _ClassBuilderVisitor extends GeneralizingAstVisitor<String> {
     String members = node.members.map((m) => m.accept(this)).join('\n');
 
     String namedConstructors = _namedConstructors();
-    return "export class ${node.name.name}${node.extendsClause?.accept(this) ?? ' extends bare.Object'} {\n"
+
+    String superCall;
+
+    if (node.extendsClause != null) {
+      superCall =
+          "super(...args);\nsuper[bare.init] || this[bare.init](...args);\n";
+    } else {
+      superCall = "this[bare.init](...args);\n";
+    }
+
+    ConstructorBuilder constructorBuilder =
+        constructors.firstWhere((b) => b.isDefault, orElse: () => null);
+    String extra;
+    if (constructorBuilder != null) {
+      extra = "constructor${constructorBuilder.parameters()};\n";
+    } else {
+      extra = "constructor();\n";
+    }
+
+    return "${_namedInterfaces()}export class ${node.name.name}${node.extendsClause?.accept(this) ?? ''} {\n"
+        "${extra}"
+        "constructor(...args){\n"
+        " ${superCall}"
+        "}\n"
         "${namedConstructors}\n"
         "${members}"
         "}\n";
   }
+
+  String _namedInterfaces() => constructors
+      .where((c) => !c.isDefault)
+      .map((c) => c.constructorInterface())
+      .join("\n");
 
   @override
   String visitExtendsClause(ExtendsClause node) {
@@ -300,7 +344,7 @@ class _FunctionExpressionVisitor extends _ExpressionBuilderVisitor {
     Iterable<String> decls = (() sync* {
       yield* _namedParameters.ordinal.map((f) => f.accept(this));
       if (_namedParameters.named.isNotEmpty) {
-        yield "__namedParameters__? : {${_namedParameters.named.values.map((f) => "${f.identifier}:${toTsType(f.element.type)}").join(',')}}";
+        yield "__namedParameters__? : {${_namedParameters.named.values.map((f) => "${f.identifier}?:${toTsType(f.element.type)}").join(',')}}";
       }
     })();
 
@@ -522,7 +566,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     List<Expression> normalPars = [];
     List<NamedExpression> namedPars = [];
 
-    node.arguments.forEach((e){
+    node.arguments.forEach((e) {
       if (e is NamedExpression) {
         namedPars.add(e);
       } else {
@@ -531,7 +575,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     });
 
     Iterable<String> args = (() sync* {
-      yield* normalPars.map((e)=>e.accept(this));
+      yield* normalPars.map((e) => e.accept(this));
       if (namedPars.isNotEmpty) {
         yield "{${namedPars.map((n)=>n.accept(this)).join(',')}}";
       }

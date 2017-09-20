@@ -3,8 +3,8 @@ void sayHello(String msg) {
 }
 
 class AnotherClass {
-  AnotherClass() {
-    print('parent');
+  AnotherClass({String named,int num}) {
+    print('parent :${named} , ${num}');
   }
 
   AnotherClass.other(String x) {
@@ -34,12 +34,12 @@ class MySampleClass1 extends AnotherClass {
 }
 
 class MySampleClass2 extends AnotherClass {
-  MySampleClass2() : super.other('x') {
-
+  MySampleClass2([int optInd=5]) : super.other('x') {
+    print("OPTIND:${optInd}");
   }
 
-  MySampleClass2.extra() : super() {
-
+  MySampleClass2.extra({String namedOnNamed:'withDefault'}) : super(named:namedOnNamed,num:42) {
+    print("NAMED ON NAMED: ${namedOnNamed}");
   }
 }
 

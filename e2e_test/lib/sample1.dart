@@ -43,5 +43,7 @@ void main(List<String> args) {
 
   new xy.MySampleClass2.extra();
 
+  new xy.MySampleClass2.extra(namedOnNamed: 'django');
+
   print('bye!');
 }
