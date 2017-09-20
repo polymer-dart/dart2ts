@@ -1,6 +1,8 @@
 # Dart2Ts : a better TS interface
 
-Dart2Ts is an higly experimental dart to typescript compiler.
+``HIC SUNT DRACONES``
+
+**Dart2Ts** is an highly experimental dart to typescript compiler.
 
 ## Why ?
 
@@ -14,7 +16,11 @@ us to leverage the `tsc` to produce code that works on every browser and optimiz
  - Make it simple to use that code from TS and vice versa, like:
    - Allow extending a dart2ts class from ts and vice versa.
  
+### Anti-targets
  
+  - main target is to make it work on web, so:
+    - initially don't want to port any "platform specific" library, try to use only `@JS`
+    - I don't care about `Isolate` and stuff like that
  
 ## What works
 
@@ -54,11 +60,15 @@ At the moment only translating `e2e_test` project, that means:
    - ecc.
  - exports (medium ? easy ?)
  - nullable expression (`??` operator `?=` operator) (super easy)
- 
+ - literals
+   - array
+   - map
+ - symbol (map to symbol)
  - complete expression (boring)
     - whats missing ?
  - factory constructors (super easy)
  - `async`, `async*`, `sync*` (should be easy as TS supports 'em all)
+   - map Future to Promise (difficulty level ?!?)
  - manage scope reference to "this." things (boring)
  - type name scope (subtle)
  - mixin (with polymer approach) (should be easy but no named constructor should be allowed)
@@ -68,8 +78,8 @@ At the moment only translating `e2e_test` project, that means:
    - Map<String,?> -> {}
  - deal with "@JS" things (easy)
  
- - dart_sdk port 
-    - collections (tricky)
+ - dart_sdk port
+    - collections (maybe tricky, expecially to maintain semantical compatibility)
     - package:html (easy)
     - what else ? (boh)
  
