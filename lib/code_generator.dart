@@ -251,6 +251,31 @@ class _ClassBuilderVisitor extends GeneralizingAstVisitor<String> {
   }
 }
 
+class _NamedParameterCollector extends GeneralizingAstVisitor<dynamic> {
+  Map<String, FormalParameter> _bag = {};
+  List<FormalParameter> _ordinal;
+
+  Map<String, FormalParameter> get named => _bag;
+
+  List<SimpleFormalParameter> get ordinal => _ordinal;
+
+  @override
+  visitFormalParameterList(FormalParameterList node) {
+    _bag = {};
+    _ordinal = [];
+    super.visitFormalParameterList(node);
+  }
+
+  @override
+  visitFormalParameter(FormalParameter node) {
+    if (node.kind == ParameterKind.NAMED) {
+      _bag[node.identifier.name] = node;
+    } else {
+      _ordinal.add(node);
+    }
+  }
+}
+
 class _FunctionExpressionVisitor extends _ExpressionBuilderVisitor {
   _FunctionExpressionVisitor(FileContext context) : super(context);
 
@@ -259,12 +284,28 @@ class _FunctionExpressionVisitor extends _ExpressionBuilderVisitor {
   }
 
   @override
-  String visitSimpleFormalParameter(SimpleFormalParameter node) =>
-      "${node.identifier} : ${toTsType(node.element.type)}";
+  String visitFormalParameter(FormalParameter node) {
+    return "${node.identifier}${node.kind.isOptional ? '?' : ''} : ${toTsType(node.element.type)}";
+  }
+
+  _NamedParameterCollector _namedParameters;
 
   @override
   String visitFormalParameterList(FormalParameterList node) {
-    return "(${node.parameters.map((p) => p.accept(this)).join(',')})";
+    // Create the named optional parameter
+    _namedParameters = new _NamedParameterCollector();
+    node.accept(_namedParameters);
+
+    // All parameters
+    Iterable<String> decls = (() sync* {
+      yield* _namedParameters.ordinal.map((f) => f.accept(this));
+      if (_namedParameters.named.isNotEmpty) {
+        yield "__namedParameters__? : {${_namedParameters.named.values.map((f) => "${f.identifier}:${toTsType(f.element.type)}").join(',')}}";
+      }
+    })();
+
+    // Join and return
+    return "(${decls.join(',')})";
   }
 
   String buildFunctionDeclaration(FunctionDeclaration node) {
@@ -282,7 +323,33 @@ class _FunctionExpressionVisitor extends _ExpressionBuilderVisitor {
 
   @override
   String _blockPreamble() {
-    return "/* BLOCK PREAMBLE */";
+    String namedArgs;
+    if (_namedParameters.named.isNotEmpty) {
+      String defaults = _namedParameters.named.values.map((p) {
+        if (p is DefaultFormalParameter) {
+          return "${p.identifier} : ${p.defaultValue?.accept(this) ?? 'null'}";
+        } else {
+          return "${p.identifier} : null";
+        }
+      }).join(',');
+      namedArgs =
+          "let {${_namedParameters.named.keys.join(',')}} = Object.assign({${defaults}},__namedParameters__);\n";
+    } else {
+      namedArgs = "";
+    }
+
+    String defaults = _namedParameters.ordinal
+        .where((x) =>
+            x.kind.isOptional &&
+            (x is DefaultFormalParameter) &&
+            x.defaultValue != null)
+        .map((d) => d as DefaultFormalParameter)
+        .map((d) =>
+            '${d.identifier} = ${d.identifier} || ${d.defaultValue.accept(this)};\n')
+        .join();
+
+    return "${namedArgs}"
+        "${defaults}\n/* BODY */";
   }
 }
 
@@ -452,7 +519,30 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   String visitArgumentList(ArgumentList node) {
-    return "(${node.arguments.map((e) => e.accept(this)).join(',')})";
+    List<Expression> normalPars = [];
+    List<NamedExpression> namedPars = [];
+
+    node.arguments.forEach((e){
+      if (e is NamedExpression) {
+        namedPars.add(e);
+      } else {
+        normalPars.add(e);
+      }
+    });
+
+    Iterable<String> args = (() sync* {
+      yield* normalPars.map((e)=>e.accept(this));
+      if (namedPars.isNotEmpty) {
+        yield "{${namedPars.map((n)=>n.accept(this)).join(',')}}";
+      }
+    })();
+
+    return "(${args.join(',')})";
+  }
+
+  @override
+  String visitNamedExpression(NamedExpression node) {
+    return "${node.name.label} : ${node.expression.accept(this)}";
   }
 
   @override
@@ -478,6 +568,9 @@ String toTsType(DartType type) {
       type.isSubtypeOf(type.element.context.typeProvider.listType
           .instantiate([type.typeArguments.single]))) {
     actualName = "Array";
+  } else if (type == type.element.context.typeProvider.numType ||
+      type == type.element.context.typeProvider.intType) {
+    actualName = 'number';
   } else {
     actualName = type.name;
   }

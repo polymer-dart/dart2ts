@@ -17,18 +17,18 @@ Only translating `e2e_test` project, that means:
  - named constructors
  - class extension
  - calling named constructors
- - basic class definition
-  
+ - basic class definition 
  - basic instance creation
+ - named parameters
+ - optional parameters
  
 ## Roadmap
 
- - TODO
-     - named parameters
-     - optional parameters
+ - using other libraries
+ - dart "typelibs" (libs with only declaration and all method declared external)
  - make class definition work
  - complete expression
- - named constructors, factory constructors
+ - factory constructors
  - deal with more complicated constructs like cascade operator, etc.
  - async
  - manage scope reference to "this." things

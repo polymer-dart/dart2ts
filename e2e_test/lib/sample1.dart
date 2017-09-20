@@ -29,7 +29,13 @@ void main(List<String> args) {
 
   xy.createSampleClass1().sayIt('final');
 
-  xy.createSampleClass2('ugo').sayIt2('picio');
+  xy.createSampleClass2('ugo').sayIt2('picio',5);
+
+  xy.MySampleClass1 a = xy.createSampleClass2('ciro');
+  a.sayItWithNamed('some',x:5,other: 'oth');
+  a.sayItWithNamed('thing',x:4);
+  a.sayItWithNamed('has',other:'uuu');
+  a.sayItWithNamed('changed');
 
   new xy.MySampleClass1.another('ugo2').sayIt('ugo2 says');
 

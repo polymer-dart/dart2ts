@@ -24,8 +24,12 @@ class MySampleClass1 extends AnotherClass {
 
   void sayIt(String msg) => sayHello(msg);
 
-  void sayIt2(String msg) {
+  void sayIt2(String msg,[num pippo=-1]) {
     sayHello(msg);
+  }
+
+  void sayItWithNamed(String arg,{String other:'ops',int x}) {
+    print("${arg} : ${other}, x: ${x}");
   }
 }
 
