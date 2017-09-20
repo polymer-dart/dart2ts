@@ -127,6 +127,7 @@ class Dart2TsVisitor extends GeneralizingAstVisitor<dynamic> {
 
 class ConstructorBuilder {
   final ConstructorDeclaration declaration;
+
   //final String symName;
   final bool isDefault;
   _ConstructorMethodBuilderVisitor _visitor;
@@ -148,28 +149,21 @@ class ConstructorBuilder {
       ? 'bare.init'
       : "${cons.enclosingElement.name}_${cons.name}";
 
-  static String accessorFor(ConstructorElement cons) =>cons.isDefaultConstructor
-       ? '[bare.init]' : ".${cons.name}";
+  static String accessorFor(ConstructorElement cons) =>
+      cons.isDefaultConstructor ? '[bare.init]' : ".${cons.name}";
 
   String get symName => symbolFor(declaration.element);
 
   String get accessor => accessorFor(declaration.element);
 
-  String buildSymbolDeclaration() => "export let ${symName}:symbol = Symbol();";
-
   String _signature() {
-    return "(${declaration.parameters.parameters.map((f)=>toTsType(f.element.type)).join(',')}) => void";
+    return "(${declaration.parameters.parameters.map((f) => toTsType(f.element.type)).join(',')}) => void";
   }
 
   String defineNamedConstructor() {
     return "static get ${declaration.element.name}() : ${_signature()} {\n"
-        "return bare.namedConstructor(${declaration.element.enclosingElement.name},'${declaration.element.name}');\n"
+        "return ${declaration.element.enclosingElement.name}.named('${declaration.element.name}');\n"
         "}";
-   //return "static ${declaration.element.name}${declaration.parameters.accept(_visitor)} { (this[${symName}]).apply(this,arguments); }";
-  }
-
-  String augmentNamedConstructor() {
-    return "${declaration.element.enclosingElement.name}.${declaration.element.name}.prototype = ${declaration.element.enclosingElement.name}.prototype;";
   }
 }
 
@@ -181,7 +175,9 @@ class _ConstructorMethodBuilderVisitor extends _FunctionExpressionVisitor {
       : super(_classBuilderVisitor._parentVisitor._context) {}
 
   String buildMethod() {
-    String name = _builder.isDefault?"[${_builder.symName}]":_builder.declaration.element.name;
+    String name = _builder.isDefault
+        ? "[${_builder.symName}]"
+        : _builder.declaration.element.name;
     return "${name}${_builder.declaration.parameters.accept(this)}${_builder.declaration.body.accept(this)}";
   }
 
@@ -226,13 +222,10 @@ class _ClassBuilderVisitor extends GeneralizingAstVisitor<String> {
     String members = node.members.map((m) => m.accept(this)).join('\n');
 
     String namedConstructors = _namedConstructors();
-    return "${_constructorSymbols()}\n"
-        "export class ${node.name.name}${node.extendsClause?.accept(this) ?? ' extends bare.Object'} {\n"
+    return "export class ${node.name.name}${node.extendsClause?.accept(this) ?? ' extends bare.Object'} {\n"
         "${namedConstructors}\n"
         "${members}"
-        "}\n"
-
-;
+        "}\n";
   }
 
   @override
@@ -242,14 +235,6 @@ class _ClassBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   String _namedConstructors() {
     return "${constructors.where((c) => !c.isDefault).map((c) => c.defineNamedConstructor()).join('\n')}";
-  }
-
-  String _augmentNamedConstructors() {
-    return "${constructors.where((c) => !c.isDefault).map((c) => c.augmentNamedConstructor()).join('\n')}";
-  }
-
-  String _constructorSymbols() {
-    return "${constructors.where((b) => !b.isDefault).map((b) => b.buildSymbolDeclaration()).join('\n')}";
   }
 
   @override
