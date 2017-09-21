@@ -10,11 +10,16 @@ void main(List<String> args) {
   print(args.map((x) => "[${x}]").join(','));
   print('\n');
 
+  int P = [0].first;
   int n = 5;
   n = ((n + 4) * 2) ^ 3;
   List<int> values = [n];
 
-  print("Result : ${values[0]}");
+  print("Result ${P} : ${values[0]} len : ${values.length}");
+
+  int x = [0].first + (values).first;
+
+  print("Result FIRST! : ${values.first}");
 
   String c = "wow!";
 

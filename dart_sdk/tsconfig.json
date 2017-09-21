@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "module": "es6",
-    "target": "es6",
+    "target": "es2015",
     "sourceMap": true,
     "declaration": true,
     "experimentalDecorators" :true

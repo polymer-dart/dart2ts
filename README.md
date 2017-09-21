@@ -38,10 +38,16 @@ At the moment only translating `e2e_test` project, that means:
  - optional parameters
  - cascading
  - `(cond)?true:false` conditional expressions
+ - this implicit reference for method invocation
+ - calling `.first` psuedo accessor on a `List` (it's replaced by an extension method)
  
 ## Roadmap
 
- - using other libraries (tricky)
+ - using other libraries (easy)
+   - declare dep on both `pubspec.yaml` and `package.json`
+   - build the dep and produce typelibs and js 
+   - when main project is built the already compiled is used for runtime and the dart as analysis
+     - dart could be replaced by summaries or by generated "dart type lib" : a version of the original lib with only external declarations.
  - dart "typelibs" (libs with only declaration and all method declared external) (boring)
  - make class definition work (easy)
   - redir constructors
@@ -70,9 +76,8 @@ At the moment only translating `e2e_test` project, that means:
  - `async`, `async*`, `sync*` (should be easy as TS supports 'em all)
    - map Future to Promise (difficulty level ?!?)
  - manage scope reference to "this." things (boring)
- - type name scope (subtle)
  - mixin (with polymer approach) (should be easy but no named constructor should be allowed)
- - `implements` (very subtle)
+ - `implements` (subtle , typescript implement of classes is the same of dart?)
  - deal with "rewriting" some method calls, like : (tricky) 
    - List -> Array
    - Map<String,?> -> {}

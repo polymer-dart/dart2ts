@@ -18,5 +18,11 @@ function namedConstructor(clazz, name) {
 
 let init: symbol = Symbol();
 
+namespace List {
+    export function first<T>(list:Array<T>):T {
+        return list[0];
+    }
+}
 
-export {named, namedConstructor, init};
+
+export {named, namedConstructor, init, List};

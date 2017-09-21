@@ -3,9 +3,12 @@ import 'dart:async';
 import 'package:analyzer/analyzer.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
+import 'package:analyzer/src/dart/ast/ast.dart';
 import 'package:args/command_runner.dart';
 import 'package:build/build.dart';
 import 'package:build_runner/build_runner.dart';
+import 'package:dart2ts/overrides.dart';
+import 'package:dart2ts/utils.dart';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
 import 'package:source_gen/source_gen.dart';
@@ -498,23 +501,98 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     Expression t = node.target;
     String reference;
 
+    String target;
+    String name;
+
     if (t == null ||
         (t is SimpleIdentifier && t.staticElement is PrefixElement)) {
       // get the function name for ts
       Element el = _findEnclosingScope(node);
+      target = null;
 
-      if (t == null && node.realTarget != null) {
-        //Cascade ?
-        reference = node.methodName.name;
-      } else
-        reference = _resolve(node.methodName.staticElement, from: el);
+      if (node.isCascaded) {
+        name = node.methodName.name;
+      } else {
+        name = _resolve(node.methodName.staticElement, from: el);
+      }
     } else {
-      reference = "${t.accept(this)}.${node.methodName}";
+      target = t.accept(this);
+      name = node.methodName.name;
     }
 
-    return "${reference}${node.argumentList.accept(this)}";
+    if (t == null &&
+        node.realTarget == null &&
+        (node.methodName.staticElement is MethodElement)) {
+      target = "this";
+    }
+
+    // check for interceptors
+    MethodInterceptor interceptor = lookupInterceptor(node);
+
+    String arguments = node.argumentList.accept(this);
+    if (interceptor != null) {
+      return interceptor.build(node, target, name, arguments);
+    } else {
+      reference = "${target != null ? '${target}.' : ''}${name}";
+
+      return "${reference}${arguments}";
+    }
   }
 
+
+  @override
+  String visitPrefixedIdentifier(PrefixedIdentifier node) {
+    if (node.prefix.staticElement is PrefixElement) {
+      return "${_prefixFor(node.prefix.staticElement,from:node.identifier.staticElement)}${node.identifier}";
+    }
+
+    // Is this a property access instead ?
+    AccessorInterceptor interceptor = node.parent is! AssignmentExpression
+        ? lookupAccessorInterceptor(node.identifier.staticElement)
+        : null;
+
+    if (interceptor != null) {
+      return interceptor.buildRead(node.identifier.staticElement, node.prefix.accept(this), node.identifier.name);
+    } else {
+      return "${node.prefix.accept(this)}.${node.identifier.accept(this)}";
+    }
+
+  }
+
+  @override
+  String visitPropertyAccess(PropertyAccess node) {
+    Expression t = node.target;
+    String reference;
+
+    String target;
+    String name;
+
+    if (t == null) {
+      target = null;
+    } else {
+      target = t.accept(this);
+    }
+    name = node.propertyName.name;
+
+    if (t == null &&
+        node.realTarget == null &&
+        (node.propertyName.staticElement is FieldElement)) {
+      target = "this";
+    }
+
+    // check for interceptors
+    AccessorInterceptor interceptor = node.parent is! AssignmentExpression
+        ? lookupAccessorInterceptorFromAccess(node)
+        : null;
+
+    if (interceptor != null) {
+      return interceptor.buildRead(node.propertyName.staticElement, target, name);
+    } else {
+      reference = "${target != null ? '${target}.' : ''}${name}";
+
+      return "${reference}";
+    }
+  }
 
   @override
   String visitConditionalExpression(ConditionalExpression node) {
@@ -625,10 +703,7 @@ String toTsType(DartType type) {
   }
 
   String actualName;
-  if ((type is ParameterizedType) &&
-      type.typeArguments.length == 1 &&
-      type.isSubtypeOf(type.element.context.typeProvider.listType
-          .instantiate([type.typeArguments.single]))) {
+  if (isListType(type)) {
     actualName = "Array";
   } else if (type == type.element.context.typeProvider.numType ||
       type == type.element.context.typeProvider.intType) {

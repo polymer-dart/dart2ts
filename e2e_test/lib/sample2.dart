@@ -1,3 +1,6 @@
+
+
+
 void sayHello(String msg) {
   print(msg);
 }
@@ -30,6 +33,7 @@ class MySampleClass1 extends AnotherClass {
 
   void sayItWithNamed(String arg,{String other:'ops',int x}) {
     print("${arg} : ${other}, x: ${x}");
+    sayIt2(arg);
   }
 }
 
