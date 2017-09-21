@@ -1,25 +1,61 @@
 import 'sample2.dart' as xy;
+import 'package:js/js.dart';
+
+@JS()
+external void alert(String);
+
+
+@JS()
+external class Document {
+  Element get body;
+  HTMLDivElement createElement(String div);
+}
+
+@JS()
+external Document document;
+
+
+@JS()
+external class Element {
+  void appendChild(Element e);
+}
+
+@JS()
+external class HTMLDivElement extends Element {
+  String innerHTML;
+}
+
+void printToBody(String message) => document.body.appendChild(document.createElement('div')
+    ..innerHTML=message);
+
 
 void main(List<String> args) {
+  printToBody("<h1>GOOD MORNING DART2TS!!</h1>");
   xy.sayHello('Hello Dart2TS');
+
+  printToBody("<b>DOC!</b> : ${document.body}");
+
+  HTMLDivElement e = document.createElement('div')
+    ..innerHTML = 'ciao ciao dart 2ts!!';
+  document.body.appendChild(e);
 
   ciao(String x) {
     xy.sayHello(x);
   }
 
-  print(args.map((x) => "[${x}]").join(','));
-  print('\n');
+  printToBody(args.map((x) => "[${x}]").join(','));
+  printToBody('\n');
 
   int P = [0].first;
   int n = 5;
   n = ((n + 4) * 2) ^ 3;
   List<int> values = [n];
 
-  print("Result ${P} : ${values[0]} len : ${values.length}");
+  printToBody("Result ${P} : ${values[0]} len : ${values.length}");
 
   int x = [0].first + (values).first;
 
-  print("Result FIRST! : ${values.first}");
+  printToBody("Result FIRST! : ${values.first}");
 
   String c = "wow!";
 
@@ -42,14 +78,14 @@ void main(List<String> args) {
     ..sayItWithNamed('has', other: 'uuu')
     ..sayItWithNamed('changed');
 
-  print("A = ${a.title} , ${a.otherField}");
+  printToBody("A = ${a.title} , ${a.otherField}");
 
   a.otherField = a;
 
-  print("U : ${a.otherField.otherField.title}");
+  printToBody("U : ${a.otherField.otherField.title}");
 
   a.theTitle = 'jungle';
-  print("CHANGED : ${a.title}");
+  printToBody("CHANGED : ${a.title}");
 
   new xy.MySampleClass1.another('ugo2').sayIt('ugo2 says');
 
@@ -61,5 +97,5 @@ void main(List<String> args) {
 
   new xy.MakeItReal();
 
-  print('bye!');
+  printToBody('bye!');
 }

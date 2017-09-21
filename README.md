@@ -42,7 +42,11 @@ At the moment only translating `e2e_test` project, that means:
  - calling `.first` psuedo accessor on a `List` (it's replaced by an extension method)
  - property
  - property accessor
+ - top level variable
+ - initial support for @JS
  
+ 'e2e_test' project is now able to write on the HTML page !!!
+   
 ## Roadmap
 
  - using other libraries (easy)

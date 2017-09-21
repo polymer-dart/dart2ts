@@ -119,6 +119,13 @@ class Dart2TsVisitor extends GeneralizingAstVisitor<dynamic> {
 
   @override
   visitFunctionDeclaration(FunctionDeclaration node) {
+
+    _consumer.writeln(node.accept(_expressionBuilderVisitor));
+  }
+
+
+  @override
+  visitTopLevelVariableDeclaration(TopLevelVariableDeclaration node) {
     _consumer.writeln(node.accept(_expressionBuilderVisitor));
   }
 
@@ -237,6 +244,11 @@ class _ClassBuilderVisitor extends _ExpressionBuilderVisitor {
   String visitClassDeclaration(ClassDeclaration node) {
     // TODO : need a strategy for "named" constructor and "factory"
     // probably we end up in static factory methods or to a constructor with and added parameter
+
+    if (node.element.metadata.any((e)=>e.isJS)) {
+      return "/* external class ${node.name} */";
+    }
+
 
     String members = node.members.map((m) => m.accept(this)).join('\n');
 
@@ -376,11 +388,21 @@ class _FunctionExpressionVisitor extends _ExpressionBuilderVisitor {
   String buildFunctionDeclaration(FunctionDeclaration node) {
     String res;
 
+    if (node.externalKeyword!=null) {
+      return "/** EXTERNAL ${node.name} */";
+    }
+
+
     res =
         "function ${node.functionExpression.element?.name ?? ''}${node.functionExpression.parameters.accept(this)}${node.functionExpression.body.accept(this)}";
 
     return _context.export(res, node.element);
   }
+
+
+
+
+
 
   String buildMethodDeclaration(MethodDeclaration node) {
 
@@ -450,10 +472,25 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   String visitSimpleIdentifier(SimpleIdentifier node) {
-    if ((node.staticElement is FieldElement || node.staticElement is PropertyAccessorElement) && node.parent is!PrefixedIdentifier) {
+    if ((node.staticElement is FieldElement || node.staticElement is PropertyAccessorElement) && node.parent is!PrefixedIdentifier && node.staticElement.enclosingElement is! CompilationUnitElement) {
       return "this.${node.name}";
     }
     return node.name;
+  }
+
+  @override
+  String visitTopLevelVariableDeclaration(TopLevelVariableDeclaration node) {
+
+    return node.variables.variables.map((v) {
+      if (v.element.metadata?.any((a)=>a.isJS)??false) {
+        return "/* external var ${node.variables}*/";
+      }
+
+      return "export let ${v.accept(this)};";
+    }).join('\n');
+
+
+
   }
 
   @override
@@ -653,6 +690,12 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     return !(e is MethodElement && (e.returnType.isVoid) || e is PropertyAccessorElement && e.isSetter);
   }
 
+
+  @override
+  String visitEmptyFunctionBody(EmptyFunctionBody node) {
+    return ";";
+  }
+
   @override
   String visitExpressionFunctionBody(ExpressionFunctionBody node) =>
       "{ ${_blockPreamble()}${canReturn((node.parent as dynamic).element)?'return ':''}${node.expression.accept(this)}; }";
@@ -743,6 +786,8 @@ String toTsType(DartType type) {
   } else if (type == type.element.context.typeProvider.numType ||
       type == type.element.context.typeProvider.intType) {
     actualName = 'number';
+  } else if (type == type.element.context.typeProvider.stringType) {
+    actualName = 'string';
   } else {
     actualName = type.name;
   }
