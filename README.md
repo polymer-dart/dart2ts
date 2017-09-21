@@ -40,6 +40,8 @@ At the moment only translating `e2e_test` project, that means:
  - `(cond)?true:false` conditional expressions
  - this implicit reference for method invocation
  - calling `.first` psuedo accessor on a `List` (it's replaced by an extension method)
+ - property
+ - property accessor
  
 ## Roadmap
 
@@ -53,9 +55,8 @@ At the moment only translating `e2e_test` project, that means:
   - redir constructors
   - field initializers 
   - field parameters
-  - properties & accessors
-    - initializers
-    - static
+  - properties initializers
+  
   
  - flow control statemets (easy)
    - for

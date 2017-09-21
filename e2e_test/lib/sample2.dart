@@ -2,16 +2,27 @@
 
 
 void sayHello(String msg) {
-  print(msg);
+  print(msg);/* */
 }
 
 class AnotherClass {
+
+  String _title;
+
+  String get title => _title;
+
+  void set theTitle(String t) => _title = t;
+
+  AnotherClass otherField;
+
   AnotherClass({String named,int num}) {
     print('parent :${named} , ${num}');
+    this._title = ''
   }
 
   AnotherClass.other(String x) {
     print('parent other ${x}');
+    this._title = 'uga : ${x}';
   }
 }
 

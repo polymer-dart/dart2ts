@@ -42,6 +42,15 @@ void main(List<String> args) {
     ..sayItWithNamed('has', other: 'uuu')
     ..sayItWithNamed('changed');
 
+  print("A = ${a.title} , ${a.otherField}");
+
+  a.otherField = a;
+
+  print("U : ${a.otherField.otherField.title}");
+
+  a.theTitle = 'jungle';
+  print("CHANGED : ${a.title}");
+
   new xy.MySampleClass1.another('ugo2').sayIt('ugo2 says');
 
   new xy.MySampleClass2();
