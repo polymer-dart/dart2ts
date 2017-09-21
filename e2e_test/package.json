@@ -4,11 +4,14 @@
   "description": "a test for it",
   "main": "lib/index.html",
   "scripts": {
-    "start": "webpack --config webpack.config.js",
+    "build": "webpack --config webpack.config.js",
     "serve": "webpack-dev-server --config webpack.config.js"
   },
   "author": "",
   "license": "ISC",
+  "dependencies": {
+    "dart_sdk" : "file://../dart_sdk"
+  },
   "devDependencies": {
     "ts-loader": "^2.3.7",
     "typescript": "^2.5.2",

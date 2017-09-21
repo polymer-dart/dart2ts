@@ -657,7 +657,7 @@ class FileContext {
   FileContext(this._current);
 
   Map<String, TSImport> _prefixes = {
-    '#NOURI#': new TSImport(prefix: 'bare', path: './dart_sdk/bare')
+    '#NOURI#': new TSImport(prefix: 'bare', path: 'dart_sdk/bare')
   };
 
   String _nextPrefix() => "lib${_prefixes.length}";
@@ -679,7 +679,7 @@ class FileContext {
         // Replace with ts_sdk
         return new TSImport(
             prefix: _nextPrefix(),
-            path: "./dart_sdk/${lib.name.substring(5)}",
+            path: "dart_sdk/${lib.name.substring(5)}",
             library: lib);
       }
 
