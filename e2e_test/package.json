@@ -10,7 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "dart_sdk" : "file://../dart_sdk"
+    "dart_sdk": "file:../dart_sdk/"
   },
   "devDependencies": {
     "ts-loader": "^2.3.7",

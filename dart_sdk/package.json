@@ -1,16 +1,16 @@
 {
   "name": "dart_sdk",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "DartSDK emu",
   "scripts": {
-    "build": "webpack --config webpack.config.js"
+    "build": "tsc"
   },
-  "author": "",
+  "files" : [
+    "*.js","*.d.ts","package.json"
+  ],
+  "author": "vittorio.ballestra@gmail.com",
   "license": "ISC",
   "devDependencies": {
-    "ts-loader": "^2.3.7",
-    "typescript": "^2.5.2",
-    "webpack": "^3.6.0",
-    "webpack-dev-server": "^2.8.2"
+    "typescript": "^2.5.2"
   }
 }
