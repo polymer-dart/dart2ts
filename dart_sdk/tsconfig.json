@@ -4,7 +4,8 @@
     "target": "es2015",
     "sourceMap": true,
     "declaration": true,
-    "experimentalDecorators" :true
+    "experimentalDecorators" :true,
+    "lib": ["es2015","esnext.asynciterable","DOM","ScriptHost"]
   },
   "exclude": [
     "node_modules"

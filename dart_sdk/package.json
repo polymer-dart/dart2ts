@@ -6,7 +6,7 @@
     "build": "tsc"
   },
   "files" : [
-    "*.js","*.d.ts","package.json"
+    "**/*.js","**/*.d.ts","package.json"
   ],
   "author": "vittorio.ballestra@gmail.com",
   "license": "ISC",

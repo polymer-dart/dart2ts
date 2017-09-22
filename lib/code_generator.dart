@@ -249,7 +249,6 @@ class _ClassBuilderVisitor extends _ExpressionBuilderVisitor {
       return "/* external class ${node.name} */";
     }
 
-
     String members = node.members.map((m) => m.accept(this)).join('\n');
 
     String namedConstructors = _namedConstructors();
@@ -275,7 +274,7 @@ class _ClassBuilderVisitor extends _ExpressionBuilderVisitor {
     return "export namespace ${node.name.name} {\n"
         "export namespace constructors {\n"
         "${_namedInterfaces()}"
-        "\n}\n}\nexport class ${node.name.name}${node.extendsClause?.accept(this) ?? ''} {\n"
+        "\n}\n}\nexport class ${node.name.name}${node.typeParameters?.accept(this)??''}${node.extendsClause?.accept(this) ?? ''} {\n"
         "${extra}"
         "constructor(...args){\n"
         " ${superCall}"
@@ -283,6 +282,24 @@ class _ClassBuilderVisitor extends _ExpressionBuilderVisitor {
         "${namedConstructors}\n"
         "${members}"
         "}\n";
+  }
+
+
+  @override
+  String visitTypeParameterList(TypeParameterList node) {
+    return "<${node.typeParameters.map((tp)=>tp.accept(this)).join(',')}>";
+  }
+
+
+  @override
+  String visitTypeParameter(TypeParameter node) {
+    String e;
+    if (node.extendsKeyword!=null) {
+      e = "extends ${toTsType(node.bound.type)}";
+    } else {
+      e = "";
+    }
+    return "${node.name.name}${e}";
   }
 
   String _namedInterfaces() => constructors
@@ -310,8 +327,6 @@ class _ClassBuilderVisitor extends _ExpressionBuilderVisitor {
     // TODO : variable type
     return "${node.name.name}:${toTsType(node.element.type)}${node.initializer != null ? '= ${node.initializer.accept(this)}' : ''}";
   }
-
-
 
 
   @override
@@ -385,6 +400,8 @@ class _FunctionExpressionVisitor extends _ExpressionBuilderVisitor {
     return "(${decls.join(',')})";
   }
 
+
+
   String buildFunctionDeclaration(FunctionDeclaration node) {
     String res;
 
@@ -456,6 +473,19 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
         .buildFunctionDeclaration(node);
   }
 
+
+  @override
+  String visitDeclaredIdentifier(DeclaredIdentifier node) {
+    if (node.isConst) {
+      return "const ${node.identifier.name};";
+    }
+    return node.identifier.name;
+  }
+
+
+  String toTsType(DartType t) => _context.toTsType(t);
+
+
   @override
   String visitCascadeExpression(CascadeExpression node) {
     return "(((_) => {${node.cascadeSections.map((e)=>"_.${e.accept(this)};").join('\n')}\nreturn _;})(${node.target.accept(this)}))";
@@ -510,6 +540,10 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
       return node.element;
     }
 
+    if (node is CompilationUnit) {
+      return node.element;
+    }
+
     return _findEnclosingScope(node.parent);
   }
 
@@ -520,7 +554,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   }
 
   String _prefixFor(Element ele, {Element from}) {
-    if (ele.library == from.library || ele.kind==ElementKind.CLASS&& ele.library.isInSdk) {
+    if (ele.library == from.library || ele.kind==ElementKind.CLASS&& ele.library.name=='dart.core') {
       return "";
     }
 
@@ -535,7 +569,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   @override
   String visitVariableDeclaration(VariableDeclaration node) {
     // TODO : variable type
-    return "${node.name.name}:${_prefixFor(node.element.type.element,from:node.element)}${toTsType(node.element.type)}${node.initializer != null ? '= ${node.initializer.accept(this)}' : ''}";
+    return "${node.name.name}:${toTsType(node.element.type)}${node.initializer != null ? '= ${node.initializer.accept(this)}' : ''}";
   }
 
   @override
@@ -707,6 +741,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   @override
   String visitTypeName(TypeName node) => toTsType(node.type);
 
+
   @override
   String visitParenthesizedExpression(ParenthesizedExpression node) =>
       "${node.leftParenthesis}${node.expression.accept(this)}${node.rightParenthesis}";
@@ -775,29 +810,6 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   String visitInterpolationString(InterpolationString node) => node.value;
 }
 
-String toTsType(DartType type) {
-  if (type.isDynamic) {
-    return "any";
-  }
-
-  String actualName;
-  if (isListType(type)) {
-    actualName = "Array";
-  } else if (type == type.element.context.typeProvider.numType ||
-      type == type.element.context.typeProvider.intType) {
-    actualName = 'number';
-  } else if (type == type.element.context.typeProvider.stringType) {
-    actualName = 'string';
-  } else {
-    actualName = type.name;
-  }
-  if (type is ParameterizedType && type.typeArguments.isNotEmpty) {
-    return "${actualName}<${type.typeArguments.map((t) => toTsType(t)).join(',')}>";
-  } else {
-    return actualName;
-  }
-}
-
 class TSImport {
   String prefix;
   String path;
@@ -819,7 +831,7 @@ class FileContext {
 
   AssetId _toAssetId(String uri) {
     if (uri.startsWith('asset:')) {
-      List<String> parts = path.split(uri.substring(7));
+      List<String> parts = path.split(uri.substring(6));
       return new AssetId(parts.first, path.joinAll(parts.sublist(1)));
     }
     throw "Cannot convert to assetId : ${uri}";
@@ -847,6 +859,8 @@ class FileContext {
       if (id.package == currentId.package) {
         libPath =
             "./${path.withoutExtension(path.relative(id.path, from: path.dirname(currentId.path)))}";
+      } else {
+        libPath="${id.package}/${path.withoutExtension(id.path)}";
       }
 
       // TODO : Extract package name and path and produce a nodemodule path
@@ -860,4 +874,39 @@ class FileContext {
     }
     return res;
   }
+
+
+  String toTsType(DartType type) {
+    if (type.isDynamic) {
+      return "any";
+    }
+
+    String p;
+    if (type.element.library!=_current && !type.element.library.isDartCore) {
+      p = "${namespace(type.element.library)}.";
+    } else {
+      p = "";
+    }
+
+    String actualName;
+    if (isListType(type)) {
+      actualName = "Array";
+    } else if (type == type.element.context.typeProvider.numType ||
+        type == type.element.context.typeProvider.intType) {
+      actualName = 'number';
+    } else if (type == type.element.context.typeProvider.stringType) {
+      actualName = 'string';
+    } else if (type == type.element.context.typeProvider.boolType) {
+      actualName = 'boolean';
+    } else {
+      actualName = type.name;
+    }
+    if (type is ParameterizedType && type.typeArguments.isNotEmpty) {
+      return "${p}${actualName}<${type.typeArguments.map((t) => toTsType(t)).join(',')}>";
+    } else {
+      return "${p}${actualName}";
+    }
+  }
+
 }
+
