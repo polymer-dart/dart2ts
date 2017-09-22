@@ -57,6 +57,10 @@ export interface StreamControllerBroadcastConstructor<X> {
 export class StreamController<X> {
     private _stream: _Stream<X>;
 
+    get stream():Stream<X> {
+        return this._stream;
+    }
+
     constructor() {
         this._stream = new _Stream<X>();
     }
@@ -73,6 +77,9 @@ export class StreamController<X> {
         this._stream.add(x);
     }
 
+}
+
+export interface StreamSink<X> {
 
 }
 
