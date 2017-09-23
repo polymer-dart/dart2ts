@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:analyzer/analyzer.dart';
 import 'package:analyzer/dart/ast/token.dart';
+import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:analyzer/src/dart/ast/ast.dart';
@@ -114,8 +115,8 @@ class Dart2TsVisitor extends GeneralizingAstVisitor<dynamic> {
     _expressionBuilderVisitor = new _ExpressionBuilderVisitor(_context);
     _consumer.writeln('// Generated code');
     super.visitCompilationUnit(node);
-    _context._prefixes.values.forEach(
-        (i) => _consumer.writeln('import * as ${i.prefix} from "${i.path}";'));
+    _context._prefixes.forEach((u, i) => _consumer
+        .writeln('/* $u */\nimport * as ${i.prefix} from "${i.path}";'));
   }
 
   @override
@@ -474,6 +475,21 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   @override
   String visitSimpleIdentifier(SimpleIdentifier node) {
     AstNode p = node.parent;
+    if (node.staticElement is ClassElement) {
+      return toTsType((node.staticElement as ClassElement).type);
+    }
+
+    // Is actually ever happening ?
+    if ((node.staticElement is VariableElement )&&
+        getAnnotation(node.staticElement.metadata, isJS) != null) {
+      return _context.toJSName(node.staticElement);
+    }
+
+    if ((node.staticElement is PropertyAccessorElement)&&
+        getAnnotation((node.staticElement as PropertyAccessorElement).variable.metadata, isJS) != null) {
+      return _context.toJSName((node.staticElement as PropertyAccessorElement).variable);
+    }
+
     if (node.token.previous?.type != TokenType.PERIOD) {
       return "${_checkImplicitThis(node)}${node.name}";
     }
@@ -485,7 +501,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   String visitTopLevelVariableDeclaration(TopLevelVariableDeclaration node) {
     return node.variables.variables.map((v) {
       if (v.element.metadata?.any((a) => a.isJS) ?? false) {
-        return "/* external var ${node.variables}*/";
+        return "/* external var ${v}*/";
       }
 
       return "export let ${v.accept(this)};";
@@ -539,6 +555,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   @override
   String visitVariableDeclaration(VariableDeclaration node) {
     // TODO : variable type
+
     return "${node.name.name}:${toTsType(node.element.type)}${node.initializer != null ? '= ${node.initializer.accept(this)}' : ''}";
   }
 
@@ -556,7 +573,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     String p = _prefixFor(node.staticElement.enclosingElement, from: el);
     return translatorRegistry.newInstance(
         node.staticElement,
-        "${p}${node.staticElement.enclosingElement.name}",
+        "${toTsType(node.staticElement.enclosingElement.type)}",
         arguments(node.argumentList).toList());
   }
 
@@ -580,9 +597,15 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
       return translatorRegistry.invokeMethod(
           node.methodName.staticElement,
           target,
-          node.methodName.name,
+          _methodName(node.methodName.staticElement),
           this.arguments(node.argumentList).toList());
     }
+
+    throw "What else ?";
+  }
+
+  String _methodName(MethodElement method) {
+    return method.name;
   }
 
   @override
@@ -596,18 +619,19 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
     assert(accessor.isGetter); // Setter case should be handler by assignament
 
-    return translatorRegistry.getProperty(node.prefix.bestType,
-        accessor, node.prefix.accept(this), accessor.name);
+    return translatorRegistry.getProperty(node.prefix.bestType, accessor,
+        node.prefix.accept(this), accessor.name);
   }
 
   @override
   String visitPropertyAccess(PropertyAccess node) {
-    PropertyAccessorElement access= node.propertyName.staticElement;
-    assert(access.isGetter);  // Setter is handled in assignment
+    PropertyAccessorElement access = node.propertyName.staticElement;
+    assert(access.isGetter); // Setter is handled in assignment
 
-    String target = node?.target.accept(this);
+    String target = node?.target?.accept(this);
 
-    return translatorRegistry.getProperty(node?.target?.bestType,access, target, access.variable.name);
+    return translatorRegistry.getProperty(
+        node?.target?.bestType, access, target, access.variable.name);
   }
 
   @override
@@ -686,8 +710,8 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     }
 
     assert(accessor.isSetter);
-    return translatorRegistry.setProperty(targetType,
-        accessor, target, accessor.variable.name, node.rightHandSide.accept(this));
+    return translatorRegistry.setProperty(targetType, accessor, target,
+        accessor.variable.name, node.rightHandSide.accept(this));
   }
 
   @override
@@ -781,6 +805,18 @@ class TSImport {
   TSImport({this.prefix, this.path, this.library});
 }
 
+class JSPath {
+  List<String> modulePathElements = [];
+  List<String> namespacePathElements = [];
+
+  String get moduleUri =>
+      modulePathElements.isEmpty ? null : "module:${modulePath}";
+
+  String get modulePath => modulePathElements.join('/');
+
+  String get name => namespacePathElements.join('.');
+}
+
 class FileContext {
   LibraryElement _current;
 
@@ -799,13 +835,13 @@ class FileContext {
     }
     throw "Cannot convert to assetId : ${uri}";
   }
-
+/*
   String namespace(LibraryElement lib) {
     String uri = lib.source.uri.toString();
 
     AssetId currentId = _toAssetId(_current.source.uri.toString());
     return _prefixes.putIfAbsent(uri, () {
-      if (_current.context.sourceFactory.dartSdk.uris.contains(uri)) {
+      if (lib.isInSdk) {
         // Replace with ts_sdk
         return new TSImport(
             prefix: _nextPrefix(),
@@ -829,6 +865,41 @@ class FileContext {
       // TODO : Extract package name and path and produce a nodemodule path
       return new TSImport(prefix: _nextPrefix(), path: libPath, library: lib);
     }).prefix;
+  }*/
+
+  String namespace(LibraryElement lib) => namespaceFor(lib: lib);
+
+  String namespaceFor({String uri, String modulePath, LibraryElement lib}) {
+    uri ??= lib.source.uri.toString();
+
+    return _prefixes.putIfAbsent(uri, () {
+      if (lib == null) {
+        return new TSImport(prefix: _nextPrefix(), path: modulePath);
+      }
+      if (lib.isInSdk) {
+        // Replace with ts_sdk
+        return new TSImport(
+            prefix: _nextPrefix(),
+            path: "dart_sdk/${lib.name.substring(5)}",
+            library: lib);
+      }
+
+      // TODO : If same package produce a relative path
+      AssetId currentId = _toAssetId(_current.source.uri.toString());
+      AssetId id = _toAssetId(uri);
+
+      String libPath;
+
+      if (id.package == currentId.package) {
+        libPath =
+            "./${path.withoutExtension(path.relative(id.path, from: path.dirname(currentId.path)))}";
+      } else {
+        libPath = "${id.package}/${path.withoutExtension(id.path)}";
+      }
+
+      // TODO : Extract package name and path and produce a nodemodule path
+      return new TSImport(prefix: _nextPrefix(), path: libPath, library: lib);
+    }).prefix;
   }
 
   String export(String res, Element e) {
@@ -838,7 +909,77 @@ class FileContext {
     return res;
   }
 
+  static final RegExp NAME_PATTERN = new RegExp('(([^#]+)#)?(.*)');
+
+  JSPath _collectJSPath(Element start) {
+    var collector = (Element e, JSPath p, var c) {
+      if (e is! CompilationUnitElement) {
+        c(e.enclosingElement, p, c);
+      }
+
+      // Collect if metadata
+      String name =
+          getAnnotation(e.metadata, isJS)?.getField('name')?.toStringValue();
+      if (name != null && name.isNotEmpty) {
+        Match m = NAME_PATTERN.matchAsPrefix(name);
+        if (m != null&&m[2]!=null) {
+          p.modulePathElements.add(m[2]);
+          if ((m[3]??'').isNotEmpty) p.namespacePathElements.add(m[3]);
+        } else {
+          p.namespacePathElements.add(name);
+        }
+      } else if (e == start) {
+        // Add name if it's the first
+        p.namespacePathElements.add(e.name);
+      }
+    };
+
+    JSPath p = new JSPath();
+    collector(start, p, collector);
+    return p;
+  }
+
+  String toJSName(Element element) {
+    JSPath jspath = _collectJSPath(
+        element); // note: we should check if var is top, but ... whatever.
+    String name;
+    if (jspath.namespacePathElements.isNotEmpty) {
+      if (jspath.modulePathElements.isNotEmpty) {
+        name =
+            namespaceFor(uri: jspath.moduleUri, modulePath: jspath.modulePath) +
+                "." +
+                jspath.name;
+      } else {
+        name = jspath.name;
+      }
+    } else {
+      name = element.name;
+    }
+
+    return name;
+  }
+
   String toTsType(DartType type) {
+    // Look for @JS annotations
+
+    if (getAnnotation(type.element.metadata, isJS) != null) {
+      // check if we got a package annotation
+      JSPath path = _collectJSPath(type.element);
+      // Lookup for prefix
+      String moduleUri = path.moduleUri;
+
+      String prefix;
+      if (moduleUri != null) {
+        prefix =
+            namespaceFor(uri: path.moduleUri, modulePath: path.modulePath) +
+                '.';
+      } else {
+        prefix = "";
+      }
+
+      return "${prefix}${path.name}";
+    }
+
     if (type.isDynamic) {
       return "any";
     }

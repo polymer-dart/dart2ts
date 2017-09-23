@@ -3,65 +3,6 @@ import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:dart2ts/utils.dart';
 
-abstract class MethodInterceptor {
-  String build(MethodInvocation invocation, String target, String name,
-      String arguments);
-}
-
-abstract class AccessorInterceptor {
-  String buildRead(
-      PropertyAccessorElement invocation, String target, String name);
-}
-
-class ExtensionMethodInterceptor implements MethodInterceptor {
-  String _extensionMethod;
-
-  ExtensionMethodInterceptor(this._extensionMethod);
-
-  @override
-  String build(MethodInvocation invocation, String target, String name,
-      String arguments) {
-    return "${_extensionMethod}.apply(this,[${target}].push${arguments})";
-  }
-}
-
-class ExtensionAccessInterceptor implements AccessorInterceptor {
-  String _extensionMethod;
-
-  ExtensionAccessInterceptor(this._extensionMethod);
-
-  @override
-  String buildRead(PropertyAccessorElement access, String target, String name) {
-    return "${_extensionMethod}.call(this,${target})";
-  }
-}
-
-Map<String, MethodInterceptor> _listInterceptors = {};
-
-Map<String, AccessorInterceptor> _listAccessorInterceptors = {
-  "first": new ExtensionAccessInterceptor('bare.List.first')
-};
-
-MethodInterceptor lookupInterceptor(MethodInvocation invocation) {
-  Element e = invocation.methodName.staticElement?.enclosingElement;
-  if (e is ClassElement && isListType(e.type)) {
-    return _listInterceptors[invocation.methodName.name];
-  }
-  return null;
-}
-
-AccessorInterceptor lookupAccessorInterceptorFromAccess(
-        PropertyAccess access) =>
-    lookupAccessorInterceptor(access.propertyName.staticElement);
-
-AccessorInterceptor lookupAccessorInterceptor(Element property) {
-  Element e = property?.enclosingElement;
-  if (e is ClassElement && (isListType(e.type) || isIterableType(e.type))) {
-    return _listAccessorInterceptors[property.name];
-  }
-  return null;
-}
-
 abstract class Translator {
   bool checkOp(MethodElement operator);
   bool checkMethod(MethodElement method);
@@ -93,7 +34,8 @@ class DefaultTranslator implements Translator {
       target != null && target.isNotEmpty ? "${target}." : "";
 
   @override
-  bool checkAccessor(DartType targetType,PropertyAccessorElement accessor) => true;
+  bool checkAccessor(DartType targetType, PropertyAccessorElement accessor) =>
+      true;
 
   @override
   bool checkField(FieldElement field) => true;
@@ -117,8 +59,8 @@ class DefaultTranslator implements Translator {
       "${target}.${propertyName}";
 
   @override
-  String getProperty(DartType targetType,
-          PropertyAccessorElement getter, String target, String propertyName) =>
+  String getProperty(DartType targetType, PropertyAccessorElement getter,
+          String target, String propertyName) =>
       "${target}.${propertyName}";
 
   @override
@@ -144,8 +86,8 @@ class DefaultTranslator implements Translator {
       "${_target(target)}${propertyName}=${value}";
 
   @override
-  String setProperty(DartType targetType,PropertyAccessorElement setter, String target,
-          String propertyName, String value) =>
+  String setProperty(DartType targetType, PropertyAccessorElement setter,
+          String target, String propertyName, String value) =>
       "${_target(target)}${propertyName}=${value}";
 }
 
@@ -160,7 +102,8 @@ class TranslatorBase implements Translator {
       throw "Not Implemented";
 
   @override
-  bool checkAccessor(DartType targetType,PropertyAccessorElement accessor) => false;
+  bool checkAccessor(DartType targetType, PropertyAccessorElement accessor) =>
+      false;
 
   @override
   bool checkField(FieldElement field) => false;
@@ -179,8 +122,8 @@ class TranslatorBase implements Translator {
       throw "Not Implemented";
 
   @override
-  String getProperty(DartType targetType,
-          PropertyAccessorElement getter, String target, String propertyName) =>
+  String getProperty(DartType targetType, PropertyAccessorElement getter,
+          String target, String propertyName) =>
       throw "Not Implemented";
 
   @override
@@ -199,8 +142,8 @@ class TranslatorBase implements Translator {
       throw "Not Implemented";
 
   @override
-  String setProperty(DartType targetType,PropertyAccessorElement setter, String target,
-          String propertyName, String value) =>
+  String setProperty(DartType targetType, PropertyAccessorElement setter,
+          String target, String propertyName, String value) =>
       throw "Not Implemented";
 }
 
@@ -208,7 +151,7 @@ class ListTranslator extends TranslatorBase {
   const ListTranslator();
 
   @override
-  bool checkAccessor(DartType targetType,PropertyAccessorElement accessor) {
+  bool checkAccessor(DartType targetType, PropertyAccessorElement accessor) {
     Element enclosing = accessor.enclosingElement;
     return enclosing is ClassElement &&
         isListType(targetType) &&
@@ -216,8 +159,8 @@ class ListTranslator extends TranslatorBase {
   }
 
   @override
-  String getProperty(DartType targetType,
-      PropertyAccessorElement getter, String target, String propertyName) {
+  String getProperty(DartType targetType, PropertyAccessorElement getter,
+      String target, String propertyName) {
     return "bare.List.${propertyName}.get.call(this,${target})";
   }
 }

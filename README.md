@@ -43,10 +43,42 @@ At the moment only translating `e2e_test` project, that means:
  - property
  - property accessor
  - top level variable
- - initial support for @JS
- 
- 'e2e_test' project is now able to write on the HTML page !!!
+ - support for `@JS` annotation
+   - **DART2TS** extension
    
+**note** 'e2e_test' project is now able to write on the HTML page !!!
+   
+### Dart2TS extensions
+
+#### Estension to @JS annotation
+
+'@JS' can be unsed to specify with module should be loaded. Module path and name should be separated by the `'#'` character.
+The final name is defined concatanating both module path and namespace path information. For example
+
+```dart
+@JS('module#myjslib')
+libary mylib;
+
+@JS('submod#Thing')
+class That {
+  
+}
+
+```
+Will cause any reference to `That` will be translated as a reference to `myjslib.Thing` in module `module/submod`. 
+
+To declare only the module and not a namespace use `@JS('module#')`. For example the following will associate the `$` top level variable
+to the `$` simbol exported by module `jquery`:
+
+```dart
+@JS('jquery#')
+library mylib;
+
+@JS()
+Function $;
+
+```
+
 ## Roadmap
 
  - using other libraries (easy)
