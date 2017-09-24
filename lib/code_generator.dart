@@ -88,50 +88,34 @@ class Dart2TsBuilder extends _BaseBuilder {
     AssetId destId = new AssetId(buildStep.inputId.package,
         "${path.withoutExtension(buildStep.inputId.path)}.ts");
     _logger.fine('Processing ${library.location} for ${destId}');
-    StringBuffer sink = new StringBuffer();
-    Dart2TsVisitor visitor = new Dart2TsVisitor(sink);
-
-    library.unit.accept(visitor);
-    //visitor.visitAllNodes(library.unit);
-
-    _logger.fine("Produced : ${sink.toString()}");
-
-    await buildStep.writeAsString(destId, sink.toString());
+    Dart2TsVisitor visitor = new Dart2TsVisitor();
+    await buildStep.writeAsString(destId, library.unit.accept(visitor));
   }
 }
 
-class Dart2TsVisitor extends GeneralizingAstVisitor<dynamic> {
-  StringSink _consumer;
-  FileContext _context;
-
-  Dart2TsVisitor(this._consumer);
-
-  _ExpressionBuilderVisitor _expressionBuilderVisitor;
+class Dart2TsVisitor extends GeneralizingAstVisitor<String> {
+  _ExpressionBuilderVisitor _visitor;
 
   @override
   visitCompilationUnit(CompilationUnit node) {
-    _context = new FileContext(node.element.library);
-    _expressionBuilderVisitor = new _ExpressionBuilderVisitor(_context);
-    _consumer.writeln('// Generated code');
-    super.visitCompilationUnit(node);
-    _context._prefixes.forEach((u, i) => _consumer
-        .writeln('/* $u */\nimport * as ${i.prefix} from "${i.path}";'));
+    _visitor =
+        new _ExpressionBuilderVisitor(new FileContext(node.element.library));
+    return "// Generated code\n"
+        "${node.declarations.map((d)=>d.accept(this)).join('\n')}"
+        "${_visitor._context._prefixes.values.map((i)=>'import * as ${i.prefix} from "${i.path}";').join('\n')}";
   }
 
   @override
-  visitFunctionDeclaration(FunctionDeclaration node) {
-    _consumer.writeln(node.accept(_expressionBuilderVisitor));
-  }
+  String visitTopLevelVariableDeclaration(TopLevelVariableDeclaration node) =>
+      node.accept(_visitor);
 
   @override
-  visitTopLevelVariableDeclaration(TopLevelVariableDeclaration node) {
-    _consumer.writeln(node.accept(_expressionBuilderVisitor));
-  }
+  String visitClassDeclaration(ClassDeclaration node) =>
+      node.accept(new _ClassBuilderVisitor(this));
 
   @override
-  visitClassDeclaration(ClassDeclaration node) {
-    _consumer.writeln(node.accept(new _ClassBuilderVisitor(this)));
-  }
+  String visitFunctionDeclaration(FunctionDeclaration node) =>
+      node.accept(_visitor);
 }
 
 class _ConstructorMethodBuilderVisitor extends _FunctionExpressionVisitor {
@@ -184,7 +168,7 @@ class _ConstructorMethodBuilderVisitor extends _FunctionExpressionVisitor {
 
   _ConstructorMethodBuilderVisitor(
       _ClassBuilderVisitor _classBuilderVisitor, this.declaration)
-      : super(_classBuilderVisitor._parentVisitor._context),
+      : super(_classBuilderVisitor._parentVisitor._visitor._context),
         isDefault = declaration.element.isDefaultConstructor {}
 
   String buildMethod() {
@@ -223,7 +207,8 @@ class _ClassBuilderVisitor extends _ExpressionBuilderVisitor {
   Dart2TsVisitor _parentVisitor;
   List<_ConstructorMethodBuilderVisitor> constructors = [];
 
-  _ClassBuilderVisitor(this._parentVisitor) : super(_parentVisitor._context);
+  _ClassBuilderVisitor(this._parentVisitor)
+      : super(_parentVisitor._visitor._context);
 
   @override
   String visitClassDeclaration(ClassDeclaration node) {
@@ -312,7 +297,7 @@ class _ClassBuilderVisitor extends _ExpressionBuilderVisitor {
 
   @override
   String visitMethodDeclaration(MethodDeclaration node) {
-    return new _FunctionExpressionVisitor(_parentVisitor._context)
+    return new _FunctionExpressionVisitor(_parentVisitor._visitor._context)
         .buildMethodDeclaration(node);
   }
 
