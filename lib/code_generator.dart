@@ -391,9 +391,19 @@ class _FunctionExpressionVisitor extends _ExpressionBuilderVisitor {
     }
 
     res =
-        "function ${node.functionExpression.element?.name ?? ''}${node.functionExpression.parameters.accept(this)}${node.functionExpression.body.accept(this)}";
+        "function ${node.functionExpression.element?.name ?? ''}${node.functionExpression.typeParameters?.accept(this)??''}${node.functionExpression.parameters.accept(this)}${node.functionExpression.body.accept(this)}";
 
     return _context.export(res, node.element);
+  }
+
+  @override
+  String visitTypeParameterList(TypeParameterList node) {
+    return "<${node.typeParameters.map((e)=>e.accept(this)).join(',')}>";
+  }
+
+  @override
+  String visitTypeParameter(TypeParameter node) {
+    return toTsType((node.name.staticElement as TypeParameterElement).type);
   }
 
   String buildMethodDeclaration(MethodDeclaration node) {
@@ -480,14 +490,20 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     }
 
     // Is actually ever happening ?
-    if ((node.staticElement is VariableElement )&&
+    if ((node.staticElement is VariableElement) &&
         getAnnotation(node.staticElement.metadata, isJS) != null) {
       return _context.toJSName(node.staticElement);
     }
 
-    if ((node.staticElement is PropertyAccessorElement)&&
-        getAnnotation((node.staticElement as PropertyAccessorElement).variable.metadata, isJS) != null) {
-      return _context.toJSName((node.staticElement as PropertyAccessorElement).variable);
+    if ((node.staticElement is PropertyAccessorElement) &&
+        getAnnotation(
+                (node.staticElement as PropertyAccessorElement)
+                    .variable
+                    .metadata,
+                isJS) !=
+            null) {
+      return _context
+          .toJSName((node.staticElement as PropertyAccessorElement).variable);
     }
 
     if (node.token.previous?.type != TokenType.PERIOD) {
@@ -571,20 +587,23 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     // (and initializers, etc.)
 
     String p = _prefixFor(node.staticElement.enclosingElement, from: el);
-    return translatorRegistry.newInstance(
-        node.staticElement,
-        "${toTsType(node.staticElement.enclosingElement.type)}",
-        arguments(node.argumentList).toList());
+    return translatorRegistry.newInstance(node.staticElement,
+        "${toTsType(node.staticType)}", arguments(node.argumentList).toList());
   }
 
   @override
   String visitMethodInvocation(MethodInvocation node) {
-    ExecutableElement executableElement = node.methodName.staticElement;
-
-    if (executableElement is FunctionElement) {
-      //Invoke a function
-      return "${_resolve(executableElement,from:_findEnclosingScope(node))}${node.argumentList.accept(this)}";
+    if (node.methodName.staticElement == null) {
+      return "${node.methodName.name}${node.argumentList.accept(this)}";
     }
+
+    if (node.methodName.staticElement is FunctionElement ||
+        node.methodName.staticElement is! ExecutableElement) {
+      //Invoke a function
+      return "${_resolve(node.methodName.staticElement,from:_findEnclosingScope(node))}${node.typeArguments!=null?node.typeArguments.accept(this):''}${node.argumentList.accept(this)}";
+    }
+
+    ExecutableElement executableElement = node.methodName.staticElement;
 
     if (executableElement is MethodElement) {
       String target;
@@ -597,7 +616,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
       return translatorRegistry.invokeMethod(
           node.methodName.staticElement,
           target,
-          _methodName(node.methodName.staticElement),
+          "${_methodName(node.methodName.staticElement)}${node.typeArguments!=null?node.typeArguments.accept(this):''}",
           this.arguments(node.argumentList).toList());
     }
 
@@ -613,14 +632,28 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     if (node.prefix.staticElement is PrefixElement) {
       return "${_prefixFor(node.prefix.staticElement,from:node.identifier.staticElement)}${node.identifier}";
     }
-    assert(node.identifier.staticElement is PropertyAccessorElement);
+
+    assert(node.identifier.staticElement == null ||
+        node.identifier.staticElement is PropertyAccessorElement);
 
     PropertyAccessorElement accessor = node.identifier.staticElement;
 
-    assert(accessor.isGetter); // Setter case should be handler by assignament
+    if (accessor == null && node.identifier.bestType != null) {
+      // Try to get it from propagation
+      accessor =
+          findField(node.identifier.bestType.element, node.identifier.name)
+              ?.getter;
+    }
 
-    return translatorRegistry.getProperty(node.prefix.bestType, accessor,
-        node.prefix.accept(this), accessor.name);
+    assert(accessor == null ||
+        accessor.isGetter); // Setter case should be handler by assignament
+
+    String name = accessor != null
+        ? _context.toJSName(accessor.variable, nopath: true)
+        : node.identifier.name;
+
+    return translatorRegistry.getProperty(
+        node.prefix.bestType, accessor, node.prefix.accept(this), name);
   }
 
   @override
@@ -630,8 +663,8 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
     String target = node?.target?.accept(this);
 
-    return translatorRegistry.getProperty(
-        node?.target?.bestType, access, target, access.variable.name);
+    return translatorRegistry.getProperty(node?.target?.bestType, access,
+        target, _context.toJSName(access.variable, nopath: true));
   }
 
   @override
@@ -693,30 +726,57 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     PropertyAccessorElement accessor;
     String target;
     DartType targetType;
+    String fallbackName;
     if (node.leftHandSide is PropertyAccess) {
       PropertyAccess propertyAccess = node.leftHandSide;
       accessor = propertyAccess.propertyName.staticElement;
 
       target = propertyAccess?.target?.accept(this);
       targetType = propertyAccess?.target?.bestType;
+      fallbackName = propertyAccess.propertyName.name;
+
+      // if accessor is null (because static analysis couldn't determine it, try with type prop)
+      if (accessor == null && targetType != null) {
+        accessor = findField(targetType.element, fallbackName)?.setter;
+      }
     } else if (node.leftHandSide is PrefixedIdentifier) {
       PrefixedIdentifier prefixedIdentifier = node.leftHandSide;
       accessor = prefixedIdentifier.identifier.staticElement;
       target = prefixedIdentifier.prefix.accept(this);
       targetType = prefixedIdentifier.prefix.bestType;
+
+      fallbackName = prefixedIdentifier.identifier.name;
+
+      // if accessor is null (because static analysis couldn't determine it, try with type prop)
+      if (accessor == null && targetType != null) {
+        accessor = findField(targetType.element, fallbackName)?.setter;
+      }
+    } else if (node.leftHandSide is IndexExpression) {
+      IndexExpression indexExpression = node.leftHandSide;
+      return translatorRegistry.indexSet(
+          indexExpression.target.bestType,
+          indexExpression.realTarget.accept(this),
+          indexExpression.index.accept(this),
+          node.rightHandSide.accept(this));
     } else {
       // normal assignament
       return "${node.leftHandSide.accept(this)} = ${node.rightHandSide.accept(this)}";
     }
 
-    assert(accessor.isSetter);
-    return translatorRegistry.setProperty(targetType, accessor, target,
-        accessor.variable.name, node.rightHandSide.accept(this));
+    assert(accessor?.isSetter ?? true);
+
+    String name =
+        accessor != null ? _context.toJSName(accessor.variable,nopath: true) : fallbackName;
+
+    return translatorRegistry.setProperty(
+        targetType, accessor, target, name, node.rightHandSide.accept(this));
   }
 
   @override
   String visitIndexExpression(IndexExpression node) {
-    return "${node.realTarget.accept(this)}[${node.index.accept(this)}]";
+    assert(!node.inSetterContext());
+    return translatorRegistry.indexGet(
+        node.target.bestType, node.realTarget.accept(this), node.index.accept(this));
   }
 
   @override
@@ -731,7 +791,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   String visitFunctionExpressionInvocation(FunctionExpressionInvocation node) {
-    return "${node.function.accept(this)} ${node.argumentList.accept(this)}";
+    return "(${node.function.accept(this)})${node.argumentList.accept(this)}";
   }
 
   Iterable<String> arguments(ArgumentList node) {
@@ -922,9 +982,9 @@ class FileContext {
           getAnnotation(e.metadata, isJS)?.getField('name')?.toStringValue();
       if (name != null && name.isNotEmpty) {
         Match m = NAME_PATTERN.matchAsPrefix(name);
-        if (m != null&&m[2]!=null) {
+        if (m != null && m[2] != null) {
           p.modulePathElements.add(m[2]);
-          if ((m[3]??'').isNotEmpty) p.namespacePathElements.add(m[3]);
+          if ((m[3] ?? '').isNotEmpty) p.namespacePathElements.add(m[3]);
         } else {
           p.namespacePathElements.add(name);
         }
@@ -939,10 +999,13 @@ class FileContext {
     return p;
   }
 
-  String toJSName(Element element) {
+  String toJSName(Element element, {bool nopath: false}) {
     JSPath jspath = _collectJSPath(
         element); // note: we should check if var is top, but ... whatever.
     String name;
+    if (nopath) {
+      return jspath.namespacePathElements.last;
+    }
     if (jspath.namespacePathElements.isNotEmpty) {
       if (jspath.modulePathElements.isNotEmpty) {
         name =
@@ -961,6 +1024,9 @@ class FileContext {
 
   String toTsType(DartType type) {
     // Look for @JS annotations
+    if (type is TypeParameterType) {
+      return type.element.name;
+    }
 
     if (getAnnotation(type.element.metadata, isJS) != null) {
       // check if we got a package annotation
@@ -977,7 +1043,16 @@ class FileContext {
         prefix = "";
       }
 
-      return "${prefix}${path.name}";
+      String typeArgs;
+      if (type is ParameterizedType && type.typeArguments?.isNotEmpty ??
+          false) {
+        typeArgs =
+            "<${((type as ParameterizedType).typeArguments ).map((t) => toTsType(t)).join(',')}>";
+      } else {
+        typeArgs = "";
+      }
+
+      return "${prefix}${path.name}${typeArgs}";
     }
 
     if (type.isDynamic) {

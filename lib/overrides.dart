@@ -1,6 +1,7 @@
 import 'package:analyzer/analyzer.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
+import 'package:analyzer/src/generated/engine.dart';
 import 'package:dart2ts/utils.dart';
 
 abstract class Translator {
@@ -23,6 +24,13 @@ abstract class Translator {
   String getField(FieldElement field, String target, String propertyName);
   String setField(
       FieldElement field, String target, String propertyName, String value);
+
+  String indexGet(DartType targetType, String target, String index);
+
+  bool checkIndexed(DartType targetType);
+
+  String indexSet(
+      DartType targetType, String target, String index, String value);
 }
 
 class DefaultTranslator implements Translator {
@@ -89,6 +97,17 @@ class DefaultTranslator implements Translator {
   String setProperty(DartType targetType, PropertyAccessorElement setter,
           String target, String propertyName, String value) =>
       "${_target(target)}${propertyName}=${value}";
+  @override
+  bool checkIndexed(DartType targetType) => true;
+
+  @override
+  String indexGet(DartType targetType, String target, String index) =>
+      "${target}[${index}]";
+  @override
+  String indexSet(
+      DartType targetType, String target, String index, String value) {
+    return "${indexGet(targetType,target,index)} = ${value}";
+  }
 }
 
 const DefaultTranslator defaultTranslator = const DefaultTranslator();
@@ -145,6 +164,16 @@ class TranslatorBase implements Translator {
   String setProperty(DartType targetType, PropertyAccessorElement setter,
           String target, String propertyName, String value) =>
       throw "Not Implemented";
+  @override
+  bool checkIndexed(DartType targetType) => false;
+
+  @override
+  String indexGet(DartType targetType, String target, String index) =>
+      throw "Not Implemented";
+  @override
+  String indexSet(
+          DartType targetType, String target, String index, String value) =>
+      throw "Not Implemented";
 }
 
 class ListTranslator extends TranslatorBase {
@@ -152,6 +181,9 @@ class ListTranslator extends TranslatorBase {
 
   @override
   bool checkAccessor(DartType targetType, PropertyAccessorElement accessor) {
+    if (accessor == null) {
+      return false;
+    }
     Element enclosing = accessor.enclosingElement;
     return enclosing is ClassElement &&
         isListType(targetType) &&
@@ -165,9 +197,35 @@ class ListTranslator extends TranslatorBase {
   }
 }
 
+class ExpandoTranslator extends TranslatorBase {
+  const ExpandoTranslator();
+
+  @override
+  String indexGet(DartType targetType, String target, String index) {
+    return "bare.Expando.index.get(${target},${index})";
+  }
+
+  @override
+  String indexSet(
+      DartType targetType, String target, String index, String value) {
+    return "bare.Expando.index.set(${target},${index},${value})";
+  }
+
+  @override
+  bool checkIndexed(DartType targetType) {
+    AnalysisContext c = targetType.element.context;
+
+    LibraryElement lib =
+        c.computeLibraryElement(c.sourceFactory.forUri('dart:core'));
+    ClassElement expandoClass = lib.getType('Expando');
+    return targetType.element == expandoClass;
+  }
+}
+
 class TranslatorRegistry {
   static const List<Translator> _translators = const [
     const ListTranslator(),
+    const ExpandoTranslator(),
     defaultTranslator,
   ];
   const TranslatorRegistry();
@@ -206,6 +264,15 @@ class TranslatorRegistry {
           String value) =>
       _find((t) => t.checkField(field))
           .setField(field, target, propertyName, value);
+
+  String indexGet(DartType targetType, String target, String index) =>
+      _find((t) => t.checkIndexed(targetType))
+          .indexGet(targetType, target, index);
+
+  String indexSet(
+          DartType targetType, String target, String index, String value) =>
+      _find((t) => t.checkIndexed(targetType))
+          .indexSet(targetType, target, index, value);
 }
 
 TranslatorRegistry translatorRegistry = const TranslatorRegistry();

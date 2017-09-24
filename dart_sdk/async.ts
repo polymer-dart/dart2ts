@@ -1,6 +1,12 @@
 export * from "./lib/async";
 
-export interface Future<X> extends Promise<X> {
+export abstract class Future<X> extends Promise<X> {
+
+    static wait(x: Array<Future<any>>): Future<Array<any>> {
+        let c: Completer<Array<any>> = new Completer();
+        Promise.all(x).then((r) => c.complete(r));
+        return c.future;
+    }
 }
 
 /**
@@ -41,14 +47,11 @@ class _Future<X> extends Promise<X> implements Future<X> {
         , reject: (error: any) => void) => void) {
         super(executor);
     }
+
 }
 
 export interface Stream<X> {
 
-}
-
-export interface StreamControllerBroadcastConstructor<X> {
-    new (): StreamController<X>;
 }
 
 /**
@@ -57,7 +60,7 @@ export interface StreamControllerBroadcastConstructor<X> {
 export class StreamController<X> {
     private _stream: _Stream<X>;
 
-    get stream():Stream<X> {
+    get stream(): Stream<X> {
         return this._stream;
     }
 
@@ -65,12 +68,9 @@ export class StreamController<X> {
         this._stream = new _Stream<X>();
     }
 
-    static get broadcast(): StreamControllerBroadcastConstructor<any> {
-        let ctor = function (): void {
-
-        };
-        ctor.prototype = StreamController.prototype;
-        return <any>ctor;
+    // Factory constructor
+    static broadcast<Y>(): StreamController<Y> {
+        return new StreamController<Y>();
     }
 
     add(x: X): void {
@@ -84,7 +84,7 @@ export interface StreamSink<X> {
 }
 
 export interface StreamSubscription<X> {
-    cancel():void;
+    cancel(): void;
 }
 
 
@@ -98,7 +98,7 @@ class _Stream<X> implements Stream<X> {
      */
     get [Symbol.iterator]() {
         return async function* () {
-            while(!this._closed) {
+            while (!this._closed) {
                 let next: Promise<X> = new Promise((resolve, reject) => {
                     let sub = this.listen((x) => {
                         sub.cancel();
@@ -123,10 +123,10 @@ class _Stream<X> implements Stream<X> {
         });
     }
 
-    listen(handler: (X) => any):StreamSubscription<X> {
+    listen(handler: (X) => any): StreamSubscription<X> {
         this._listeners.push(handler);
         return <StreamSubscription<X>>{
-          cancel: () => this._listeners.splice(this._listeners.indexOf(handler),1)
+            cancel: () => this._listeners.splice(this._listeners.indexOf(handler), 1)
         };
     }
 }

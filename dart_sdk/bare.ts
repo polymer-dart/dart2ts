@@ -1,12 +1,12 @@
 // Some triks borrowed from dart_sdk
 
 
-function named(target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+export function named(target: any, propertyKey: string, descriptor: PropertyDescriptor) {
     descriptor.get = () => namedConstructor(target, propertyKey);
 }
 
 
-function namedConstructor(clazz, name) {
+export function namedConstructor(clazz, name) {
     let proto = clazz.prototype;
     let initMethod = proto[name];
     let ctor = function (...args) {
@@ -16,11 +16,11 @@ function namedConstructor(clazz, name) {
     return <any>ctor;
 }
 
-let init: symbol = Symbol();
+export let init: symbol = Symbol();
 
-namespace List {
+export namespace List {
     export namespace first {
-        export function get<T>(list:Array<T>):T {
+        export function get<T>(list: Array<T>): T {
             return list[0];
         }
     }
@@ -29,4 +29,24 @@ namespace List {
 }
 
 
-export {named, namedConstructor, init, List};
+export class Expando<T> {
+    sym: symbol;
+
+    constructor() {
+        this.sym = Symbol();
+    }
+}
+
+export namespace Expando {
+    export namespace index {
+        export function get<T>(t: Expando<T>, index) {
+            return index[t.sym];
+        }
+
+        export function set<T>(t: Expando<T>, index, value) {
+            index[t.sym] = value;
+        }
+    }
+
+}
+

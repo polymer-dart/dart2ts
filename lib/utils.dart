@@ -146,9 +146,12 @@ Map<X, Iterable<Y>> _collect<X, Y, Z>(Iterable<Z> i,
   return res;
 }
 
-Iterable<X> flatten<X>(Iterable<Iterable<X>> x) sync* {
-  for (Iterable<X> i in x) {
-    yield* i;
+Iterable<X> flatten<X>(Iterable<Iterable<X>> x) => flattenWith(x, (x) => x);
+
+Iterable<X> flattenWith<X, Y>(
+    Iterable<Y> x, Iterable<X> Function(Y) extract) sync* {
+  for (Y i in x) {
+    yield* extract(i);
   }
 }
 
@@ -224,3 +227,26 @@ bool needsProcessing(LibraryElement le) => hasAnyFirstLevelAnnotation(
       isPolymerBehavior,
       isEntryPoint
     ]));
+
+PropertyInducingElement findField(Element clazz, String name) {
+  if (clazz == null) {
+    return null;
+  }
+
+  if (clazz is ClassElement) {
+    return clazz.fields.firstWhere((fe) => fe.name == name,
+        orElse: () => flattenWith(
+                flattenWith(
+                    clazz.interfaces ?? [], (InterfaceType x) => x.accessors),
+                (PropertyAccessorElement ac) =>
+                    [ac.variable]).firstWhere(
+                (PropertyInducingElement ac) => ac.name == name, orElse: () {
+              if (clazz.supertype != clazz) {
+                return findField(clazz.supertype?.element, name);
+              }
+              return null;
+            }));
+  } else {
+    return null;
+  }
+}
