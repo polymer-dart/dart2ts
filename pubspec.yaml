@@ -7,3 +7,5 @@ dependencies:
   analyzer: ^0.30.0
   args: any
   source_gen: any
+executables:
+ dart2ts: dart2ts
