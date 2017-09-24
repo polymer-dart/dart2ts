@@ -16,6 +16,9 @@ bool isTypeInstanceOf(ParameterizedType base, DartType type) =>
     type.typeArguments.length == 1 &&
     type.isSubtypeOf(base.instantiate([type.typeArguments.single]));
 
+final Uri _DART2TS_URI = Uri.parse('package:dart2ts/annotations.dart');
+final Uri _DART2TS_ASSET_URI = Uri.parse('asset:dart2ts/lib/annotations.dart');
+
 final Uri _POLYMER_REGISTER_URI =
     Uri.parse('package:polymer_element/annotations.dart');
 final Uri _POLYMER_REGISTER_ASSET_URI =
@@ -36,6 +39,8 @@ final Uri _POLYMER_HTML_IMPORT_URI =
 final Uri _POLYMER_HTML_IMPORT_ASSET_URI =
     Uri.parse('asset:polymerize_common/lib/html_import.dart');
 
+bool isDart2TsUri(Uri u) => u == _DART2TS_URI || u == _DART2TS_ASSET_URI;
+
 bool isJsUri(Uri u) => u == _JS_ASSET_URI || u == _JS_URI;
 
 bool isPolymerElementUri(Uri u) =>
@@ -52,6 +57,10 @@ bool isPolymerElementHtmlImportUri(Uri u) =>
 
 bool isJS(DartObject o) =>
     (isJsUri(o.type.element.librarySource.uri)) && (o.type.name == 'JS');
+
+bool isModule(DartObject o) =>
+    (isDart2TsUri(o.type.element.librarySource.uri)) && (o.type.name == 'Module');
+
 
 bool isBowerImport(DartObject o) =>
     o != null &&
@@ -251,4 +260,5 @@ PropertyInducingElement findField(Element clazz, String name) {
   }
 }
 
-bool isAnonymousConstructor(ConstructorElement c) => (c.name??"").isEmpty&&!c.isFactory;
+bool isAnonymousConstructor(ConstructorElement c) =>
+    (c.name ?? "").isEmpty && !c.isFactory;

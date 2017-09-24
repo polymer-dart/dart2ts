@@ -701,7 +701,19 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     if (node.methodName.staticElement is FunctionElement ||
         node.methodName.staticElement is! ExecutableElement) {
       //Invoke a function
-      return "${_resolve(node.methodName.staticElement, from: _findEnclosingScope(node))}${node.typeArguments != null ? node.typeArguments.accept(this) : ''}${node.argumentList.accept(this)}";
+      // Check for JS ANNO
+
+      String executable;
+
+      if (getAnnotation(node.methodName.staticElement.metadata,isJS)!=null) {
+        // Call a js
+        executable =_context.toJSName(node.methodName.staticElement);
+      } else {
+        executable = _resolve(node.methodName.staticElement, from: _findEnclosingScope(node));
+      }
+
+
+      return "${executable}${node.typeArguments != null ? node.typeArguments.accept(this) : ''}${node.argumentList.accept(this)}";
     }
 
     ExecutableElement executableElement = node.methodName.staticElement;
@@ -1094,7 +1106,7 @@ class FileContext {
 
   JSPath _collectJSPath(Element start) {
     var collector = (Element e, JSPath p, var c) {
-      if (e is! CompilationUnitElement) {
+      if (e is! LibraryElement) {
         c(e.enclosingElement, p, c);
       }
 
@@ -1103,8 +1115,9 @@ class FileContext {
           getAnnotation(e.metadata, isJS)?.getField('name')?.toStringValue();
       if (name != null && name.isNotEmpty) {
         Match m = NAME_PATTERN.matchAsPrefix(name);
-        if (m != null && m[2] != null) {
-          p.modulePathElements.add(m[2]);
+        String module = getAnnotation(e.metadata, isModule)?.getField('path')?.toStringValue();
+        if (m != null && (m[2] != null||module!=null)) {
+          p.modulePathElements.add(module??m[2]);
           if ((m[3] ?? '').isNotEmpty) p.namespacePathElements.add(m[3]);
         } else {
           p.namespacePathElements.add(name);
