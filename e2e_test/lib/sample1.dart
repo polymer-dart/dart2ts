@@ -2,8 +2,6 @@ import 'sample2.dart' as xy;
 import 'package:js/js.dart';
 import 'sample3.dart';
 
-
-
 void main(List<String> args) {
   printToBody("<h1>GOOD MOOOOOOOOOOOOOOOORNING DART2TS!!</h1>");
   xy.sayHello('Hello Dart2TS');
@@ -68,7 +66,7 @@ void main(List<String> args) {
 
   new xy.MySampleClass2.extra();
 
-  new xy.MySampleClass2.extra(namedOnNamed: (1==1)?'django':'tango');
+  new xy.MySampleClass2.extra(namedOnNamed: (1 == 1) ? 'django' : 'tango');
 
   new xy.MakeItReal();
 

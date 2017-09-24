@@ -59,8 +59,8 @@ bool isJS(DartObject o) =>
     (isJsUri(o.type.element.librarySource.uri)) && (o.type.name == 'JS');
 
 bool isModule(DartObject o) =>
-    (isDart2TsUri(o.type.element.librarySource.uri)) && (o.type.name == 'Module');
-
+    (isDart2TsUri(o.type.element.librarySource.uri)) &&
+    (o.type.name == 'Module');
 
 bool isBowerImport(DartObject o) =>
     o != null &&

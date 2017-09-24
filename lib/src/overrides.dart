@@ -1,8 +1,7 @@
-import 'package:analyzer/analyzer.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:analyzer/src/generated/engine.dart';
-import 'package:dart2ts/utils.dart';
+import 'package:dart2ts/src/utils.dart';
 
 abstract class Translator {
   bool checkOp(MethodElement operator);
@@ -79,7 +78,7 @@ class DefaultTranslator implements Translator {
   @override
   String newInstance(ConstructorElement constructor, String className,
       List<String> arguments) {
-    if ((constructor.name??'').isEmpty) {
+    if ((constructor.name ?? '').isEmpty) {
       return "new ${className}${_args(arguments)}";
     } else if (constructor.isFactory) {
       return "${className}.${constructor.name}${_args(arguments)}";
@@ -190,30 +189,29 @@ class ListTranslator extends TranslatorBase {
         accessor.name == "first";
   }
 
-
-  static final Set<String> _overriddenMethodNames = new Set.from(const [
-    'add','remove','from'
-                                                           ]);
-
+  static final Set<String> _overriddenMethodNames =
+      new Set.from(const ['add', 'remove', 'from']);
 
   @override
   bool checkNewInstance(ConstructorElement cons) {
-    return (cons.isFactory&&isListType(cons.enclosingElement.type));
+    return (cons.isFactory && isListType(cons.enclosingElement.type));
   }
 
-
   @override
-  String newInstance(ConstructorElement constructor, String className, List<String> arguments) {
+  String newInstance(ConstructorElement constructor, String className,
+      List<String> arguments) {
     return "bare.ListHelpers.methods.${constructor.name}(${arguments.join(',')})";
   }
 
   @override
   bool checkMethod(MethodElement method) {
-    return (isListType(method.enclosingElement.type))&&_overriddenMethodNames.contains(method.name);
+    return (isListType(method.enclosingElement.type)) &&
+        _overriddenMethodNames.contains(method.name);
   }
 
   @override
-  String invokeMethod(MethodElement method, String target, String methodName, List<String> arguments) {
+  String invokeMethod(MethodElement method, String target, String methodName,
+      List<String> arguments) {
     return "bare.ListHelpers.methods.${methodName}(${target},${arguments.join(',')})";
   }
 

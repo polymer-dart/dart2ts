@@ -168,3 +168,11 @@ Function $;
  to implement native js classes extensions. DDC infact requires a `new` initializers
  on super classes otherwise it will complain in some circumstances (that's why
  we had to patch id in polymerize).
+ 
+ ## Caveat
+ 
+ When executed a second time it can throw. Probably a bug in `builder` package. 
+ A workaround is to remove the `.dart_tool` hidden folder inside the package folder you are building (it will
+ be recreated in the next build).
+ 
+ When launching `dart2ts` with the watch flag (`-w`) there's no problem.
