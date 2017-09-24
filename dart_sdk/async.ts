@@ -18,11 +18,14 @@ export class Completer<X> {
     private _resolve: (x: X) => void;
     private _reject: (error: any) => void;
 
+    isCompleted:boolean = false;
+
     get future(): Future<X> {
         return this._future;
     }
 
     complete(x?: X): void {
+        this.isCompleted = true;
         this._resolve(x);
     }
 

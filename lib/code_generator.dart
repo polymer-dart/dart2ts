@@ -89,7 +89,12 @@ class Dart2TsBuilder extends _BaseBuilder {
         "${path.withoutExtension(buildStep.inputId.path)}.ts");
     _logger.fine('Processing ${library.location} for ${destId}');
     Dart2TsVisitor visitor = new Dart2TsVisitor(new FileContext(library));
-    await buildStep.writeAsString(destId, library.units.map((u)=>u.computeNode().accept(visitor)).join('\n')+visitor._context._prefixes.values.map((i)=>'import * as ${i.prefix} from "${i.path}";').join('\n'));
+    await buildStep.writeAsString(
+        destId,
+        library.units.map((u) => u.computeNode().accept(visitor)).join('\n') +
+            visitor._context._prefixes.values
+                .map((i) => 'import * as ${i.prefix} from "${i.path}";')
+                .join('\n'));
   }
 }
 
@@ -101,12 +106,10 @@ class Dart2TsVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   visitCompilationUnit(CompilationUnit node) {
-    _visitor =
-        new _ExpressionBuilderVisitor(_context);
+    _visitor = new _ExpressionBuilderVisitor(_context);
     return "// Generated code\n"
         "${node.declarations.map((d)=>d.accept(this)).join('\n')}";
   }
-
 
   @override
   String visitFunctionTypeAlias(FunctionTypeAlias node) {
@@ -117,7 +120,6 @@ class Dart2TsVisitor extends GeneralizingAstVisitor<String> {
   String visitCompilationUnitMember(CompilationUnitMember node) {
     return super.visitCompilationUnitMember(node);
   }
-
 
   @override
   String visitVariableDeclaration(VariableDeclaration node) {
@@ -148,9 +150,10 @@ class _ConstructorMethodBuilderVisitor extends _FunctionExpressionVisitor {
    * Builds the instance method that will init the class
    */
 
-  static String symbolFor(ConstructorElement cons) => isAnonymousConstructor(cons)
-      ? 'bare.init'
-      : "${cons.enclosingElement.name}_${cons.name}";
+  static String symbolFor(ConstructorElement cons) =>
+      isAnonymousConstructor(cons)
+          ? 'bare.init'
+          : "${cons.enclosingElement.name}_${cons.name}";
 
   static String accessorFor(ConstructorElement cons) =>
       isAnonymousConstructor(cons) ? '[bare.init]' : ".${cons.name}";
@@ -185,8 +188,6 @@ class _ConstructorMethodBuilderVisitor extends _FunctionExpressionVisitor {
 
   String interfaceName() => interfaceNameFor(declaration.element);
 
-
-
   _ConstructorMethodBuilderVisitor(
       _ClassBuilderVisitor _classBuilderVisitor, this.declaration)
       : super(_classBuilderVisitor._parentVisitor._visitor._context),
@@ -199,9 +200,17 @@ class _ConstructorMethodBuilderVisitor extends _FunctionExpressionVisitor {
 
   String _initializers() {
     // TODO : call super class default if no super initializers
-    
-    String i1 = _namedParameters.ordinal.where((p)=>p is FieldFormalParameter||p.element.isInitializingFormal).map((p)=>"this.${p.identifier.name}=${p.identifier.name};\n").join('');
-    String i2 = _namedParameters.named.values.where((p)=>p is FieldFormalParameter||p.element.isInitializingFormal).map((p)=>"this.${p.identifier.name}=${p.identifier.name};\n").join('');
+
+    String i1 = _namedParameters.ordinal
+        .where(
+            (p) => p is FieldFormalParameter || p.element.isInitializingFormal)
+        .map((p) => "this.${p.identifier.name}=${p.identifier.name};\n")
+        .join('');
+    String i2 = _namedParameters.named.values
+        .where(
+            (p) => p is FieldFormalParameter || p.element.isInitializingFormal)
+        .map((p) => "this.${p.identifier.name}=${p.identifier.name};\n")
+        .join('');
     return "$i1$i2${declaration.initializers.map((c) => c.accept(this)).join('\n')}";
   }
 
@@ -399,7 +408,7 @@ class _FunctionExpressionVisitor extends _ExpressionBuilderVisitor {
     }
 
     res =
-        "function ${node.functionExpression.element?.name ?? ''}${node.functionExpression.typeParameters?.accept(this) ?? ''}${node.functionExpression.parameters?.accept(this)??'(/*NOARGS?*/)'}${node.functionExpression
+        "${node.element.isAsynchronous?'async ':''}function${node.element.isGenerator?'*':''} ${node.functionExpression.element?.name ?? ''}${node.functionExpression.typeParameters?.accept(this) ?? ''}${node.functionExpression.parameters?.accept(this)??'(/*NOARGS?*/)'}${node.functionExpression
         .body.accept(this)}";
 
     return _context.export(res, node.element);
@@ -481,6 +490,59 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   String visitTryStatement(TryStatement node) {
     _ExpressionBuilderVisitor inner = new _ExpressionBuilderVisitor(_context);
     return "try ${node.body.accept(inner)} ${node.catchClauses?.map((c)=>c.accept(inner))?.join('\n')??''} ${_finally(node.finallyBlock?.accept(inner))}";
+  }
+
+  @override
+  String visitDoStatement(DoStatement node) {
+    _ExpressionBuilderVisitor inner = new _ExpressionBuilderVisitor(_context);
+    return "do ${node.body.accept(inner)} while (${node.condition.accept(this)});";
+  }
+
+  @override
+  String visitForStatement(ForStatement node) {
+    _ExpressionBuilderVisitor inner = new _ExpressionBuilderVisitor(_context);
+    return "for(${node.variables.variables.map((d)=>"let ${d.accept(this)}").join(',')};${node.condition?.accept(this)??''};${node.updaters.map((u)=>u.accept(this)).join(',')}) ${node.body.accept(inner)}";
+  }
+
+  @override
+  String visitPostfixExpression(PostfixExpression node) {
+    return "${node.operand.accept(this)}${node.operator}";
+  }
+
+  @override
+  String visitSwitchStatement(SwitchStatement node) {
+    _ExpressionBuilderVisitor inner = new _ExpressionBuilderVisitor(_context);
+    return "switch (${node.expression.accept(this)}) {"
+        "${node.members.map((m)=>m.accept(inner)).join('\n')}"
+        "}";
+  }
+
+  @override
+  String visitSwitchCase(SwitchCase node) {
+    return "case ${node.expression.accept(this)}:\n"
+        "${node.statements.map((s)=>s.accept(this)).join('\n')}";
+  }
+
+
+  @override
+  String visitYieldStatement(YieldStatement node) {
+    return "yield ${node.expression.accept(this)};";
+  }
+
+  @override
+  String visitBreakStatement(BreakStatement node) {
+    return "break;";
+  }
+
+  @override
+  String visitSwitchDefault(SwitchDefault node) {
+    return "default:\n"
+        "${node.statements.map((s)=>s.accept(this)).join('\n')}";
+  }
+
+  @override
+  String visitPrefixExpression(PrefixExpression node) {
+    return "${node.operator}${node.operand.accept(this)}";
   }
 
   @override
