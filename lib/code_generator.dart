@@ -88,21 +88,41 @@ class Dart2TsBuilder extends _BaseBuilder {
     AssetId destId = new AssetId(buildStep.inputId.package,
         "${path.withoutExtension(buildStep.inputId.path)}.ts");
     _logger.fine('Processing ${library.location} for ${destId}');
-    Dart2TsVisitor visitor = new Dart2TsVisitor();
-    await buildStep.writeAsString(destId, library.unit.accept(visitor));
+    Dart2TsVisitor visitor = new Dart2TsVisitor(new FileContext(library));
+    await buildStep.writeAsString(destId, library.units.map((u)=>u.computeNode().accept(visitor)).join('\n'));
   }
 }
 
 class Dart2TsVisitor extends GeneralizingAstVisitor<String> {
   _ExpressionBuilderVisitor _visitor;
+  FileContext _context;
+
+  Dart2TsVisitor(this._context);
 
   @override
   visitCompilationUnit(CompilationUnit node) {
     _visitor =
-        new _ExpressionBuilderVisitor(new FileContext(node.element.library));
+        new _ExpressionBuilderVisitor(_context);
     return "// Generated code\n"
         "${node.declarations.map((d)=>d.accept(this)).join('\n')}"
         "${_visitor._context._prefixes.values.map((i)=>'import * as ${i.prefix} from "${i.path}";').join('\n')}";
+  }
+
+
+  @override
+  String visitFunctionTypeAlias(FunctionTypeAlias node) {
+    return "/* TYPEDEF ${node} */";
+  }
+
+  @override
+  String visitCompilationUnitMember(CompilationUnitMember node) {
+    return super.visitCompilationUnitMember(node);
+  }
+
+
+  @override
+  String visitVariableDeclaration(VariableDeclaration node) {
+    return super.visitVariableDeclaration(node);
   }
 
   @override
@@ -375,7 +395,7 @@ class _FunctionExpressionVisitor extends _ExpressionBuilderVisitor {
     }
 
     res =
-        "function ${node.functionExpression.element?.name ?? ''}${node.functionExpression.typeParameters?.accept(this) ?? ''}${node.functionExpression.parameters.accept(this)}${node.functionExpression
+        "function ${node.functionExpression.element?.name ?? ''}${node.functionExpression.typeParameters?.accept(this) ?? ''}${node.functionExpression.parameters?.accept(this)??'(/*NOARGS?*/)'}${node.functionExpression
         .body.accept(this)}";
 
     return _context.export(res, node.element);
@@ -702,7 +722,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   String visitReturnStatement(ReturnStatement node) =>
-      "return ${node.expression.accept(this)};";
+      "return ${node.expression?.accept(this)??''};";
 
   @override
   String visitExpressionStatement(ExpressionStatement node) =>
