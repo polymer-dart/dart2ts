@@ -22,7 +22,7 @@ export class Completer<X> {
         return this._future;
     }
 
-    complete(x: X): void {
+    complete(x?: X): void {
         this._resolve(x);
     }
 
@@ -38,7 +38,6 @@ export class Completer<X> {
     }
 }
 
-
 /**
  * A Future implementation that extends Promise.
  */
@@ -50,7 +49,7 @@ class _Future<X> extends Promise<X> implements Future<X> {
 
 }
 
-export interface Stream<X> {
+export abstract class Stream<X> {
 
 }
 

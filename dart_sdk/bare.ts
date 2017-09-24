@@ -18,35 +18,27 @@ export function namedConstructor(clazz, name) {
 
 export let init: symbol = Symbol();
 
-export namespace List {
+export namespace ListHelpers {
     export namespace first {
         export function get<T>(list: Array<T>): T {
             return list[0];
         }
     }
 
-
-}
-
-
-export class Expando<T> {
-    sym: symbol;
-
-    constructor() {
-        this.sym = Symbol();
-    }
-}
-
-export namespace Expando {
-    export namespace index {
-        export function get<T>(t: Expando<T>, index) {
-            return index[t.sym];
+    export namespace methods {
+        export function add<T>(list:Array<T>,elem:T):void {
+            list.push(elem);
         }
 
-        export function set<T>(t: Expando<T>, index, value) {
-            index[t.sym] = value;
+        export function remove<T>(list:Array<T>,elem:T):void {
+            list.splice(list.indexOf(elem),1);
+        }
+
+        export function from(x:any):Array<any> {
+            return Array.prototype.slice.call(x);
         }
     }
-
 }
+
+
 

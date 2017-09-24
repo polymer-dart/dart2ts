@@ -190,10 +190,37 @@ class ListTranslator extends TranslatorBase {
         accessor.name == "first";
   }
 
+
+  static final Set<String> _overriddenMethodNames = new Set.from(const [
+    'add','remove','from'
+                                                           ]);
+
+
+  @override
+  bool checkNewInstance(ConstructorElement cons) {
+    return (cons.isFactory&&isListType(cons.enclosingElement.type));
+  }
+
+
+  @override
+  String newInstance(ConstructorElement constructor, String className, List<String> arguments) {
+    return "bare.ListHelpers.methods.${constructor.name}(${arguments.join(',')})";
+  }
+
+  @override
+  bool checkMethod(MethodElement method) {
+    return (isListType(method.enclosingElement.type))&&_overriddenMethodNames.contains(method.name);
+  }
+
+  @override
+  String invokeMethod(MethodElement method, String target, String methodName, List<String> arguments) {
+    return "bare.ListHelpers.methods.${methodName}(${target},${arguments.join(',')})";
+  }
+
   @override
   String getProperty(DartType targetType, PropertyAccessorElement getter,
       String target, String propertyName) {
-    return "bare.List.${propertyName}.get.call(this,${target})";
+    return "bare.ListHelpers.${propertyName}.get.call(this,${target})";
   }
 }
 
@@ -202,13 +229,13 @@ class ExpandoTranslator extends TranslatorBase {
 
   @override
   String indexGet(DartType targetType, String target, String index) {
-    return "bare.Expando.index.get(${target},${index})";
+    return "core.ExpandoHelpers.index.get(${target},${index})";
   }
 
   @override
   String indexSet(
       DartType targetType, String target, String index, String value) {
-    return "bare.Expando.index.set(${target},${index},${value})";
+    return "core.ExpandoHelpers.index.set(${target},${index},${value})";
   }
 
   @override

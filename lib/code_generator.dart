@@ -2,10 +2,9 @@ import 'dart:async';
 
 import 'package:analyzer/analyzer.dart';
 import 'package:analyzer/dart/ast/token.dart';
-import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
-import 'package:analyzer/src/dart/ast/ast.dart';
+import 'package:analyzer/src/generated/resolver.dart';
 import 'package:args/command_runner.dart';
 import 'package:build/build.dart';
 import 'package:build_runner/build_runner.dart';
@@ -260,7 +259,7 @@ class _ClassBuilderVisitor extends _ExpressionBuilderVisitor {
     return "export namespace ${node.name.name} {\n"
         "export namespace constructors {\n"
         "${_namedInterfaces()}"
-        "\n}\n}\nexport class ${node.name.name}${node.typeParameters?.accept(this)??''}${node.extendsClause?.accept(this) ?? ''} {\n"
+        "\n}\n}\nexport class ${node.name.name}${node.typeParameters?.accept(this) ?? ''}${node.extendsClause?.accept(this) ?? ''} {\n"
         "${extra}"
         "constructor(...args){\n"
         " ${superCall}"
@@ -272,7 +271,7 @@ class _ClassBuilderVisitor extends _ExpressionBuilderVisitor {
 
   @override
   String visitTypeParameterList(TypeParameterList node) {
-    return "<${node.typeParameters.map((tp)=>tp.accept(this)).join(',')}>";
+    return "<${node.typeParameters.map((tp) => tp.accept(this)).join(',')}>";
   }
 
   @override
@@ -302,7 +301,7 @@ class _ClassBuilderVisitor extends _ExpressionBuilderVisitor {
 
   @override
   String visitFieldDeclaration(FieldDeclaration node) {
-    return "${node.staticKeyword??''} ${node.fields.variables.map((v)=>v.accept(this)).join(',')};";
+    return "${node.staticKeyword ?? ''} ${node.fields.variables.map((v) => v.accept(this)).join(',')};";
   }
 
   // Override to avoid init at this level
@@ -391,14 +390,15 @@ class _FunctionExpressionVisitor extends _ExpressionBuilderVisitor {
     }
 
     res =
-        "function ${node.functionExpression.element?.name ?? ''}${node.functionExpression.typeParameters?.accept(this)??''}${node.functionExpression.parameters.accept(this)}${node.functionExpression.body.accept(this)}";
+        "function ${node.functionExpression.element?.name ?? ''}${node.functionExpression.typeParameters?.accept(this) ?? ''}${node.functionExpression.parameters.accept(this)}${node.functionExpression
+        .body.accept(this)}";
 
     return _context.export(res, node.element);
   }
 
   @override
   String visitTypeParameterList(TypeParameterList node) {
-    return "<${node.typeParameters.map((e)=>e.accept(this)).join(',')}>";
+    return "<${node.typeParameters.map((e) => e.accept(this)).join(',')}>";
   }
 
   @override
@@ -415,6 +415,10 @@ class _FunctionExpressionVisitor extends _ExpressionBuilderVisitor {
       return "${node.name.name}${node.parameters.accept(this)}${node.body.accept(this)}";
     }
   }
+
+  @override
+  String visitEmptyFunctionBody(EmptyFunctionBody node) =>
+      "{ ${_blockPreamble()}}";
 
   @override
   String _blockPreamble() {
@@ -459,6 +463,28 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   }
 
   @override
+  String visitIfStatement(IfStatement node) {
+    _ExpressionBuilderVisitor inner = new _ExpressionBuilderVisitor(_context);
+    return "if (${node.condition.accept(this)}) ${node.thenStatement.accept(inner)} ${node.elseStatement?.accept(inner)??''}";
+  }
+
+  @override
+  String visitTryStatement(TryStatement node) {
+    _ExpressionBuilderVisitor inner = new _ExpressionBuilderVisitor(_context);
+    return "try ${node.body.accept(inner)} ${node.catchClauses?.map((c)=>c.accept(inner))?.join('\n')??''} ${_finally(node.finallyBlock?.accept(inner))}";
+  }
+
+  @override
+  String visitCatchClause(CatchClause node) {
+    String p = node.exceptionParameter != null
+        ? "(${node.exceptionParameter.accept(this)})"
+        : '';
+    return "catch ${p} ${node.body.accept(this)}";
+  }
+
+  static String _finally(x) => x != null ? 'finally ${x}' : '';
+
+  @override
   String visitDeclaredIdentifier(DeclaredIdentifier node) {
     if (node.isConst) {
       return "const ${node.identifier.name};";
@@ -466,11 +492,12 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     return node.identifier.name;
   }
 
-  String toTsType(DartType t) => _context.toTsType(t);
+  String toTsType(DartType t, {bool noTypeArgs: false}) =>
+      _context.toTsType(t, noTypeArgs: noTypeArgs);
 
   @override
   String visitCascadeExpression(CascadeExpression node) {
-    return "(((_) => {${node.cascadeSections.map((e)=>"_.${e.accept(this)};").join('\n')}\nreturn _;})(${node.target.accept(this)}))";
+    return "(((_) => {${node.cascadeSections.map((e) => "_.${e.accept(this)};").join('\n')}\nreturn _;})(${node.target.accept(this)}))";
   }
 
   @override
@@ -587,20 +614,23 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     // (and initializers, etc.)
 
     String p = _prefixFor(node.staticElement.enclosingElement, from: el);
-    return translatorRegistry.newInstance(node.staticElement,
-        "${toTsType(node.staticType)}", arguments(node.argumentList).toList());
+    return translatorRegistry.newInstance(
+        node.staticElement,
+        "${toTsType(node.staticType,noTypeArgs: true)}",
+        arguments(node.argumentList).toList());
   }
 
   @override
   String visitMethodInvocation(MethodInvocation node) {
     if (node.methodName.staticElement == null) {
-      return "${node.methodName.name}${node.argumentList.accept(this)}";
+      String t = node.target != null ? "${node.target.accept(this)}." : '';
+      return "${t}${node.methodName.name}${node.argumentList.accept(this)}";
     }
 
     if (node.methodName.staticElement is FunctionElement ||
         node.methodName.staticElement is! ExecutableElement) {
       //Invoke a function
-      return "${_resolve(node.methodName.staticElement,from:_findEnclosingScope(node))}${node.typeArguments!=null?node.typeArguments.accept(this):''}${node.argumentList.accept(this)}";
+      return "${_resolve(node.methodName.staticElement, from: _findEnclosingScope(node))}${node.typeArguments != null ? node.typeArguments.accept(this) : ''}${node.argumentList.accept(this)}";
     }
 
     ExecutableElement executableElement = node.methodName.staticElement;
@@ -609,6 +639,9 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
       String target;
       if (node.isCascaded) {
         target = "";
+      } else if (executableElement.isStatic) {
+        target =
+            toTsType(executableElement.enclosingElement.type, noTypeArgs: true);
       } else {
         target = node?.target?.accept(this) ?? 'this';
       }
@@ -616,7 +649,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
       return translatorRegistry.invokeMethod(
           node.methodName.staticElement,
           target,
-          "${_methodName(node.methodName.staticElement)}${node.typeArguments!=null?node.typeArguments.accept(this):''}",
+          "${_methodName(node.methodName.staticElement)}${node.typeArguments != null ? node.typeArguments.accept(this) : ''}",
           this.arguments(node.argumentList).toList());
     }
 
@@ -630,7 +663,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   @override
   String visitPrefixedIdentifier(PrefixedIdentifier node) {
     if (node.prefix.staticElement is PrefixElement) {
-      return "${_prefixFor(node.prefix.staticElement,from:node.identifier.staticElement)}${node.identifier}";
+      return "${_prefixFor(node.prefix.staticElement, from: node.identifier.staticElement)}${node.identifier}";
     }
 
     assert(node.identifier.staticElement == null ||
@@ -708,7 +741,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   String visitExpressionFunctionBody(ExpressionFunctionBody node) =>
-      "{ ${_blockPreamble()}${canReturn((node.parent as dynamic).element)?'return ':''}${node.expression.accept(this)}; }";
+      "{ ${_blockPreamble()}${canReturn((node.parent as dynamic).element) ? 'return ' : ''}${node.expression.accept(this)}; }";
 
   @override
   String visitBlockFunctionBody(BlockFunctionBody node) =>
@@ -765,8 +798,9 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
     assert(accessor?.isSetter ?? true);
 
-    String name =
-        accessor != null ? _context.toJSName(accessor.variable,nopath: true) : fallbackName;
+    String name = accessor != null
+        ? _context.toJSName(accessor.variable, nopath: true)
+        : fallbackName;
 
     return translatorRegistry.setProperty(
         targetType, accessor, target, name, node.rightHandSide.accept(this));
@@ -775,8 +809,8 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   @override
   String visitIndexExpression(IndexExpression node) {
     assert(!node.inSetterContext());
-    return translatorRegistry.indexGet(
-        node.target.bestType, node.realTarget.accept(this), node.index.accept(this));
+    return translatorRegistry.indexGet(node.target.bestType,
+        node.realTarget.accept(this), node.index.accept(this));
   }
 
   @override
@@ -809,7 +843,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     Iterable<String> args = (() sync* {
       yield* normalPars.map((e) => e.accept(this));
       if (namedPars.isNotEmpty) {
-        yield "{${namedPars.map((n)=>n.accept(this)).join(',')}}";
+        yield "{${namedPars.map((n) => n.accept(this)).join(',')}}";
       }
     })();
 
@@ -840,16 +874,30 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     if (id.staticElement is PropertyAccessorElement &&
         id.staticElement.enclosingElement.kind !=
             ElementKind.COMPILATION_UNIT) {
+      PropertyAccessorElement el = id.staticElement;
+      if (el.isStatic) {
+        return toTsType((el.enclosingElement as ClassElement).type,
+                noTypeArgs: true) +
+            '.';
+      }
       return "this.";
     }
 
     if (id.staticElement is MethodElement &&
         id.staticElement.enclosingElement.kind !=
             ElementKind.COMPILATION_UNIT) {
+      MethodElement el = id.staticElement;
+      if (el.isStatic) {
+        return toTsType(el.enclosingElement.type, noTypeArgs: true) + '.';
+      }
       return "this.";
     }
 
     if (id.staticElement is FieldElement) {
+      FieldElement el = id.staticElement;
+      if (el.isStatic) {
+        return toTsType(el.enclosingElement.type, noTypeArgs: true) + '.';
+      }
       return "this.";
     }
 
@@ -895,6 +943,7 @@ class FileContext {
     }
     throw "Cannot convert to assetId : ${uri}";
   }
+
 /*
   String namespace(LibraryElement lib) {
     String uri = lib.source.uri.toString();
@@ -938,10 +987,11 @@ class FileContext {
       }
       if (lib.isInSdk) {
         // Replace with ts_sdk
+
+        String name = lib.name.substring(5);
+
         return new TSImport(
-            prefix: _nextPrefix(),
-            path: "dart_sdk/${lib.name.substring(5)}",
-            library: lib);
+            prefix: name, path: "dart_sdk/${name}", library: lib);
       }
 
       // TODO : If same package produce a relative path
@@ -999,6 +1049,22 @@ class FileContext {
     return p;
   }
 
+  static Set<DartType> nativeTypes(Element e) =>
+      ((TypeProvider x) => new Set.from([
+            x.boolType,
+            x.stringType,
+            x.intType,
+            x.numType,
+            x.doubleType,
+            x.functionType,
+          ]))(e.context.typeProvider);
+
+  static Set<String> nativeClasses = new Set.from(['List', 'Map']);
+
+  static bool isNativeType(DartType t) =>
+      nativeTypes(t.element).contains(t) ||
+      t.element.library.isDartCore && (nativeClasses.contains(t.element.name));
+
   String toJSName(Element element, {bool nopath: false}) {
     JSPath jspath = _collectJSPath(
         element); // note: we should check if var is top, but ... whatever.
@@ -1022,7 +1088,7 @@ class FileContext {
     return name;
   }
 
-  String toTsType(DartType type) {
+  String toTsType(DartType type, {bool noTypeArgs: false}) {
     // Look for @JS annotations
     if (type is TypeParameterType) {
       return type.element.name;
@@ -1044,10 +1110,12 @@ class FileContext {
       }
 
       String typeArgs;
-      if (type is ParameterizedType && type.typeArguments?.isNotEmpty ??
+      if (!noTypeArgs &&
+              type is ParameterizedType &&
+              type.typeArguments?.isNotEmpty ??
           false) {
         typeArgs =
-            "<${((type as ParameterizedType).typeArguments ).map((t) => toTsType(t)).join(',')}>";
+            "<${((type as ParameterizedType).typeArguments).map((t) => toTsType(t)).join(',')}>";
       } else {
         typeArgs = "";
       }
@@ -1060,7 +1128,7 @@ class FileContext {
     }
 
     String p;
-    if (type.element.library != _current && !type.element.library.isDartCore) {
+    if (type.element.library != _current && !isNativeType(type)) {
       p = "${namespace(type.element.library)}.";
     } else {
       p = "";
@@ -1079,7 +1147,9 @@ class FileContext {
     } else {
       actualName = type.name;
     }
-    if (type is ParameterizedType && type.typeArguments.isNotEmpty) {
+    if (!noTypeArgs &&
+        type is ParameterizedType &&
+        type.typeArguments.isNotEmpty) {
       return "${p}${actualName}<${type.typeArguments.map((t) => toTsType(t)).join(',')}>";
     } else {
       return "${p}${actualName}";
