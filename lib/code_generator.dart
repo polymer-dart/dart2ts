@@ -543,10 +543,10 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     }
 
     if (node.token.previous?.type != TokenType.PERIOD) {
-      return "${_checkImplicitThis(node)}${node.name}";
+      return "${_prefixFor(node.staticElement,from:_findEnclosingScope(node))}${_checkImplicitThis(node)}${node.name}";
     }
 
-    return node.name;
+    return "${_prefixFor(node.staticElement,from:_findEnclosingScope(node))}}${node.name})";
   }
 
   @override
@@ -672,7 +672,7 @@ class _ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   @override
   String visitPrefixedIdentifier(PrefixedIdentifier node) {
     if (node.prefix.staticElement is PrefixElement) {
-      return "${_prefixFor(node.prefix.staticElement, from: node.identifier.staticElement)}${node.identifier}";
+      return node.identifier.accept(this);
     }
 
     assert(node.identifier.staticElement == null ||
