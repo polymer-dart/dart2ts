@@ -43,16 +43,25 @@ At the moment only translating `e2e_test` project, that means:
  - property
  - property accessor
  - top level variable
+ - redir constructors
+ - field initializers 
+ - field parameters
+ - properties initializers
+  
  - support for `@JS` annotation
    - **DART2TS** extension
    
 **note** 'e2e_test' project is now able to write on the HTML page !!!
+
+**UPDATE** : now even `package:html5` is compiling. Next step is to create a demo project using `package:html5` and demo it.
    
 ### Dart2TS extensions
 
 #### Estension to @JS annotation
 
 `@JS` can now be used to specify from which module the symbol should be loaded. Module path and name should be separated by the `'#'` character.
+Alternatively one can use the `@Module('modulepath')` to specify the module path and the `@JS('name')` annotation for the namespace only.
+When both (`'#'` char and `@Module` annotation) are used the latter wins.
 The final name is defined concatanating both module path and namespace path information from each enclosing element. For example
 
 ```dart
@@ -65,6 +74,22 @@ class That {
 }
 
 ```
+
+or
+
+```dart
+@JS('myjslib')
+@Module('module')
+libary mylib;
+
+@JS('Thing')
+@Module('submod')
+class That {
+  
+}
+
+```
+
 Will cause any reference to `That` to be translated as a reference to `myjslib.Thing` in module `module/submod`. 
 
 To declare only the module and not a namespace use `@JS('module#')`. For example the following will associate the `$` top level variable
@@ -79,30 +104,39 @@ Function $;
 
 ```
 
+or 
+
+```dart
+@JS()
+@Module('jquery')
+library mylib;
+
+@JS()
+Function $;
+
+```
+
 `@JS` annotation can also be used to change the name of the corresponding native method or properties, thus allowing to resolve any name conflict between dart and TS
 (Notably the `is` static method inside a class used by polymer).
 
 ## Roadmap
 
- - using other libraries (easy)
+ - ~~using other libraries (easy)~~
    - declare dep on both `pubspec.yaml` and `package.json`
    - build the dep and produce typelibs and js 
    - when main project is built the already compiled is used for runtime and the dart as analysis
      - dart could be replaced by summaries or by generated "dart type lib" : a version of the original lib with only external declarations.
  - dart "typelibs" (libs with only declaration and all method declared external) (boring)
  - make class definition work (easy)
-  - redir constructors
-  - field initializers 
-  - field parameters
-  - properties initializers
   
   
  - flow control statemets (easy)
-   - for
+   - for in
+   - ~~for (x;y;z)~~
+   - ~~yield~~
+   - ~~return~~
    - while
-   - switch
-   - do
-   - break
+   - ~~do~~
    - ecc.
  - exports (medium ? easy ?)
  - nullable expression (`??` operator `?=` operator) (super easy)
@@ -113,17 +147,17 @@ Function $;
  - complete expression (boring)
     - whats missing ?
  - factory constructors (super easy)
- - `async`, `async*`, `sync*` (should be easy as TS supports 'em all)
-   - map Future to Promise (difficulty level ?!?)
- - manage scope reference to "this." things (boring)
+ - `async`, `async*` (should be easy as TS supports 'em all)
+   - ~~map Future to Promise (difficulty level ?!?)~~
+ - ~~manage scope reference to "this." things (boring)~~
  - mixin (with polymer approach) (should be easy but no named constructor should be allowed)
  - `implements` (subtle , typescript implement of classes is the same of dart?)
- - deal with "rewriting" some method calls, like : (tricky) 
+ - ~~deal with "rewriting" some method calls, like : (tricky)~~ 
    - List -> Array
    - Map<String,?> -> {}
- - deal with "@JS" things (easy)
+ - ~~deal with "@JS" things (easy)~~
  
- - dart_sdk port
+ - (*light*) dart_sdk port
     - collections (maybe tricky, expecially to maintain semantical compatibility)
     - package:html (easy)
     - what else ? (boh)
