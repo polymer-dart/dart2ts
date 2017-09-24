@@ -89,7 +89,7 @@ class Dart2TsBuilder extends _BaseBuilder {
         "${path.withoutExtension(buildStep.inputId.path)}.ts");
     _logger.fine('Processing ${library.location} for ${destId}');
     Dart2TsVisitor visitor = new Dart2TsVisitor(new FileContext(library));
-    await buildStep.writeAsString(destId, library.units.map((u)=>u.computeNode().accept(visitor)).join('\n'));
+    await buildStep.writeAsString(destId, library.units.map((u)=>u.computeNode().accept(visitor)).join('\n')+visitor._context._prefixes.values.map((i)=>'import * as ${i.prefix} from "${i.path}";').join('\n'));
   }
 }
 
@@ -104,8 +104,7 @@ class Dart2TsVisitor extends GeneralizingAstVisitor<String> {
     _visitor =
         new _ExpressionBuilderVisitor(_context);
     return "// Generated code\n"
-        "${node.declarations.map((d)=>d.accept(this)).join('\n')}"
-        "${_visitor._context._prefixes.values.map((i)=>'import * as ${i.prefix} from "${i.path}";').join('\n')}";
+        "${node.declarations.map((d)=>d.accept(this)).join('\n')}";
   }
 
 
@@ -149,12 +148,12 @@ class _ConstructorMethodBuilderVisitor extends _FunctionExpressionVisitor {
    * Builds the instance method that will init the class
    */
 
-  static String symbolFor(ConstructorElement cons) => cons.isDefaultConstructor
+  static String symbolFor(ConstructorElement cons) => isAnonymousConstructor(cons)
       ? 'bare.init'
       : "${cons.enclosingElement.name}_${cons.name}";
 
   static String accessorFor(ConstructorElement cons) =>
-      cons.isDefaultConstructor ? '[bare.init]' : ".${cons.name}";
+      isAnonymousConstructor(cons) ? '[bare.init]' : ".${cons.name}";
 
   static String interfaceNameFor(ConstructorElement cons) =>
       "${cons.enclosingElement.name}.constructors.${cons.name}";
@@ -186,10 +185,12 @@ class _ConstructorMethodBuilderVisitor extends _FunctionExpressionVisitor {
 
   String interfaceName() => interfaceNameFor(declaration.element);
 
+
+
   _ConstructorMethodBuilderVisitor(
       _ClassBuilderVisitor _classBuilderVisitor, this.declaration)
       : super(_classBuilderVisitor._parentVisitor._visitor._context),
-        isDefault = declaration.element.isDefaultConstructor {}
+        isDefault = isAnonymousConstructor(declaration.element) {}
 
   String buildMethod() {
     String name = isDefault ? "[${symName}]" : declaration.element.name;
@@ -198,18 +199,21 @@ class _ConstructorMethodBuilderVisitor extends _FunctionExpressionVisitor {
 
   String _initializers() {
     // TODO : call super class default if no super initializers
-    return "${declaration.initializers.map((c) => c.accept(this)).join('\n')}";
+    
+    String i1 = _namedParameters.ordinal.where((p)=>p is FieldFormalParameter||p.element.isInitializingFormal).map((p)=>"this.${p.identifier.name}=${p.identifier.name};\n").join('');
+    String i2 = _namedParameters.named.values.where((p)=>p is FieldFormalParameter||p.element.isInitializingFormal).map((p)=>"this.${p.identifier.name}=${p.identifier.name};\n").join('');
+    return "$i1$i2${declaration.initializers.map((c) => c.accept(this)).join('\n')}";
   }
 
   @override
   String visitRedirectingConstructorInvocation(
       RedirectingConstructorInvocation node) {
-    return "/* TODO : REDIR constructor */";
+    return "this${_ConstructorMethodBuilderVisitor.accessorFor(node.staticElement)}";
   }
 
   @override
   String visitConstructorFieldInitializer(ConstructorFieldInitializer node) {
-    return "/* TODO: FIELD field initializer */";
+    return "this.${node.fieldName.name} = ${node.expression.accept(this)};";
   }
 
   @override

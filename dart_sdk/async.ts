@@ -68,7 +68,7 @@ export class StreamController<X> {
     }
 
     // Factory constructor
-    static broadcast<Y>(): StreamController<Y> {
+    static broadcast<Y>(arg?: { onListen?: () => any, onCancel?: () => any, sync?: boolean }): StreamController<Y> {
         return new StreamController<Y>();
     }
 

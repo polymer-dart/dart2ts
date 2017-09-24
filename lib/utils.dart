@@ -250,3 +250,5 @@ PropertyInducingElement findField(Element clazz, String name) {
     return null;
   }
 }
+
+bool isAnonymousConstructor(ConstructorElement c) => (c.name??"").isEmpty&&!c.isFactory;
