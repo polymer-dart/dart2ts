@@ -31,5 +31,9 @@ String innerHTML;
 }
 
 
-void printToBody(String message) => document.body.appendChild(document.createElement('div')
+void printToBody(String message)
+{
+  print(message);
+document.body.appendChild(document.createElement('div')
 ..innerHTML=message);
+}
