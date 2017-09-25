@@ -38,7 +38,7 @@ class Dart2TsCommand extends Command<bool> {
     PackageGraph graph = new PackageGraph.forPath(argResults['dir']);
 
     List<BuildAction> actions = [
-      new BuildAction(new Dart2TsBuilder(), graph.root.name)
+      new BuildAction(new Dart2TsBuilder(), graph.root.name,inputs: ['lib/**.dart','web/**.dart','test/**.dart'])
     ];
 
     if (argResults['watch'] == true) {
@@ -329,7 +329,8 @@ class ClassBuilderVisitor extends ExpressionBuilderVisitor {
 
   @override
   String visitMethodDeclaration(MethodDeclaration node) {
-    return new FunctionExpressionBuilderVisitor(_parentVisitor._visitor._context)
+    return new FunctionExpressionBuilderVisitor(
+            _parentVisitor._visitor._context)
         .buildMethodDeclaration(node);
   }
 
@@ -601,11 +602,23 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
           .toTsName((node.staticElement as PropertyAccessorElement).variable);
     }
 
-    if (node.token.previous?.type != TokenType.PERIOD) {
-      return "${_prefixFor(node.staticElement,from:_findEnclosingScope(node))}${_checkImplicitThis(node)}${node.name}";
+    String name;
+    String prefix;
+    // If there's a js anno use that
+
+    if (getAnnotation(node.staticElement?.metadata??[], isJS) != null) {
+      name = _context.toTsName(node.staticElement);
+      prefix = "";
+    } else {
+      name = node.name;
+      prefix = _prefixFor(node.staticElement, from: _findEnclosingScope(node));
     }
 
-    return "${_prefixFor(node.staticElement,from:_findEnclosingScope(node))}}${node.name})";
+    if (node.token.previous?.type != TokenType.PERIOD) {
+      return "${prefix}${_checkImplicitThis(node)}${name}";
+    }
+
+    return "${prefix}${name}";
   }
 
   @override
@@ -836,6 +849,7 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     if (node.leftHandSide is PropertyAccess) {
       PropertyAccess propertyAccess = node.leftHandSide;
       accessor = propertyAccess.propertyName.staticElement;
+      accessor = accessor?.isSetter??true ? accessor : accessor.correspondingSetter;
 
       target = propertyAccess?.target?.accept(this);
       targetType = propertyAccess?.target?.bestType;
@@ -848,6 +862,7 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     } else if (node.leftHandSide is PrefixedIdentifier) {
       PrefixedIdentifier prefixedIdentifier = node.leftHandSide;
       accessor = prefixedIdentifier.identifier.staticElement;
+      accessor = accessor?.isSetter??true ? accessor : accessor.correspondingSetter;
       target = prefixedIdentifier.prefix.accept(this);
       targetType = prefixedIdentifier.prefix.bestType;
 
