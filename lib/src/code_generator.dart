@@ -688,6 +688,17 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   String visitInstanceCreationExpression(InstanceCreationExpression node) {
+    if (getAnnotation(node.staticType.element.metadata,isAnonymous)!=null) {
+      // Create the literal
+
+
+      ClassElement c =node.staticType.element;
+
+      return "{${c.fields.map((f)=>"${f.name}:null").join(',')}}";
+
+    }
+
+
     return translatorRegistry.newInstance(
         node.staticElement,
         "${toTsType(node.staticType,noTypeArgs: true)}",

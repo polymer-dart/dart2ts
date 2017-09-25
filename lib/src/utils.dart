@@ -58,6 +58,9 @@ bool isPolymerElementHtmlImportUri(Uri u) =>
 bool isJS(DartObject o) =>
     (isJsUri(o.type.element.librarySource.uri)) && (o.type.name == 'JS');
 
+bool isAnonymous(DartObject o) =>
+    (isJsUri(o.type.element.librarySource.uri)) && (o.type.name == '_Anonymous');
+
 bool isModule(DartObject o) =>
     (isDart2TsUri(o.type.element.librarySource.uri)) &&
     (o.type.name == 'Module');

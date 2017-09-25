@@ -121,6 +121,7 @@ Function $;
 
 ## Roadmap
 
+ - ~~a better way to deal with @anonymous @js objects. For instance "new ShadowRootInit()" should become ="{mode:null,delegatesFocus:null}"  or something like that.~~
  - ~~using other libraries (easy)~~
    - declare dep on both `pubspec.yaml` and `package.json`
    - build the dep and produce typelibs and js 
