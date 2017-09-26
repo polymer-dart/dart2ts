@@ -246,10 +246,10 @@ PropertyInducingElement findField(Element clazz, String name) {
   }
 
   if (clazz is ClassElement) {
-    return clazz.fields.firstWhere((fe) => fe.name == name,
+    return (clazz.fields as Iterable<PropertyInducingElement>).firstWhere((fe) => fe.name == name,
         orElse: () => flattenWith(
                 flattenWith(
-                    clazz.interfaces ?? [], (InterfaceType x) => x.accessors),
+                    clazz.interfaces ?? <InterfaceType>[], (InterfaceType x) => x.accessors),
                 (PropertyAccessorElement ac) =>
                     [ac.variable]).firstWhere(
                 (PropertyInducingElement ac) => ac.name == name, orElse: () {

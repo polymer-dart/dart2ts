@@ -38,7 +38,8 @@ class Dart2TsCommand extends Command<bool> {
     PackageGraph graph = new PackageGraph.forPath(argResults['dir']);
 
     List<BuildAction> actions = [
-      new BuildAction(new Dart2TsBuilder(), graph.root.name,inputs: ['lib/**.dart','web/**.dart','test/**.dart'])
+      new BuildAction(new Dart2TsBuilder(), graph.root.name,
+          inputs: ['lib/**.dart', 'web/**.dart', 'test/**.dart'])
     ];
 
     if (argResults['watch'] == true) {
@@ -189,8 +190,8 @@ class ConstructorMethodBuilderVisitor extends FunctionExpressionBuilderVisitor {
 
   ConstructorMethodBuilderVisitor(
       ClassBuilderVisitor _classBuilderVisitor, this.declaration)
-      : super(_classBuilderVisitor._parentVisitor._visitor._context),
-        isDefault = isAnonymousConstructor(declaration.element) {}
+      : isDefault = isAnonymousConstructor(declaration.element),
+        super(_classBuilderVisitor._parentVisitor._visitor._context) {}
 
   String buildMethod() {
     String name = isDefault ? "[${symName}]" : declaration.element.name;
@@ -458,8 +459,8 @@ class FunctionExpressionBuilderVisitor extends ExpressionBuilderVisitor {
     String defaults = _namedParameters?.ordinal
             ?.where((x) =>
                 x.kind.isOptional &&
-                (x is DefaultFormalParameter) &&
-                x.defaultValue != null)
+                x is DefaultFormalParameter &&
+                (x as DefaultFormalParameter).defaultValue != null)
             ?.map((d) => d as DefaultFormalParameter)
             ?.map((d) =>
                 '${d.identifier} = ${d.identifier} || ${d.defaultValue.accept(this)};\n')
@@ -473,7 +474,6 @@ class FunctionExpressionBuilderVisitor extends ExpressionBuilderVisitor {
 
 class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   ExpressionBuilderVisitor(this._context);
-
 
   @override
   String visitAsExpression(AsExpression node) {
@@ -612,7 +612,7 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     String prefix;
     // If there's a js anno use that
 
-    if (getAnnotation(node.staticElement?.metadata??[], isJS) != null) {
+    if (getAnnotation(node.staticElement?.metadata ?? [], isJS) != null) {
       name = _context.toTsName(node.staticElement);
       prefix = "";
     } else {
@@ -694,16 +694,13 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   String visitInstanceCreationExpression(InstanceCreationExpression node) {
-    if (getAnnotation(node.staticType.element.metadata,isAnonymous)!=null) {
+    if (getAnnotation(node.staticType.element.metadata, isAnonymous) != null) {
       // Create the literal
 
-
-      ClassElement c =node.staticType.element;
+      ClassElement c = node.staticType.element;
 
       return "{${c.fields.map((f)=>"${f.name}:null").join(',')}}";
-
     }
-
 
     return translatorRegistry.newInstance(
         node.staticElement,
@@ -866,7 +863,8 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     if (node.leftHandSide is PropertyAccess) {
       PropertyAccess propertyAccess = node.leftHandSide;
       accessor = propertyAccess.propertyName.staticElement;
-      accessor = accessor?.isSetter??true ? accessor : accessor.correspondingSetter;
+      accessor =
+          accessor?.isSetter ?? true ? accessor : accessor.correspondingSetter;
 
       target = propertyAccess?.target?.accept(this);
       targetType = propertyAccess?.target?.bestType;
@@ -879,7 +877,8 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     } else if (node.leftHandSide is PrefixedIdentifier) {
       PrefixedIdentifier prefixedIdentifier = node.leftHandSide;
       accessor = prefixedIdentifier.identifier.staticElement;
-      accessor = accessor?.isSetter??true ? accessor : accessor.correspondingSetter;
+      accessor =
+          accessor?.isSetter ?? true ? accessor : accessor.correspondingSetter;
       target = prefixedIdentifier.prefix.accept(this);
       targetType = prefixedIdentifier.prefix.bestType;
 
