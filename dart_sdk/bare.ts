@@ -35,7 +35,7 @@ export namespace ListHelpers {
         }
 
         export function from(x:any):Array<any> {
-            return Array.prototype.slice.call(x);
+            return Array.from(x);
         }
     }
 }
