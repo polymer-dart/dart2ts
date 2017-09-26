@@ -1,0 +1,7 @@
+analyzer:
+  strong-mode: true
+#  language:
+#    enableConditionalDirectives: true
+  exclude:
+   - bazel-*/**
+   - gen/**
