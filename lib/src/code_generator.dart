@@ -636,7 +636,8 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     }
 
     if (node.token.previous?.type != TokenType.PERIOD) {
-      return "${prefix}${_checkImplicitThis(node)}${name}";
+      String that = _checkImplicitThis(node);
+      return "${that??prefix}${name}";
     }
 
     return "${prefix}${name}";
@@ -1020,7 +1021,7 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
       return "this.";
     }
 
-    return "";
+    return null;
   }
 }
 
