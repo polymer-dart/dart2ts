@@ -107,7 +107,7 @@ class Dart2TsVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   visitCompilationUnit(CompilationUnit node) {
-    _visitor = new ExpressionBuilderVisitor(_context);
+    _visitor = new ExpressionBuilderVisitor(_context,true);
     return "// Generated code\n"
         "${node.declarations.map((d)=>d.accept(this)).join('\n')}";
   }
@@ -370,7 +370,8 @@ class NamedParameterCollectorVisitor extends GeneralizingAstVisitor<dynamic> {
 }
 
 class FunctionExpressionBuilderVisitor extends ExpressionBuilderVisitor {
-  FunctionExpressionBuilderVisitor(FileContext context) : super(context);
+  FunctionExpressionBuilderVisitor(FileContext context,[bool isTop=false])
+      : super(context,isTop);
 
   String buildFunction(FunctionExpression node) {
     return "${node.element.name}${node.parameters.accept(this)} => ${node.body.accept(this)}";
@@ -382,6 +383,12 @@ class FunctionExpressionBuilderVisitor extends ExpressionBuilderVisitor {
   }
 
   NamedParameterCollectorVisitor _namedParameters;
+
+
+  @override
+  String visitFunctionDeclaration(FunctionDeclaration node) {
+    return new FunctionExpressionBuilderVisitor(_context).buildFunctionDeclaration(node);
+  }
 
   @override
   String visitFormalParameterList(FormalParameterList node) {
@@ -408,11 +415,13 @@ class FunctionExpressionBuilderVisitor extends ExpressionBuilderVisitor {
       return "/** EXTERNAL ${node.name} */";
     }
 
-    res =
-        "${node.element.isAsynchronous?'async ':''}function${node.element.isGenerator?'*':''} ${node.functionExpression.element?.name ?? ''}${node.functionExpression.typeParameters?.accept(this) ?? ''}${node.functionExpression.parameters?.accept(this)??'(/*NOARGS?*/)'}${node.functionExpression
-        .body.accept(this)}";
+    if (node.element.isGenerator) {
+      return "${isTop?'export ':''}function ${node.functionExpression.element?.name ?? ''}${node.functionExpression.typeParameters?.accept(this) ?? ''}${node.functionExpression.parameters?.accept(this)??'(/*NOARGS?*/)'}"
+          " { return { [Symbol.iterator]: ${node.element.isAsynchronous?'async ':''}function*()${node.functionExpression.body.accept(this)}};}";
+    }
 
-    return _context.export(res, node.element);
+    return "${isTop?'export ':''}${node.element.isAsynchronous?'async ':''}function${node.element.isGenerator?'*':''} ${node.functionExpression.element?.name ?? ''}${node.functionExpression.typeParameters?.accept(this) ?? ''}${node.functionExpression.parameters?.accept(this)??'(/*NOARGS?*/)'}${node.functionExpression
+        .body.accept(this)}";
   }
 
   @override
@@ -473,7 +482,8 @@ class FunctionExpressionBuilderVisitor extends ExpressionBuilderVisitor {
 }
 
 class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
-  ExpressionBuilderVisitor(this._context);
+  bool isTop;
+  ExpressionBuilderVisitor(this._context,[this.isTop=false]);
 
   @override
   String visitAsExpression(AsExpression node) {
@@ -482,8 +492,13 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   String visitFunctionDeclaration(FunctionDeclaration node) {
-    return new FunctionExpressionBuilderVisitor(_context)
+    return new FunctionExpressionBuilderVisitor(_context,isTop)
         .buildFunctionDeclaration(node);
+  }
+
+  @override
+  String visitForEachStatement(ForEachStatement node) {
+    return "${node.awaitKeyword!=null?'await ':''}for (let ${node.loopVariable.accept(this)} of ${node.iterable.accept(this)})${node.body.accept(this)}";
   }
 
   @override
@@ -1082,13 +1097,6 @@ class FileContext {
       // Extract package name and path and produce a nodemodule path
       return new TSImport(prefix: _nextPrefix(), path: libPath, library: lib);
     }).prefix;
-  }
-
-  String export(String res, Element e) {
-    if (e.enclosingElement == _current.definingCompilationUnit) {
-      return 'export ${res}';
-    }
-    return res;
   }
 
   static final RegExp NAME_PATTERN = new RegExp('(([^#]+)#)?(.*)');
