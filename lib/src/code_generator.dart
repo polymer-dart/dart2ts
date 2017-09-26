@@ -474,6 +474,12 @@ class FunctionExpressionBuilderVisitor extends ExpressionBuilderVisitor {
 class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   ExpressionBuilderVisitor(this._context);
 
+
+  @override
+  String visitAsExpression(AsExpression node) {
+    return "<${toTsType(node.type.type)}>${node.expression.accept(this)}";
+  }
+
   @override
   String visitFunctionDeclaration(FunctionDeclaration node) {
     return new FunctionExpressionBuilderVisitor(_context)
