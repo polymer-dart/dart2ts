@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:dart2ts/src/code_generator.dart';
+import 'package:dart2ts/src/commands.dart';
 import 'package:logging/logging.dart';
 
 const String BOLD = '\x1b[1m';

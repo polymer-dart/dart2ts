@@ -16,21 +16,21 @@ import 'package:source_gen/source_gen.dart';
 
 Logger _logger = new Logger('dart2ts.lib.code_generator');
 
-class Dart2TsCommand extends Command<bool> {
+class Dart2TsBuildCommand extends Command<bool> {
   @override
   String get description => "Build a file";
 
   @override
   String get name => 'build';
 
-  Dart2TsCommand() {
+  Dart2TsBuildCommand() {
     this.argParser
       ..addOption('dir',
-          defaultsTo: '.',
-          abbr: 'd',
-          help: 'the base path of the package to process')
+                      defaultsTo: '.',
+                      abbr: 'd',
+                      help: 'the base path of the package to process')
       ..addFlag('watch',
-          abbr: 'w', defaultsTo: false, help: 'watch for changes');
+                    abbr: 'w', defaultsTo: false, help: 'watch for changes');
   }
 
   @override
@@ -39,22 +39,16 @@ class Dart2TsCommand extends Command<bool> {
 
     List<BuildAction> actions = [
       new BuildAction(new Dart2TsBuilder(), graph.root.name,
-          inputs: ['lib/**.dart', 'web/**.dart', 'test/**.dart'])
+                          inputs: ['lib/**.dart', 'web/**.dart'])
     ];
 
     if (argResults['watch'] == true) {
       watch(actions,
-          packageGraph: graph, onLog: (_) {}, deleteFilesByDefault: true);
+                packageGraph: graph, onLog: (_) {}, deleteFilesByDefault: true);
     } else {
       build(actions,
-          packageGraph: graph, onLog: (_) {}, deleteFilesByDefault: true);
+                packageGraph: graph, onLog: (_) {}, deleteFilesByDefault: true);
     }
-  }
-}
-
-class Dart2TsCommandRunner extends CommandRunner<bool> {
-  Dart2TsCommandRunner() : super('dart2ts', 'a better interface to TS') {
-    addCommand(new Dart2TsCommand());
   }
 }
 
@@ -160,7 +154,7 @@ class ConstructorMethodBuilderVisitor extends FunctionExpressionBuilderVisitor {
       isAnonymousConstructor(cons) ? '[bare.init]' : ".${cons.name}";
 
   static String interfaceNameFor(ConstructorElement cons) =>
-      "${cons.enclosingElement.name}.constructors.${cons.name}";
+      "${cons.enclosingElement.name}_Constructors.${cons.name}";
 
   String get symName => symbolFor(declaration.element);
 
@@ -194,8 +188,13 @@ class ConstructorMethodBuilderVisitor extends FunctionExpressionBuilderVisitor {
         super(_classBuilderVisitor._parentVisitor._visitor._context) {}
 
   String buildMethod() {
-    String name = isDefault ? "[${symName}]" : declaration.element.name;
-    return "${name}${declaration.parameters.accept(this)}${declaration.body.accept(this)}";
+    if (declaration.element.isFactory) {
+      String name = (declaration.element.name??'').isEmpty ? "new" : declaration.element.name;
+      return "/* factory constructor */ static ${name}${declaration.parameters.accept(this)}${declaration.body.accept(this)}";
+    } else {
+      String name = isDefault ? "[${symName}]" : declaration.element.name;
+      return "${name}${declaration.parameters.accept(this)}${declaration.body.accept(this)}";
+    }
   }
 
   String _initializers() {
@@ -274,10 +273,14 @@ class ClassBuilderVisitor extends ExpressionBuilderVisitor {
       extra = "constructor();\n";
     }
 
-    return "export namespace ${node.name.name} {\n"
-        "export namespace constructors {\n"
-        "${_namedInterfaces()}"
-        "\n}\n}\nexport class ${node.name.name}${node.typeParameters?.accept(this) ?? ''}${node.extendsClause?.accept(this) ?? ''} {\n"
+    String namedInterfaces = _namedInterfaces();
+    if (namedInterfaces.isNotEmpty) {
+      namedInterfaces = "namespace ${node.name.name}_Constructors {\n"
+          "${namedInterfaces}"
+          "\n}\n";
+    }
+
+    return "${namedInterfaces}export class ${node.name.name}${node.typeParameters?.accept(this) ?? ''}${node.extendsClause?.accept(this) ?? ''} {\n"
         "${extra}"
         "constructor(...args){\n"
         " ${superCall}"
@@ -304,7 +307,7 @@ class ClassBuilderVisitor extends ExpressionBuilderVisitor {
   }
 
   String _namedInterfaces() => constructors
-      .where((c) => !c.isDefault)
+      .where((c) => !c.isDefault&&!c.declaration.element.isFactory)
       .map((c) => c.constructorInterface())
       .join("\n");
 
@@ -314,7 +317,7 @@ class ClassBuilderVisitor extends ExpressionBuilderVisitor {
   }
 
   String _namedConstructors() {
-    return "${constructors.where((c) => !c.isDefault).map((c) => c.defineNamedConstructor()).join('\n')}";
+    return "${constructors.where((c) => !c.isDefault&&!c.declaration.element.isFactory).map((c) => c.defineNamedConstructor()).join('\n')}";
   }
 
   @override
@@ -522,7 +525,7 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   @override
   String visitForStatement(ForStatement node) {
     ExpressionBuilderVisitor inner = new ExpressionBuilderVisitor(_context);
-    return "for(${node.variables.variables.map((d)=>"let ${d.accept(this)}").join(',')};${node.condition?.accept(this)??''};${node.updaters.map((u)=>u.accept(this)).join(',')}) ${node.body.accept(inner)}";
+    return "for(${node.variables?.variables??[].map((d)=>"let ${d.accept(this)}").join(',')};${node.condition?.accept(this)??''};${node.updaters.map((u)=>u.accept(this)).join(',')}) ${node.body.accept(inner)}";
   }
 
   @override
@@ -808,12 +811,12 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   @override
   String visitPropertyAccess(PropertyAccess node) {
     PropertyAccessorElement access = node.propertyName.staticElement;
-    assert(access.isGetter); // Setter is handled in assignment
+    assert(access?.isGetter??true); // Setter is handled in assignment
 
     String target = node?.target?.accept(this);
 
     return translatorRegistry.getProperty(node?.target?.bestType, access,
-        target, _context.toTsName(access.variable, nopath: true));
+        target, access!=null?_context.toTsName(access.variable, nopath: true):node.propertyName.name);
   }
 
   @override

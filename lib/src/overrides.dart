@@ -79,7 +79,10 @@ class DefaultTranslator implements Translator {
   String newInstance(ConstructorElement constructor, String className,
       List<String> arguments) {
     if ((constructor.name ?? '').isEmpty) {
-      return "new ${className}${_args(arguments)}";
+      if (constructor.isFactory)
+        return "${className}.new${_args(arguments)}";
+      else
+        return "new ${className}${_args(arguments)}";
     } else if (constructor.isFactory) {
       return "${className}.${constructor.name}${_args(arguments)}";
     } else {
