@@ -26,11 +26,11 @@ class Dart2TsBuildCommand extends Command<bool> {
   Dart2TsBuildCommand() {
     this.argParser
       ..addOption('dir',
-                      defaultsTo: '.',
-                      abbr: 'd',
-                      help: 'the base path of the package to process')
+          defaultsTo: '.',
+          abbr: 'd',
+          help: 'the base path of the package to process')
       ..addFlag('watch',
-                    abbr: 'w', defaultsTo: false, help: 'watch for changes');
+          abbr: 'w', defaultsTo: false, help: 'watch for changes');
   }
 
   @override
@@ -39,15 +39,15 @@ class Dart2TsBuildCommand extends Command<bool> {
 
     List<BuildAction> actions = [
       new BuildAction(new Dart2TsBuilder(), graph.root.name,
-                          inputs: ['lib/**.dart', 'web/**.dart'])
+          inputs: ['lib/**.dart', 'web/**.dart'])
     ];
 
     if (argResults['watch'] == true) {
       watch(actions,
-                packageGraph: graph, onLog: (_) {}, deleteFilesByDefault: true);
+          packageGraph: graph, onLog: (_) {}, deleteFilesByDefault: true);
     } else {
       build(actions,
-                packageGraph: graph, onLog: (_) {}, deleteFilesByDefault: true);
+          packageGraph: graph, onLog: (_) {}, deleteFilesByDefault: true);
     }
   }
 }
@@ -101,7 +101,7 @@ class Dart2TsVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   visitCompilationUnit(CompilationUnit node) {
-    _visitor = new ExpressionBuilderVisitor(_context,true);
+    _visitor = new ExpressionBuilderVisitor(_context, true);
     return "// Generated code\n"
         "${node.declarations.map((d)=>d.accept(this)).join('\n')}";
   }
@@ -189,7 +189,9 @@ class ConstructorMethodBuilderVisitor extends FunctionExpressionBuilderVisitor {
 
   String buildMethod() {
     if (declaration.element.isFactory) {
-      String name = (declaration.element.name??'').isEmpty ? "new" : declaration.element.name;
+      String name = (declaration.element.name ?? '').isEmpty
+          ? "new"
+          : declaration.element.name;
       return "/* factory constructor */ static ${name}${declaration.parameters.accept(this)}${declaration.body.accept(this)}";
     } else {
       String name = isDefault ? "[${symName}]" : declaration.element.name;
@@ -275,12 +277,14 @@ class ClassBuilderVisitor extends ExpressionBuilderVisitor {
 
     String namedInterfaces = _namedInterfaces();
     if (namedInterfaces.isNotEmpty) {
-      namedInterfaces = "namespace ${node.name.name}_Constructors {\n"
+      namedInterfaces = "export namespace ${node.name.name}_Constructors {\n"
           "${namedInterfaces}"
           "\n}\n";
     }
 
-    return "${namedInterfaces}export class ${node.name.name}${node.typeParameters?.accept(this) ?? ''}${node.extendsClause?.accept(this) ?? ''} {\n"
+    String a = node.isAbstract ? "abstract " : "";
+
+    return "${namedInterfaces}export ${a}class ${node.name.name}${node.typeParameters?.accept(this) ?? ''}${node.extendsClause?.accept(this) ?? ''}${node.implementsClause?.accept(this) ?? ''} {\n"
         "${extra}"
         "constructor(...args){\n"
         " ${superCall}"
@@ -288,6 +292,11 @@ class ClassBuilderVisitor extends ExpressionBuilderVisitor {
         "${namedConstructors}\n"
         "${members}"
         "}\n";
+  }
+
+  @override
+  String visitImplementsClause(ImplementsClause node) {
+    return " implements ${node.interfaces.map((t)=>t.accept(this)).join(',')}";
   }
 
   @override
@@ -299,7 +308,7 @@ class ClassBuilderVisitor extends ExpressionBuilderVisitor {
   String visitTypeParameter(TypeParameter node) {
     String e;
     if (node.extendsKeyword != null) {
-      e = "extends ${toTsType(node.bound.type)}";
+      e = " extends ${toTsType(node.bound.type)}";
     } else {
       e = "";
     }
@@ -307,7 +316,7 @@ class ClassBuilderVisitor extends ExpressionBuilderVisitor {
   }
 
   String _namedInterfaces() => constructors
-      .where((c) => !c.isDefault&&!c.declaration.element.isFactory)
+      .where((c) => !c.isDefault && !c.declaration.element.isFactory)
       .map((c) => c.constructorInterface())
       .join("\n");
 
@@ -373,8 +382,8 @@ class NamedParameterCollectorVisitor extends GeneralizingAstVisitor<dynamic> {
 }
 
 class FunctionExpressionBuilderVisitor extends ExpressionBuilderVisitor {
-  FunctionExpressionBuilderVisitor(FileContext context,[bool isTop=false])
-      : super(context,isTop);
+  FunctionExpressionBuilderVisitor(FileContext context, [bool isTop = false])
+      : super(context, isTop);
 
   String buildFunction(FunctionExpression node) {
     return "${node.element.name}${node.parameters.accept(this)} => ${node.body.accept(this)}";
@@ -387,10 +396,10 @@ class FunctionExpressionBuilderVisitor extends ExpressionBuilderVisitor {
 
   NamedParameterCollectorVisitor _namedParameters;
 
-
   @override
   String visitFunctionDeclaration(FunctionDeclaration node) {
-    return new FunctionExpressionBuilderVisitor(_context).buildFunctionDeclaration(node);
+    return new FunctionExpressionBuilderVisitor(_context)
+        .buildFunctionDeclaration(node);
   }
 
   @override
@@ -438,18 +447,25 @@ class FunctionExpressionBuilderVisitor extends ExpressionBuilderVisitor {
   }
 
   String buildMethodDeclaration(MethodDeclaration node) {
+    String s = node.isStatic ? 'static ' : '';
+    String a = node.isAbstract?'abstract ':'';
     if (node.isGetter) {
-      return "get ${node.name}() : ${toTsType(node.element.returnType)}${node.body.accept(this)}";
+      return "${s}${a}get ${node.name}() : ${toTsType(node.element.returnType)}${node.body.accept(this)}";
     } else if (node.isSetter) {
-      return "set ${node.name}${node.parameters.accept(this)}${node.body.accept(this)}";
+      return "${s}${a}set ${node.name}${node.parameters.accept(this)}${node.body.accept(this)}";
     } else {
-      return "${node.name.name}${node.parameters.accept(this)}${node.body.accept(this)}";
+      return "${s}${a}${node.name.name}${node.parameters.accept(this)}${node.body.accept(this)}";
     }
   }
 
   @override
-  String visitEmptyFunctionBody(EmptyFunctionBody node) =>
-      "{ ${_blockPreamble()}}";
+  String visitEmptyFunctionBody(EmptyFunctionBody node) {
+    AstNode p = node.parent;
+    if (p is MethodDeclaration && p.isAbstract) {
+      return ";";
+    }
+    return "{ ${_blockPreamble()}}";
+  }
 
   @override
   String _blockPreamble() {
@@ -486,7 +502,7 @@ class FunctionExpressionBuilderVisitor extends ExpressionBuilderVisitor {
 
 class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   bool isTop;
-  ExpressionBuilderVisitor(this._context,[this.isTop=false]);
+  ExpressionBuilderVisitor(this._context, [this.isTop = false]);
 
   @override
   String visitAsExpression(AsExpression node) {
@@ -495,7 +511,7 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   String visitFunctionDeclaration(FunctionDeclaration node) {
-    return new FunctionExpressionBuilderVisitor(_context,isTop)
+    return new FunctionExpressionBuilderVisitor(_context, isTop)
         .buildFunctionDeclaration(node);
   }
 
@@ -507,7 +523,23 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   @override
   String visitIfStatement(IfStatement node) {
     ExpressionBuilderVisitor inner = new ExpressionBuilderVisitor(_context);
-    return "if (${node.condition.accept(this)}) ${node.thenStatement.accept(inner)} ${node.elseStatement?.accept(inner)??''}";
+    String els = node.elseStatement != null
+        ? " else ${node.elseStatement.accept(this)}"
+        : "";
+    return "if (${node.condition.accept(this)}) ${node.thenStatement.accept(inner)}${els}";
+  }
+
+
+  @override
+  String visitIsExpression(IsExpression node) {
+    String op = (node.notOperator==null) ? "is" : "isNot";
+    return "bare.${op}(${node.expression.accept(this)},${toTsType(node.type.type,inTypeOf:true)})";
+  }
+
+
+  @override
+  String visitThrowExpression(ThrowExpression node) {
+    return "throw ${node.expression.accept(this)}";
   }
 
   @override
@@ -522,10 +554,17 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     return "do ${node.body.accept(inner)} while (${node.condition.accept(this)});";
   }
 
+
+  @override
+  String visitWhileStatement(WhileStatement node) {
+    ExpressionBuilderVisitor inner = new ExpressionBuilderVisitor(_context);
+    return "while (${node.condition.accept(this)}) ${node.body.accept(inner)}";
+  }
+
   @override
   String visitForStatement(ForStatement node) {
     ExpressionBuilderVisitor inner = new ExpressionBuilderVisitor(_context);
-    return "for(${node.variables?.variables??[].map((d)=>"let ${d.accept(this)}").join(',')};${node.condition?.accept(this)??''};${node.updaters.map((u)=>u.accept(this)).join(',')}) ${node.body.accept(inner)}";
+    return "for(${(node.variables?.variables??[]).map((d)=>"let ${d.accept(this)}").join(',')};${node.condition?.accept(this)??''};${node.updaters.map((u)=>u.accept(this)).join(',')}) ${node.body.accept(inner)}";
   }
 
   @override
@@ -586,8 +625,8 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     return node.identifier.name;
   }
 
-  String toTsType(DartType t, {bool noTypeArgs: false}) =>
-      _context.toTsType(t, noTypeArgs: noTypeArgs);
+  String toTsType(DartType t, {bool noTypeArgs: false,bool inTypeOf:false}) =>
+      _context.toTsType(t, noTypeArgs: noTypeArgs,inTypeOf:inTypeOf);
 
   @override
   String visitCascadeExpression(CascadeExpression node) {
@@ -698,6 +737,9 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   @override
   String visitBinaryExpression(BinaryExpression node) {
+    if (node.operator.type==TokenType.QUESTION_QUESTION) {
+      return "${node.leftOperand.accept(this)} || ${node.rightOperand.accept(this)}";
+    }
     return "${node.leftOperand.accept(this)}${node.operator}${node.rightOperand.accept(this)}";
   }
 
@@ -811,12 +853,17 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   @override
   String visitPropertyAccess(PropertyAccess node) {
     PropertyAccessorElement access = node.propertyName.staticElement;
-    assert(access?.isGetter??true); // Setter is handled in assignment
+    assert(access?.isGetter ?? true); // Setter is handled in assignment
 
     String target = node?.target?.accept(this);
 
-    return translatorRegistry.getProperty(node?.target?.bestType, access,
-        target, access!=null?_context.toTsName(access.variable, nopath: true):node.propertyName.name);
+    return translatorRegistry.getProperty(
+        node?.target?.bestType,
+        access,
+        target,
+        access != null
+            ? _context.toTsName(access.variable, nopath: true)
+            : node.propertyName.name);
   }
 
   @override
@@ -944,6 +991,12 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   @override
   String visitLiteral(Literal node) {
     return "${node}";
+  }
+
+
+  @override
+  String visitAdjacentStrings(AdjacentStrings node) {
+    return "${node.strings.map((l)=>l.accept(this)).join(' + ')}";
   }
 
   @override
@@ -1146,7 +1199,7 @@ class FileContext {
             x.functionType,
           ]))(e.context.typeProvider);
 
-  static Set<String> nativeClasses = new Set.from(['List', 'Map']);
+  static Set<String> nativeClasses = new Set.from(['List', 'Map','Iterable','Iterator']);
 
   static bool isNativeType(DartType t) =>
       nativeTypes(t.element).contains(t) ||
@@ -1175,7 +1228,7 @@ class FileContext {
     return name;
   }
 
-  String toTsType(DartType type, {bool noTypeArgs: false}) {
+  String toTsType(DartType type, {bool noTypeArgs: false,bool inTypeOf:false}) {
     // Look for @JS annotations
     if (type is TypeParameterType) {
       return type.element.name;
@@ -1234,6 +1287,11 @@ class FileContext {
     } else {
       actualName = type.name;
     }
+
+    if (isNativeType(type)&&inTypeOf) {
+      actualName='"${actualName}"';
+    }
+
     if (!noTypeArgs &&
         type is ParameterizedType &&
         type.typeArguments.isNotEmpty) {
