@@ -251,7 +251,7 @@ class IterableTranslator extends TranslatorBase {
       new Set.from(const ['first', 'last', 'isEmpty', 'isNotEmpty']);
 
   static final Set<String> _overriddenMethodNames =
-      new Set.from(const ['add', 'remove', 'from', 'take', 'removeLast','map','where','firstWhere']);
+      new Set.from(const ['add', 'remove', 'from', 'take', 'removeLast','map','where','firstWhere','join','lastWhere']);
 
   @override
   bool checkNewInstance(ConstructorElement cons) {
@@ -301,7 +301,7 @@ class StringTranslator extends TranslatorBase {
       new Set.from(const ['codeUnits', 'isEmpty', 'isNotEmpty']);
 
   static final Set<String> _overriddenMethodNames =
-      new Set.from(const ['codeUnitAt', 'replaceAll', 'take']);
+      new Set.from(const ['codeUnitAt', 'replaceAll', 'take','contains']);
 
   @override
   bool checkMethod(MethodElement method) {

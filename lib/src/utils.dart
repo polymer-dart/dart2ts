@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:analyzer/analyzer.dart';
 import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/src/generated/engine.dart';
 
 bool isListType(DartType type) =>
     isTypeInstanceOf(type?.element?.context?.typeProvider?.listType, type);
@@ -265,3 +266,9 @@ PropertyInducingElement findField(Element clazz, String name) {
 
 bool isAnonymousConstructor(ConstructorElement c) =>
     (c.name ?? "").isEmpty && !c.isFactory;
+
+DartType getType(AnalysisContext ctx,String libraryUri,String typeName) => getLibrary(ctx, libraryUri).getType(typeName).type;
+
+LibraryElement getLibrary(AnalysisContext ctx,String libraryUri) => ctx.computeLibraryElement(ctx.sourceFactory.forUri(libraryUri));
+
+LibraryElement dartCore(AnalysisContext ctx) => getLibrary(ctx, 'dart:core');
