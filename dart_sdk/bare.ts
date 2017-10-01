@@ -171,6 +171,22 @@ export namespace IterableHelpers {
     }
 }
 
+export namespace NumberHelpers {
+    export namespace methods {
+        export function parse(s:string):number {
+            return parseFloat(s);
+        }
+    }
+}
+
+export namespace IntHelpers {
+    export namespace methods {
+        export function parse(s:string):number {
+            return parseInt(s);
+        }
+    }
+}
+
 export namespace StringHelpers {
     export namespace codeUnits {
         export function get(x: String): Iterable<number> {
@@ -198,6 +214,17 @@ export namespace StringHelpers {
 
 
     export namespace methods {
+        export function allMatches(pattern: string, tgt: string): Array<string> {
+            let p = undefined;
+            return Array.from((function* () {
+                while ((p = tgt.indexOf(pattern, p) >= 0)) {
+                    p += tgt.length;
+                    yield pattern;
+                }
+            })());
+        }
+
+
         export function codeUnitAt(s: string, p: number): number {
             return s.charCodeAt(p);
         }
@@ -206,8 +233,8 @@ export namespace StringHelpers {
             return s.replace(what, which);
         }
 
-        export function contains(s:string,what:string):boolean {
-            return s.indexOf(what)>=0;
+        export function contains(s: string, what: string): boolean {
+            return s.indexOf(what) >= 0;
         }
     }
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:analyzer/src/generated/engine.dart';
@@ -5,7 +7,7 @@ import 'package:dart2ts/src/utils.dart';
 
 abstract class Translator {
   bool checkOp(MethodElement operator);
-  bool checkMethod(MethodElement method);
+  bool checkMethod(MethodElement method, Expression targetExpression);
   bool checkAccessor(DartType targetType, PropertyAccessorElement accessor);
   bool checkNewInstance(ConstructorElement cons);
   bool checkField(FieldElement field);
@@ -48,7 +50,7 @@ class DefaultTranslator implements Translator {
   bool checkField(FieldElement field) => true;
 
   @override
-  bool checkMethod(MethodElement method) => true;
+  bool checkMethod(MethodElement method, Expression targetExpression) => true;
 
   @override
   bool checkNewInstance(ConstructorElement cons) => true;
@@ -89,9 +91,9 @@ class DefaultTranslator implements Translator {
       else
         return "new ${className}${_args(arguments)}";
     } else if (constructor.isFactory) {
-      return "${className}.${constructor.name}${_args(arguments)}";
+      return "${className}.${tsMethodName(constructor.name)}${_args(arguments)}";
     } else {
-      return "new ${className}.${constructor.name}${_args(arguments)}";
+      return "new ${className}.${tsMethodName(constructor.name)}${_args(arguments)}";
     }
   }
 
@@ -135,7 +137,7 @@ class TranslatorBase implements Translator {
   bool checkField(FieldElement field) => false;
 
   @override
-  bool checkMethod(MethodElement method) => false;
+  bool checkMethod(MethodElement method, Expression targetExpression) => false;
 
   @override
   bool checkNewInstance(ConstructorElement cons) => false;
@@ -200,8 +202,16 @@ class ListTranslator extends TranslatorBase {
   static final Set<String> _overriddenAccessors =
       new Set.from(const ['first', 'last', 'isEmpty', 'isNotEmpty']);
 
-  static final Set<String> _overriddenMethodNames =
-      new Set.from(const ['add', 'remove', 'from', 'take', 'removeLast','where','firstWhere','lastWhere']);
+  static final Set<String> _overriddenMethodNames = new Set.from(const [
+    'add',
+    'remove',
+    'from',
+    'take',
+    'removeLast',
+    'where',
+    'firstWhere',
+    'lastWhere'
+  ]);
 
   @override
   bool checkNewInstance(ConstructorElement cons) {
@@ -215,8 +225,9 @@ class ListTranslator extends TranslatorBase {
   }
 
   @override
-  bool checkMethod(MethodElement method) {
-    return (isListType(method.enclosingElement.type)) &&
+  bool checkMethod(MethodElement method, Expression targetExpression) {
+    return method != null &&
+        (isListType(method.enclosingElement.type)) &&
         _overriddenMethodNames.contains(method.name);
   }
 
@@ -229,7 +240,7 @@ class ListTranslator extends TranslatorBase {
   @override
   String getProperty(DartType targetType, PropertyAccessorElement getter,
       String target, String propertyName) {
-    return "bare.ListHelpers.${propertyName}.get.call(this,${target})";
+    return "bare.ListHelpers.${propertyName}.get(${target})";
   }
 }
 
@@ -250,8 +261,18 @@ class IterableTranslator extends TranslatorBase {
   static final Set<String> _overriddenAccessors =
       new Set.from(const ['first', 'last', 'isEmpty', 'isNotEmpty']);
 
-  static final Set<String> _overriddenMethodNames =
-      new Set.from(const ['add', 'remove', 'from', 'take', 'removeLast','map','where','firstWhere','join','lastWhere']);
+  static final Set<String> _overriddenMethodNames = new Set.from(const [
+    'add',
+    'remove',
+    'from',
+    'take',
+    'removeLast',
+    'map',
+    'where',
+    'firstWhere',
+    'join',
+    'lastWhere'
+  ]);
 
   @override
   bool checkNewInstance(ConstructorElement cons) {
@@ -265,8 +286,9 @@ class IterableTranslator extends TranslatorBase {
   }
 
   @override
-  bool checkMethod(MethodElement method) {
-    return (isIterableType(method.enclosingElement.type)) &&
+  bool checkMethod(MethodElement method, Expression targetExpression) {
+    return method != null &&
+        (isIterableType(method.enclosingElement.type)) &&
         _overriddenMethodNames.contains(method.name);
   }
 
@@ -279,7 +301,53 @@ class IterableTranslator extends TranslatorBase {
   @override
   String getProperty(DartType targetType, PropertyAccessorElement getter,
       String target, String propertyName) {
-    return "bare.IterableHelpers.${propertyName}.get.call(this,${target})";
+    return "bare.IterableHelpers.${propertyName}.get(${target})";
+  }
+}
+
+class NumberTranslator extends TranslatorBase {
+  const NumberTranslator();
+
+  static final Set<String> _overriddenMethodNames =
+      new Set.from(const ['parse']);
+
+  @override
+  bool checkMethod(MethodElement method, Expression targetExpression) {
+    return (targetExpression?.staticType ==
+            currentContext.typeProvider.numType) &&
+        _overriddenMethodNames.contains(method.name);
+  }
+
+  @override
+  String invokeMethod(MethodElement method, String target, String methodName,
+      List<String> arguments) {
+    if (method.isStatic) {
+      return "bare.NumberHelpers.methods.${methodName}(${arguments.join(',')})";
+    }
+    return "bare.NumberHelpers.methods.${methodName}(${target},${arguments.join(',')})";
+  }
+}
+
+class IntTranslator extends TranslatorBase {
+  const IntTranslator();
+
+  static final Set<String> _overriddenMethodNames =
+      new Set.from(const ['parse']);
+
+  @override
+  bool checkMethod(MethodElement method, Expression targetExpression) {
+    return (targetExpression?.staticType ==
+            currentContext.typeProvider.intType) &&
+        _overriddenMethodNames.contains(method.name);
+  }
+
+  @override
+  String invokeMethod(MethodElement method, String target, String methodName,
+      List<String> arguments) {
+    if (method.isStatic) {
+      return "bare.IntHelpers.methods.${methodName}(${arguments.join(',')})";
+    }
+    return "bare.IntHelpers.methods.${methodName}(${target},${arguments.join(',')})";
   }
 }
 
@@ -300,12 +368,13 @@ class StringTranslator extends TranslatorBase {
   static final Set<String> _overriddenAccessors =
       new Set.from(const ['codeUnits', 'isEmpty', 'isNotEmpty']);
 
-  static final Set<String> _overriddenMethodNames =
-      new Set.from(const ['codeUnitAt', 'replaceAll', 'take','contains']);
+  static final Set<String> _overriddenMethodNames = new Set.from(
+      const ['codeUnitAt', 'replaceAll', 'take', 'contains', 'allMatches']);
 
   @override
-  bool checkMethod(MethodElement method) {
-    return (method.enclosingElement.type ==
+  bool checkMethod(MethodElement method, Expression targetExpression) {
+    return method != null &&
+        (targetExpression?.staticType ==
             method.context.typeProvider.stringType) &&
         _overriddenMethodNames.contains(method.name);
   }
@@ -319,7 +388,7 @@ class StringTranslator extends TranslatorBase {
   @override
   String getProperty(DartType targetType, PropertyAccessorElement getter,
       String target, String propertyName) {
-    return "bare.StringHelpers.${propertyName}.get.call(this,${target})";
+    return "bare.StringHelpers.${propertyName}.get(${target})";
   }
 }
 
@@ -339,12 +408,9 @@ class ExpandoTranslator extends TranslatorBase {
 
   @override
   bool checkIndexed(DartType targetType) {
-    AnalysisContext c = targetType.element.context;
+    AnalysisContext c = targetType.element.context ?? currentContext;
 
-    LibraryElement lib =
-        c.computeLibraryElement(c.sourceFactory.forUri('dart:core'));
-    ClassElement expandoClass = lib.getType('Expando');
-    return targetType.element == expandoClass;
+    return targetType.element == getType(c, 'dart:core', 'Expando');
   }
 }
 
@@ -354,6 +420,8 @@ class TranslatorRegistry {
     const IterableTranslator(),
     const StringTranslator(),
     const ExpandoTranslator(),
+    const IntTranslator(),
+    const NumberTranslator(),
     defaultTranslator,
   ];
   const TranslatorRegistry();
@@ -371,9 +439,9 @@ class TranslatorRegistry {
       _find((t) => t.checkNewInstance(constructor))
           .newInstance(constructor, className, arguments);
 
-  String invokeMethod(MethodElement method, String target, String methodName,
-          List<String> arguments) =>
-      _find((t) => t.checkMethod(method))
+  String invokeMethod(MethodElement method, Expression targetExpression,
+          String target, String methodName, List<String> arguments) =>
+      _find((t) => t.checkMethod(method, targetExpression))
           .invokeMethod(method, target, methodName, arguments);
   String getProperty(DartType targetType, PropertyAccessorElement getter,
           String target, String propertyName) =>

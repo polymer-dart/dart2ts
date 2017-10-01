@@ -4,6 +4,7 @@ import 'package:analyzer/analyzer.dart';
 import 'package:analyzer/dart/ast/token.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
+import 'package:analyzer/src/generated/engine.dart' show AnalysisContext;
 import 'package:analyzer/src/generated/resolver.dart';
 import 'package:args/command_runner.dart';
 import 'package:build/build.dart';
@@ -66,7 +67,8 @@ abstract class _BaseBuilder extends Builder {
     var resolver = buildStep.resolver;
     if (!await resolver.isLibrary(buildStep.inputId)) return;
     var lib = await buildStep.inputLibrary;
-    await generateForLibrary(lib, buildStep);
+
+    await runWithContext(lib.context, () => generateForLibrary(lib, buildStep));
   }
 
   Future generateForLibrary(LibraryElement library, BuildStep buildStep);
@@ -191,10 +193,10 @@ class ConstructorMethodBuilderVisitor extends FunctionExpressionBuilderVisitor {
     if (declaration.element.isFactory) {
       String name = (declaration.element.name ?? '').isEmpty
           ? "new"
-          : declaration.element.name;
+          : tsMethodName(declaration.element.name);
       return "/* factory constructor */ static ${name}${declaration.parameters.accept(this)}${declaration.body.accept(this)}";
     } else {
-      String name = isDefault ? "[${symName}]" : declaration.element.name;
+      String name = isDefault ? "[${symName}]" : tsMethodName(declaration.element.name);
       return "${name}${declaration.parameters.accept(this)}${declaration.body.accept(this)}";
     }
   }
@@ -399,6 +401,12 @@ class FunctionExpressionBuilderVisitor extends ExpressionBuilderVisitor {
     return "${node.identifier}${node.kind.isOptional ? '?' : ''} : ${toTsType(node.element.type)}";
   }
 
+  /*
+  @override
+  String visitFunctionTypedFormalParameter(FunctionTypedFormalParameter node) {
+    return "/*FTFP*/";
+  }*/
+
   NamedParameterCollectorVisitor _namedParameters;
 
   @override
@@ -513,6 +521,11 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   ExpressionBuilderVisitor(this._context, [this.isTop = false]);
 
   @override
+  String visitGenericFunctionType(GenericFunctionType node) {
+    return "/* GEN */";
+  }
+
+  @override
   String visitAsExpression(AsExpression node) {
     return "<${toTsType(node.type.type)}>${node.expression.accept(this)}";
   }
@@ -521,6 +534,22 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   String visitFunctionDeclaration(FunctionDeclaration node) {
     return new FunctionExpressionBuilderVisitor(_context, isTop)
         .buildFunctionDeclaration(node);
+  }
+
+  @override
+  String visitMapLiteral(MapLiteral node) {
+    ParameterizedType t = node.staticType;
+    if (t.typeParameters[0].type == currentContext.typeProvider.stringType) {
+      return "{${node.entries.map((e) => e.accept(this)).join(',')}}";
+    } else {
+      // Produce a map
+      return "new Map([${node.entries.map((e)=>"[${e.key.accept(this)},${e.value.accept(this)}]").join(',')}])";
+    }
+  }
+
+  @override
+  String visitMapLiteralEntry(MapLiteralEntry node) {
+    return "${node.key.accept(this)} : ${node.value.accept(this)}";
   }
 
   @override
@@ -756,6 +785,12 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
     if (node.operator.type == TokenType.QUESTION_QUESTION) {
       return "${node.leftOperand.accept(this)} || ${node.rightOperand.accept(this)}";
     }
+
+    // Because of a different operator precedence
+    if (node.operator.type == TokenType.EQ_EQ ||
+        node.operator.type == TokenType.BANG_EQ) {
+      return "(${node.leftOperand.accept(this)})${node.operator}(${node.rightOperand.accept(this)})";
+    }
     return "${node.leftOperand.accept(this)}${node.operator}${node.rightOperand.accept(this)}";
   }
 
@@ -825,12 +860,21 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
       return translatorRegistry.invokeMethod(
           node.methodName.staticElement,
+          node.target,
           target,
           "${_methodName(node.methodName.staticElement)}${node.typeArguments != null ? node.typeArguments.accept(this) : ''}",
           this.arguments(node.argumentList).toList());
     }
 
-    throw "What else ?";
+    // Else is an expression that resolves to a function
+
+    String target = node.methodName.accept(this);
+    return translatorRegistry.invokeMethod(
+        null,
+        node.target,
+        null,
+        "${target}${node.typeArguments != null ? node.typeArguments.accept(this) : ''}",
+        this.arguments(node.argumentList).toList());
   }
 
   String _methodName(MethodElement method) {
@@ -1061,7 +1105,6 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   @override
   String visitInterpolationString(InterpolationString node) => node.value;
 
-
   String _checkImplicitThis(SimpleIdentifier id) {
     if (id.staticElement is PropertyAccessorElement &&
         id.staticElement.enclosingElement.kind !=
@@ -1205,21 +1248,20 @@ class FileContext {
     return p;
   }
 
-  static Set<DartType> nativeTypes(Element e) =>
-      ((TypeProvider x) => new Set.from([
-            x.boolType,
-            x.stringType,
-            x.intType,
-            x.numType,
-            x.doubleType,
-            x.functionType,
-          ]))(e.context.typeProvider);
+  static Set<DartType> nativeTypes() => ((TypeProvider x) => new Set.from([
+        x.boolType,
+        x.stringType,
+        x.intType,
+        x.numType,
+        x.doubleType,
+        x.functionType,
+      ]))(currentContext.typeProvider);
 
   static Set<String> nativeClasses =
       new Set.from(['List', 'Map', 'Iterable', 'Iterator']);
 
   static bool isNativeType(DartType t) =>
-      nativeTypes(t.element).contains(t) ||
+      nativeTypes().contains(t) ||
       t.element.library.isDartCore && (nativeClasses.contains(t.element.name));
 
   String toTsName(Element element, {bool nopath: false}) {
@@ -1252,7 +1294,31 @@ class FileContext {
       return type.element.name;
     }
 
-    if (getAnnotation(type.element.metadata, isJS) != null) {
+    if (type is FunctionType) {
+      Iterable<String> args = () sync* {
+        for (var p in type.normalParameterTypes) {
+          yield toTsType(p);
+        }
+        for (var p in type.optionalParameterTypes) {
+          yield toTsType(p) + "?";
+        }
+
+        if (type.namedParameterTypes.isNotEmpty) {
+          yield "{${type.namedParameterTypes.keys.map((k)=>"${k}?:${toTsType(type.namedParameterTypes[k])}").join(',')}}?";
+        }
+      }();
+
+      String ta;
+      if (type.typeArguments?.isNotEmpty ?? false) {
+        ta = "<${type.typeArguments.map((t) => toTsType(t)).join(',')}>";
+      } else {
+        ta = '';
+      }
+
+      return "${ta}(${args.join(',')})=>${toTsType(type.returnType)}";
+    }
+
+    if (getAnnotation(type?.element?.metadata ?? [], isJS) != null) {
       // check if we got a package annotation
       TSPath path = _collectJSPath(type.element);
       // Lookup for prefix
@@ -1286,7 +1352,9 @@ class FileContext {
     }
 
     String p;
-    if (type.element.library != _current && !isNativeType(type)) {
+    if (type.element != null &&
+        type.element.library != _current &&
+        !isNativeType(type)) {
       p = "${namespace(type.element.library)}.";
     } else {
       p = "";
@@ -1295,20 +1363,20 @@ class FileContext {
     String actualName;
     if (isListType(type)) {
       actualName = "Array";
-    } else if (type == type.element.context.typeProvider.numType ||
-        type == type.element.context.typeProvider.intType) {
+    } else if (type == currentContext.typeProvider.numType ||
+        type == currentContext.typeProvider.intType) {
       actualName = 'number';
-    } else if (type == type.element.context.typeProvider.stringType) {
+    } else if (type == currentContext.typeProvider.stringType) {
       actualName = 'string';
-    } else if (type == type.element.context.typeProvider.boolType) {
+    } else if (type == currentContext.typeProvider.boolType) {
       actualName = 'boolean';
-    } else if (type == getType(type.element.context, 'dart:core', 'RegExp')) {
+    } else if (type == getType(currentContext, 'dart:core', 'RegExp')) {
       actualName = 'RegExpPattern';
     } else {
       actualName = type.name;
     }
 
-    if (nativeTypes(type.element).contains(type) && inTypeOf) {
+    if (nativeTypes().contains(type) && inTypeOf) {
       actualName = '"${actualName}"';
     }
 
@@ -1321,3 +1389,4 @@ class FileContext {
     }
   }
 }
+

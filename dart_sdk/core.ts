@@ -54,6 +54,12 @@ export class Exception {
 
 }
 
+export class FormatException extends Error implements Exception {
+    constructor(msg) {
+        super(msg);
+    }
+}
+
 export class Uri {
     url: URL;
 
@@ -125,6 +131,14 @@ export class Uri {
 
     static get base(): Uri {
         return new Uri(new URL(document.location.toString()));    //?
+    }
+
+    static file(path:string,arg?:{windows:boolean}):Uri {
+        return Uri.new({path:path,scheme:'file'});
+    }
+
+    static dataFromString(string:string):Uri {
+        return Uri.new({path:string,scheme:'data'});    // TODO : What should actually this do
     }
 }
 

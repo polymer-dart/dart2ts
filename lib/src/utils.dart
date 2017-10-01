@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:analyzer/dart/element/type.dart';
 import 'dart:io';
 import 'package:analyzer/analyzer.dart';
@@ -264,6 +265,14 @@ PropertyInducingElement findField(Element clazz, String name) {
   }
 }
 
+
+String tsMethodName(String name) {
+  if (name == 'caller') {
+    return r"$caller";
+  }
+  return name;
+}
+
 bool isAnonymousConstructor(ConstructorElement c) =>
     (c.name ?? "").isEmpty && !c.isFactory;
 
@@ -272,3 +281,7 @@ DartType getType(AnalysisContext ctx,String libraryUri,String typeName) => getLi
 LibraryElement getLibrary(AnalysisContext ctx,String libraryUri) => ctx.computeLibraryElement(ctx.sourceFactory.forUri(libraryUri));
 
 LibraryElement dartCore(AnalysisContext ctx) => getLibrary(ctx, 'dart:core');
+
+X runWithContext<X>(AnalysisContext ctx,X Function() body) => runZoned(body,zoneValues: {'dart2ts.analysisContext':ctx});
+
+AnalysisContext get currentContext => Zone.current['dart2ts.analysisContext'];
