@@ -196,7 +196,8 @@ class ConstructorMethodBuilderVisitor extends FunctionExpressionBuilderVisitor {
           : tsMethodName(declaration.element.name);
       return "/* factory constructor */ static ${name}${declaration.parameters.accept(this)}${declaration.body.accept(this)}";
     } else {
-      String name = isDefault ? "[${symName}]" : tsMethodName(declaration.element.name);
+      String name =
+          isDefault ? "[${symName}]" : tsMethodName(declaration.element.name);
       return "${name}${declaration.parameters.accept(this)}${declaration.body.accept(this)}";
     }
   }
@@ -823,8 +824,15 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   @override
   String visitMethodInvocation(MethodInvocation node) {
     if (node.methodName.staticElement == null) {
-      String t = node.target != null ? "${node.target.accept(this)}." : '';
-      return "${t}${node.methodName.name}${node.argumentList.accept(this)}";
+      String t = node.target != null ? node.target.accept(this) : '';
+      if (node.bestType == currentContext.typeProvider.dynamicType) {
+        return "bare.callGenericMethod(${t},'${node.methodName.name}',${this.arguments(node.argumentList).join((','))})";
+      } else {
+        return translatorRegistry.invokeMethod(null, node.target, t,
+            node.methodName.name, this.arguments(node.argumentList).toList());
+      }
+
+      //return "${t}${node.methodName.name}${node.argumentList.accept(this)}";
     }
 
     if (node.methodName.staticElement is FunctionElement ||
@@ -1389,4 +1397,3 @@ class FileContext {
     }
   }
 }
-

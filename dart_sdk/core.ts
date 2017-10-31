@@ -40,15 +40,39 @@ export abstract class Pattern {
 
 }
 
-export class RegExpPattern extends RegExp implements Pattern {
+
+export class Match extends Array<string> {
+
+}
+
+export class RegExpPattern implements Pattern {
+    private expression: string;
+
     constructor(expression: string) {
-        super(expression);
+        this.expression = expression;
     }
 
     static new(expression: string) {
         return new RegExpPattern(expression);
     }
+
+    firstMatch(s: string): Match {
+
+        let re = new RegExp(this.expression);
+        let m: Match = new Match();
+        let res = re.exec(s);
+        if (res == null) {
+            return null;
+        }
+
+        // add all
+        m.push(...res.slice());
+
+        return m;
+    }
+
 }
+
 
 export class Exception {
 
@@ -133,12 +157,12 @@ export class Uri {
         return new Uri(new URL(document.location.toString()));    //?
     }
 
-    static file(path:string,arg?:{windows:boolean}):Uri {
-        return Uri.new({path:path,scheme:'file'});
+    static file(path: string, arg?: { windows: boolean }): Uri {
+        return Uri.new({path: path, scheme: 'file'});
     }
 
-    static dataFromString(string:string):Uri {
-        return Uri.new({path:string,scheme:'data'});    // TODO : What should actually this do
+    static dataFromString(string: string): Uri {
+        return Uri.new({path: string, scheme: 'data'});    // TODO : What should actually this do
     }
 }
 

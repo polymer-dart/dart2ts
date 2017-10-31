@@ -239,6 +239,13 @@ export namespace StringHelpers {
     }
 }
 
+export function callGenericMethod(target:any,methodName:string,...args:Array<any>):any {
+    // Here we should intercept string and list methods
+
+    // If not intercepts :
+    return target[methodName].call(target,...args);
+}
+
 export function is(object: any, type: any): boolean {
     if (typeof type === 'string') {
         return typeof object === type;

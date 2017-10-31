@@ -1,4 +1,6 @@
 name: dart2ts
+author: Vittorio Ballestra <vittorio.ballestra@gmail.com>
+homepage: https://github.com/orgs/polymer-dart
 description: A better interface for TS
 varsion: 0.0.1
 dependencies:

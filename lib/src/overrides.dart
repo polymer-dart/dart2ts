@@ -79,8 +79,12 @@ class DefaultTranslator implements Translator {
 
   @override
   String invokeMethod(MethodElement method, String target, String methodName,
-          List<String> arguments) =>
-      "${_target(target)}${methodName}${_args(arguments)}";
+          List<String> arguments) {
+    if (method?.enclosingElement==null) {
+      return "bare.callGenericMethod(${target},'${methodName}',${_args(arguments)})";
+    }
+    return "${_target(target)}${methodName}${_args(arguments)}";
+  }
 
   @override
   String newInstance(ConstructorElement constructor, String className,
