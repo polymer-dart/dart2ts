@@ -4,7 +4,7 @@ import 'package:analyzer/analyzer.dart';
 import 'package:analyzer/dart/ast/token.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
-import 'package:analyzer/src/generated/engine.dart' show AnalysisContext;
+//import 'package:analyzer/src/generated/engine.dart' show AnalysisContext;
 import 'package:analyzer/src/generated/resolver.dart';
 import 'package:args/command_runner.dart';
 import 'package:build/build.dart';
@@ -141,7 +141,7 @@ class ConstructorMethodBuilderVisitor extends FunctionExpressionBuilderVisitor {
 
   //final String symName;
   final bool isDefault;
-  ClassBuilderVisitor _classBuilderVisitor;
+  //ClassBuilderVisitor _classBuilderVisitor;
 
   /**
    * Builds the instance method that will init the class
@@ -435,7 +435,7 @@ class FunctionExpressionBuilderVisitor extends ExpressionBuilderVisitor {
   }
 
   String buildFunctionDeclaration(FunctionDeclaration node) {
-    String res;
+    //String res;
 
     if (node.externalKeyword != null) {
       return "/** EXTERNAL ${node.name} */";
@@ -773,10 +773,14 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   }
 
   String _prefixFor(Element ele, {Element from}) {
-    if (ele.library == from.library ||
-        ele.kind == ElementKind.CLASS && ele.library.name == 'dart.core') {
+    if (ele == null) return "";
+	
+	if (from != null && ele.library == from.library ||
+        ele.library != null && ele.kind == ElementKind.CLASS && ele.library.name == 'dart.core') {
       return "";
     }
+	
+	if (ele.library == null) return "";
 
     return "${_context.namespace(ele.library)}.";
   }
@@ -813,6 +817,10 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
       ClassElement c = node.staticType.element;
 
       return "{${c.fields.map((f) => "${f.name}:null").join(',')}}";
+    }
+
+    if (node.staticType.isDynamic) {
+      return "any";
     }
 
     return translatorRegistry.newInstance(
@@ -1212,8 +1220,9 @@ class FileContext {
       String libPath;
 
       if (id.package == currentId.package) {
-        libPath =
-            "./${path.withoutExtension(path.relative(id.path, from: path.dirname(currentId.path)))}";
+        libPath = "./${path.withoutExtension(path.relative(id.path, from: path.dirname(currentId.path)))}";
+        // Fix import for libs in subfolders for windows
+        libPath = libPath.replaceAll(path.separator, "/");
       } else {
         libPath = "${id.package}/${path.withoutExtension(id.path)}";
       }
@@ -1256,7 +1265,7 @@ class FileContext {
     return p;
   }
 
-  static Set<DartType> nativeTypes() => ((TypeProvider x) => new Set.from([
+  static Set<DartType> nativeTypes() => ((TypeProvider x) => new Set<DartType>.from([
         x.boolType,
         x.stringType,
         x.intType,
