@@ -61,7 +61,8 @@ bool isJS(DartObject o) =>
     (isJsUri(o.type.element.librarySource.uri)) && (o.type.name == 'JS');
 
 bool isAnonymous(DartObject o) =>
-    (isJsUri(o.type.element.librarySource.uri)) && (o.type.name == '_Anonymous');
+    (isJsUri(o.type.element.librarySource.uri)) &&
+    (o.type.name == '_Anonymous');
 
 bool isModule(DartObject o) =>
     (isDart2TsUri(o.type.element.librarySource.uri)) &&
@@ -251,11 +252,11 @@ PropertyInducingElement findField(Element clazz, String name) {
   if (clazz is ClassElement) {
     return clazz.fields.firstWhere((fe) => fe.name == name,
         orElse: () => flattenWith(
-                flattenWith(
-                    clazz.interfaces ?? <InterfaceType>[], (InterfaceType x) => x.accessors),
-                (PropertyAccessorElement ac) =>
-                    [ac.variable]).firstWhere(
-                (PropertyInducingElement ac) => ac.name == name, orElse: () {
+                    flattenWith(clazz.interfaces ?? <InterfaceType>[],
+                        (InterfaceType x) => x.accessors),
+                    (PropertyAccessorElement ac) => [ac.variable])
+                .firstWhere((PropertyInducingElement ac) => ac.name == name,
+                    orElse: () {
               if (clazz.supertype != clazz) {
                 return findField(clazz.supertype?.element, name);
               }
@@ -265,7 +266,6 @@ PropertyInducingElement findField(Element clazz, String name) {
     return null;
   }
 }
-
 
 String tsMethodName(String name) {
   if (name == 'caller') {
@@ -277,15 +277,18 @@ String tsMethodName(String name) {
 bool isAnonymousConstructor(ConstructorElement c) =>
     (c.name ?? "").isEmpty && !c.isFactory;
 
-DartType getType(AnalysisContext ctx,String libraryUri,String typeName) => getLibrary(ctx, libraryUri).getType(typeName).type;
+DartType getType(AnalysisContext ctx, String libraryUri, String typeName) =>
+    getLibrary(ctx, libraryUri).getType(typeName).type;
 
-LibraryElement getLibrary(AnalysisContext ctx,String libraryUri) => ctx.computeLibraryElement(ctx.sourceFactory.forUri(libraryUri));
+LibraryElement getLibrary(AnalysisContext ctx, String libraryUri) =>
+    ctx.computeLibraryElement(ctx.sourceFactory.forUri(libraryUri));
 
 LibraryElement dartCore(AnalysisContext ctx) => getLibrary(ctx, 'dart:core');
 
 // This doesn't work with analizer for me
 //typedef X X_FUNCTION();
 //X runWithContext<X>(AnalysisContext ctx, X_FUNCTION body) => runZoned(body, zoneValues: {'dart2ts.analysisContext':ctx});
-X runWithContext<X>(AnalysisContext ctx, Function body) => runZoned(() => body() as X, zoneValues: {'dart2ts.analysisContext':ctx});
+X runWithContext<X>(AnalysisContext ctx, Function body) =>
+    runZoned(() => body() as X, zoneValues: {'dart2ts.analysisContext': ctx});
 
 AnalysisContext get currentContext => Zone.current['dart2ts.analysisContext'];

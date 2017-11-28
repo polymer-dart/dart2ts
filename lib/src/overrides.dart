@@ -79,8 +79,8 @@ class DefaultTranslator implements Translator {
 
   @override
   String invokeMethod(MethodElement method, String target, String methodName,
-          List<String> arguments) {
-    if (method?.enclosingElement==null) {
+      List<String> arguments) {
+    if (method?.enclosingElement == null) {
       return "bare.callGenericMethod(${target},'${methodName}',${_args(arguments)})";
     }
     return "${_target(target)}${methodName}${_args(arguments)}";
@@ -364,7 +364,9 @@ class StringTranslator extends TranslatorBase {
       return false;
     }
     Element enclosing = accessor.enclosingElement;
-    return enclosing is ClassElement && targetType != null && targetType.element != null &&
+    return enclosing is ClassElement &&
+        targetType != null &&
+        targetType.element != null &&
         targetType == targetType.element.context.typeProvider.stringType &&
         _overriddenAccessors.contains(accessor.name);
   }
@@ -431,7 +433,7 @@ class TranslatorRegistry {
     defaultTranslator,
   ];
   const TranslatorRegistry();
-  
+
   Translator _find(CHECK_TRANSLATOR_FUNCTION check) {
     return _translators.firstWhere((t) => check(t));
   }

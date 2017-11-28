@@ -14,7 +14,7 @@ class Pubspec {
   String packagePath;
   Pubspec({this.packagePath, this.content, this.depth});
   String get name => content['name'];
-  Map get dependencies => content['dependencies']??{};
+  Map get dependencies => content['dependencies'] ?? {};
 
   String get version => content['version'] ?? '0.0.0';
 
@@ -63,7 +63,8 @@ class Dart2TsInstallCommand extends Command<bool> {
     Pubspec collectDeps(String fromPath, [int depth = 0]) {
       var content = loadYaml(
           new File(path.join(fromPath, 'pubspec.yaml')).readAsStringSync());
-      Pubspec pubspec = new Pubspec(packagePath: fromPath, content: content,depth:depth);
+      Pubspec pubspec =
+          new Pubspec(packagePath: fromPath, content: content, depth: depth);
       deps[name] = pubspec;
       (pubspec.dependencies ?? {}).keys.forEach((String k) {
         deps.putIfAbsent(k,
@@ -89,8 +90,7 @@ class Dart2TsInstallCommand extends Command<bool> {
 
     // generate "package.json"
 
-    _generatePackageJson(
-        pubspec, dest, path.join(packageDest, 'package.json'));
+    _generatePackageJson(pubspec, dest, path.join(packageDest, 'package.json'));
     _generateTsConfig(pubspec, dest, path.join(packageDest, 'tsconfig.json'));
   }
 
@@ -98,7 +98,7 @@ class Dart2TsInstallCommand extends Command<bool> {
     Directory src = new Directory(from);
     src.listSync(recursive: true).where((f) => f is File).forEach((e) {
       File f = e;
-      String dest = path.join(to, path.relative(f.path,from:from));
+      String dest = path.join(to, path.relative(f.path, from: from));
       new Directory(path.dirname(dest)).createSync(recursive: true);
       f.copySync(dest);
     });

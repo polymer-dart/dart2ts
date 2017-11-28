@@ -774,13 +774,15 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
 
   String _prefixFor(Element ele, {Element from}) {
     if (ele == null) return "";
-	
-	if (from != null && ele.library == from.library ||
-        ele.library != null && ele.kind == ElementKind.CLASS && ele.library.name == 'dart.core') {
+
+    if (from != null && ele.library == from.library ||
+        ele.library != null &&
+            ele.kind == ElementKind.CLASS &&
+            ele.library.name == 'dart.core') {
       return "";
     }
-	
-	if (ele.library == null) return "";
+
+    if (ele.library == null) return "";
 
     return "${_context.namespace(ele.library)}.";
   }
@@ -1220,7 +1222,8 @@ class FileContext {
       String libPath;
 
       if (id.package == currentId.package) {
-        libPath = "./${path.withoutExtension(path.relative(id.path, from: path.dirname(currentId.path)))}";
+        libPath =
+            "./${path.withoutExtension(path.relative(id.path, from: path.dirname(currentId.path)))}";
         // Fix import for libs in subfolders for windows
         libPath = libPath.replaceAll(path.separator, "/");
       } else {
@@ -1265,14 +1268,15 @@ class FileContext {
     return p;
   }
 
-  static Set<DartType> nativeTypes() => ((TypeProvider x) => new Set<DartType>.from([
-        x.boolType,
-        x.stringType,
-        x.intType,
-        x.numType,
-        x.doubleType,
-        x.functionType,
-      ]))(currentContext.typeProvider);
+  static Set<DartType> nativeTypes() =>
+      ((TypeProvider x) => new Set<DartType>.from([
+            x.boolType,
+            x.stringType,
+            x.intType,
+            x.numType,
+            x.doubleType,
+            x.functionType,
+          ]))(currentContext.typeProvider);
 
   static Set<String> nativeClasses =
       new Set.from(['List', 'Map', 'Iterable', 'Iterator']);
