@@ -1223,12 +1223,13 @@ class FileContext {
           path.withoutExtension(
               path.relative(id.path, from: path.dirname(currentId.path)))
         ]);
-        // Fix import for libs in subfolders for windows
-        // libPath = libPath.replaceAll(path.separator, "/");
       } else {
         libPath =
             path.join("${id.package}", "${path.withoutExtension(id.path)}");
       }
+
+      // Fix import for libs in subfolders for windows
+      libPath = libPath.replaceAll(path.separator, "/");
 
       // Extract package name and path and produce a nodemodule path
       return new TSImport(prefix: _nextPrefix(), path: libPath, library: lib);
