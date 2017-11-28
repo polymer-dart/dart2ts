@@ -1,4 +1,4 @@
-import 'dart:async';
+//import 'dart:async';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
@@ -364,7 +364,7 @@ class StringTranslator extends TranslatorBase {
       return false;
     }
     Element enclosing = accessor.enclosingElement;
-    return enclosing is ClassElement &&
+    return enclosing is ClassElement && targetType != null && targetType.element != null &&
         targetType == targetType.element.context.typeProvider.stringType &&
         _overriddenAccessors.contains(accessor.name);
   }
@@ -418,6 +418,8 @@ class ExpandoTranslator extends TranslatorBase {
   }
 }
 
+typedef bool CHECK_TRANSLATOR_FUNCTION(Translator t);
+
 class TranslatorRegistry {
   static const List<Translator> _translators = const [
     const ListTranslator(),
@@ -429,8 +431,8 @@ class TranslatorRegistry {
     defaultTranslator,
   ];
   const TranslatorRegistry();
-
-  Translator _find(bool Function(Translator t) check) {
+  
+  Translator _find(CHECK_TRANSLATOR_FUNCTION check) {
     return _translators.firstWhere((t) => check(t));
   }
 

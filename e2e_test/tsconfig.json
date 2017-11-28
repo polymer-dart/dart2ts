@@ -5,7 +5,12 @@
     "sourceMap": true,
     "declaration": true,
     "rootDir":"./lib/",
-    "experimentalDecorators" :true
+    "experimentalDecorators" :true,
+	"lib": [      
+      "dom",
+      "es2015",
+      "esnext.asynciterable"
+    ]
   },
   "exclude": [
     "node_modules"

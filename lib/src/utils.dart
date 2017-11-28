@@ -162,8 +162,9 @@ Map<X, Iterable<Y>> _collect<X, Y, Z>(Iterable<Z> i,
 
 Iterable<X> flatten<X>(Iterable<Iterable<X>> x) => flattenWith(x, (x) => x);
 
-Iterable<X> flattenWith<X, Y>(
-    Iterable<Y> x, Iterable<X> Function(Y) extract) sync* {
+typedef dynamic FLATTER_WITH_DT(Y);
+
+Iterable<X> flattenWith<X, Y>(Iterable<Y> x, FLATTER_WITH_DT extract) sync* {
   for (Y i in x) {
     yield* extract(i);
   }
@@ -248,7 +249,7 @@ PropertyInducingElement findField(Element clazz, String name) {
   }
 
   if (clazz is ClassElement) {
-    return (clazz.fields as Iterable<PropertyInducingElement>).firstWhere((fe) => fe.name == name,
+    return clazz.fields.firstWhere((fe) => fe.name == name,
         orElse: () => flattenWith(
                 flattenWith(
                     clazz.interfaces ?? <InterfaceType>[], (InterfaceType x) => x.accessors),
@@ -282,6 +283,9 @@ LibraryElement getLibrary(AnalysisContext ctx,String libraryUri) => ctx.computeL
 
 LibraryElement dartCore(AnalysisContext ctx) => getLibrary(ctx, 'dart:core');
 
-X runWithContext<X>(AnalysisContext ctx,X Function() body) => runZoned(body,zoneValues: {'dart2ts.analysisContext':ctx});
+// This doesn't work with analizer for me
+//typedef X X_FUNCTION();
+//X runWithContext<X>(AnalysisContext ctx, X_FUNCTION body) => runZoned(body, zoneValues: {'dart2ts.analysisContext':ctx});
+X runWithContext<X>(AnalysisContext ctx, Function body) => runZoned(() => body() as X, zoneValues: {'dart2ts.analysisContext':ctx});
 
 AnalysisContext get currentContext => Zone.current['dart2ts.analysisContext'];
