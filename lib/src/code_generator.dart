@@ -773,16 +773,12 @@ class ExpressionBuilderVisitor extends GeneralizingAstVisitor<String> {
   }
 
   String _prefixFor(Element ele, {Element from}) {
-    if (ele == null) return "";
+    if (ele?.library == null) return "";
 
     if (from != null && ele.library == from.library ||
-        ele.library != null &&
-            ele.kind == ElementKind.CLASS &&
-            ele.library.name == 'dart.core') {
+        ele.kind == ElementKind.CLASS && ele.library.name == 'dart.core') {
       return "";
     }
-
-    if (ele.library == null) return "";
 
     return "${_context.namespace(ele.library)}.";
   }
@@ -1222,12 +1218,16 @@ class FileContext {
       String libPath;
 
       if (id.package == currentId.package) {
-        libPath =
-            "./${path.withoutExtension(path.relative(id.path, from: path.dirname(currentId.path)))}";
+        libPath = path.joinAll([
+          '.',
+          path.withoutExtension(
+              path.relative(id.path, from: path.dirname(currentId.path)))
+        ]);
         // Fix import for libs in subfolders for windows
-        libPath = libPath.replaceAll(path.separator, "/");
+        // libPath = libPath.replaceAll(path.separator, "/");
       } else {
-        libPath = "${id.package}/${path.withoutExtension(id.path)}";
+        libPath =
+            path.join("${id.package}", "${path.withoutExtension(id.path)}");
       }
 
       // Extract package name and path and produce a nodemodule path
