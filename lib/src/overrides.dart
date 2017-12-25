@@ -80,9 +80,11 @@ class DefaultTranslator implements Translator {
   @override
   String invokeMethod(MethodElement method, String target, String methodName,
       List<String> arguments) {
+    // If we don't know the method use an helper
     if (method?.enclosingElement == null) {
       return "bare.callGenericMethod(${target},'${methodName}',${_args(arguments)})";
     }
+    // Otherwise call it.
     return "${_target(target)}${methodName}${_args(arguments)}";
   }
 
