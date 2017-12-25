@@ -95,24 +95,101 @@ class Dart2TsBuilder extends _BaseBuilder {
     visitor.run();
     LibraryContext libraryContext = visitor.libraryContext;
 
-    await buildStep.writeAsString(
-        destId,
-       libraryContext.generateTypescript());
-  }
+    IndentingPrinter printer = new IndentingPrinter();
+    libraryContext.generateTypescript().writeCode(printer);
 
+    await buildStep.writeAsString(destId, printer.buffer);
+  }
 }
 
+/**
+ * Printer
+ */
+
+class IndentingPrinter {
+  StringBuffer _buffer = new StringBuffer();
+
+  int _currentIndent = 0;
+  bool _newLine = true;
+
+  void write(String some) {
+    if (some?.isEmpty ?? true) {
+      return;
+    }
+
+    if (_newLine) {
+      _startLine();
+    }
+
+    _buffer.write(some);
+  }
+
+  void _startLine() {
+    _buffer.write(new String.fromCharCodes(
+        new List.filled(_currentIndent, ' '.codeUnitAt(0))));
+    _newLine = false;
+  }
+
+  void indent([int count = 1]) => _currentIndent += count;
+
+  void writeln([String line = '']) {
+    write(line);
+    _buffer.writeln();
+    _newLine = true;
+  }
+
+  String get buffer => _buffer.toString();
+}
 
 /**
  * TS Generator
  * (to be moved in another lib)
  */
 
-class TSNode {
-
+abstract class TSNode {
+  void writeCode(IndentingPrinter printer);
 }
 
+class TSLibrary extends TSNode {
+  String _name;
+  List<TSNode> _children = [];
 
+  TSLibrary(this._name) {}
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.writeln("/** Library ${_name} */");
+    printer.writeln();
+    _children.forEach((n) => n.writeCode(printer));
+  }
+
+  void addChild(TSNode child) {
+    _children.add(child);
+  }
+}
+
+class TSFunction extends TSNode {
+  String _name;
+  bool topLevel;
+
+  TSFunction(
+    this._name, {
+    this.topLevel: false,
+  });
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    if (topLevel) {
+      printer.write('export ');
+    }
+
+    printer.write('function ${_name} () {');
+    printer.indent();
+    printer.writeln('/* body */');
+    printer.indent(-1);
+    printer.writeln("}");
+  }
+}
 
 /**
  * Generation Context
@@ -130,32 +207,62 @@ class LibraryContext {
     this._fileContexts.add(fileContext);
   }
 
-  String generateTypescript() {
-    return "LIB : ${_libraryElement.source.uri}";
-  }
+  TSLibrary generateTypescript() {
+    TSLibrary tsLibrary = new TSLibrary(_libraryElement.source.uri.toString());
+    _fileContexts.forEach((fc) => fc.generateTypescript(tsLibrary));
 
+    return tsLibrary;
+  }
 }
 
 class FileContext {
   LibraryContext _libraryContext;
   CompilationUnitElement _compilationUnitElement;
+  List<TopLevelContext> _topLevelContexts;
 
   CompilationUnit get compilationUnit => _compilationUnitElement.computeNode();
 
   FileContext(this._libraryContext, this._compilationUnitElement) {
     this._libraryContext.addFileContext(this);
+    _topLevelContexts = new List();
+  }
+
+  void generateTypescript(TSLibrary tsLibrary) {
+    _topLevelContexts.forEach((t) => t.generateTypescript(tsLibrary));
+  }
+
+  void addTopLevelContext(TopLevelContext topLevelContext) {
+    _topLevelContexts.add(topLevelContext);
   }
 }
 
-class TopLevelContext {
+abstract class TopLevelContext {
   FileContext _fileContext;
+
+  TopLevelContext(this._fileContext) {
+    _fileContext.addTopLevelContext(this);
+  }
+
+  void generateTypescript(TSLibrary tsLibrary);
 }
 
 class TopLevelFunctionContext extends TopLevelContext {
+  FunctionDeclaration _functionDeclaration;
 
+  TopLevelFunctionContext(FileContext fileContext, this._functionDeclaration)
+      : super(fileContext);
+  @override
+  void generateTypescript(TSLibrary tsLibrary) {
+    tsLibrary.addChild(new TSFunction(_functionDeclaration.name.toString(),topLevel: true));
+  }
 }
 
 class ClassContext extends TopLevelContext {
+  ClassContext(FileContext fileContext) : super(fileContext);
+  @override
+  void generateTypescript(TSLibrary tsLibrary) {
+    // TODO: implement generateTypescript
+  }
 }
 
 class MethodContext {
@@ -166,8 +273,10 @@ class MethodContext {
  * A visitor that reads the file
  */
 
-class LibraryVisitor extends SimpleElementVisitor {
-
+/**
+ * This will visit a library
+ */
+class LibraryVisitor extends RecursiveElementVisitor {
   LibraryContext _context;
 
   LibraryContext get libraryContext => _context;
@@ -187,18 +296,49 @@ class LibraryVisitor extends SimpleElementVisitor {
   }
 }
 
-class FileVisitor extends GeneralizingAstVisitor {
+/**
+ * This will visit one compilationUnit (file)
+ */
+
+class FileVisitor extends GeneralizingAstVisitor<dynamic> {
   FileContext _fileContext;
 
-  FileVisitor(LibraryContext parent, CompilationUnitElement compilationUnitElement) {
-    _fileContext = new FileContext(parent,compilationUnitElement);
+  FileVisitor(
+      LibraryContext parent, CompilationUnitElement compilationUnitElement) {
+    _fileContext = new FileContext(parent, compilationUnitElement);
   }
 
   void run() {
     _fileContext.compilationUnit.accept(this);
   }
 
+  @override
+  visitTopLevelVariableDeclaration(TopLevelVariableDeclaration node) {}
 
+  @override
+  visitFunctionDeclaration(FunctionDeclaration node) {
+    new TopLevelFunctionVisitor(_fileContext, node).run();
+  }
 
+  @override
+  visitClassDeclaration(ClassDeclaration node) {}
+
+  @override
+  visitFunctionTypeAlias(FunctionTypeAlias node) {}
 }
 
+/**
+ * This will visit one function
+ */
+
+class TopLevelFunctionVisitor extends GeneralizingAstVisitor<dynamic> {
+  TopLevelFunctionContext _topLevelFunctionContext;
+
+  TopLevelFunctionVisitor(FileContext parent, FunctionDeclaration function) {
+    _topLevelFunctionContext = new TopLevelFunctionContext(parent, function);
+  }
+
+  void run() {
+    _topLevelFunctionContext._functionDeclaration.accept(this);
+  }
+}

@@ -6,6 +6,7 @@ void doSomethingWithLists() {
     "four",
   ];
 
+
   var e = list.map((s)-> "Value ${s}");
 
   List<String> anotherList = e.toList();
