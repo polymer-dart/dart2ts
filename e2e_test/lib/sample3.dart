@@ -3,37 +3,26 @@ import 'package:js/js.dart';
 @JS()
 external void alert(String);
 
-
 @JS()
-external
-class
-Document
-{
-Element get body;
-HTMLDivElement createElement(String div);
+class Document {
+  Element get body;
+  HTMLDivElement createElement(String div);
 }
 
 @JS()
-external Document document;
+external Document get document;
 
-
-@JS
-()
-external class Element
-{
-void appendChild(Element e);
+@JS()
+class Element {
+  void appendChild(Element e);
 }
 
 @JS()
-external class HTMLDivElement extends Element
-{
-String innerHTML;
+class HTMLDivElement extends Element {
+  String innerHTML;
 }
 
-
-void printToBody(String message)
-{
+void printToBody(String message) {
   print(message);
-document.body.appendChild(document.createElement('div')
-..innerHTML=message);
+  document.body.appendChild(document.createElement('div')..innerHTML = message);
 }
