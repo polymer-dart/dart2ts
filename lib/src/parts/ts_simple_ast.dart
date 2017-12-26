@@ -141,13 +141,15 @@ class TSFunction extends TSNode {
     }
 
     printer.write('function');
-    if (typeParameters!=null) {
+
+    if (name != null) {
+      printer.write(' ${name}');
+    }
+
+    if (typeParameters != null) {
       printer.write('<');
       printer.join(typeParameters);
       printer.write('>');
-    }
-    if (name != null) {
-      printer.write(' ${name}');
     }
 
     printer.write('()');

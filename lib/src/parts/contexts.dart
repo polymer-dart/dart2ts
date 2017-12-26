@@ -83,18 +83,24 @@ abstract class TopLevelDeclarationContext extends Context with ChildContext {
 class FunctionExpressionContext extends Context with ChildContext {
   FunctionExpression _functionExpression;
 
-  TSType returnType;
-
-  Iterable<TSTypeParameter> typeParameters;
-
   FunctionExpressionContext(Context parent, this._functionExpression) {
     parentContext = parent;
   }
 
   TSFunction generateTypescript() {
+    List<TSTypeParameter> typeParameters;
+
+    if (_functionExpression.typeParameters != null) {
+      typeParameters = new List.from(_functionExpression
+          .typeParameters.typeParameters
+          .map((t) => new TSTypeParameter(
+              t.name.name, typeManager.toTsType(t.bound?.type))));
+    } else {
+      typeParameters = null;
+    }
+
     return new TSFunction(
       topLevel: true,
-      returnType: returnType,
       typeParameters: typeParameters,
     );
   }
@@ -109,15 +115,15 @@ class TopLevelFunctionContext extends TopLevelDeclarationContext {
   TopLevelFunctionContext(FileContext fileContext, this._functionDeclaration)
       : super(fileContext) {
     _functionExpressionContext = new FunctionExpressionContext(
-        this, _functionDeclaration.functionExpression)
-      ..returnType = parentContext.typeManager
-          .toTsType(_functionDeclaration?.returnType?.type);
+        this, _functionDeclaration.functionExpression);
   }
 
   @override
   void generateTypescript(TSLibrary tsLibrary) {
     tsLibrary.addChild(_functionExpressionContext.generateTypescript()
-      ..name = _functionDeclaration.name.name);
+      ..name = _functionDeclaration.name.name
+      ..returnType = parentContext.typeManager
+          .toTsType(_functionDeclaration?.returnType?.type));
   }
 }
 
