@@ -16,9 +16,9 @@ import 'package:path/path.dart' as path;
 import 'package:source_gen/source_gen.dart';
 import 'package:analyzer/dart/element/visitor.dart';
 
-part 'visitors.dart';
-part 'contexts.dart';
-part 'ts_simple_ast.dart';
+part 'package:dart2ts/src/parts/visitors.dart';
+part 'package:dart2ts/src/parts/contexts.dart';
+part 'package:dart2ts/src/parts/ts_simple_ast.dart';
 
 /**
  * Second version of the code generator.
