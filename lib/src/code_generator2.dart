@@ -1,24 +1,21 @@
 import 'dart:async';
 
 import 'package:analyzer/analyzer.dart';
-import 'package:analyzer/dart/ast/token.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
-//import 'package:analyzer/src/generated/engine.dart' show AnalysisContext;
 import 'package:analyzer/src/generated/resolver.dart';
 import 'package:args/command_runner.dart';
 import 'package:build/build.dart';
 import 'package:build_runner/build_runner.dart';
-import 'package:dart2ts/src/overrides.dart';
 import 'package:dart2ts/src/utils.dart';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
 import 'package:source_gen/source_gen.dart';
 import 'package:analyzer/dart/element/visitor.dart';
 
-part 'package:dart2ts/src/parts/visitors.dart';
 part 'package:dart2ts/src/parts/contexts.dart';
 part 'package:dart2ts/src/parts/ts_simple_ast.dart';
+part 'parts/type_manager.dart';
 
 /**
  * Second version of the code generator.
@@ -95,9 +92,7 @@ class Dart2TsBuilder extends _BaseBuilder {
         "${path.withoutExtension(buildStep.inputId.path)}.ts");
     _logger.fine('Processing ${library.location} for ${destId}');
 
-    LibraryVisitor visitor = new LibraryVisitor(library);
-    visitor.run();
-    LibraryContext libraryContext = visitor.libraryContext;
+    LibraryContext libraryContext = new LibraryContext(library);
 
     IndentingPrinter printer = new IndentingPrinter();
     libraryContext.generateTypescript().writeCode(printer);

@@ -105,12 +105,34 @@ class TSOptionalType extends TSType {
   }
 }
 
+class TSTypeParameter extends TSNode {
+  String name;
+  TSType bound;
+
+  TSTypeParameter(this.name, this.bound);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write(name);
+    if (bound != null) {
+      printer.write(" extends ");
+      printer.accept(bound);
+    }
+  }
+}
+
 class TSFunction extends TSNode {
-  String _name;
+  String name;
   bool topLevel;
   TSType returnType;
+  Iterable<TSTypeParameter> typeParameters;
 
-  TSFunction(this._name, {this.topLevel: false, this.returnType});
+  TSFunction({
+    this.name,
+    this.topLevel: false,
+    this.returnType,
+    this.typeParameters,
+  });
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -118,7 +140,18 @@ class TSFunction extends TSNode {
       printer.write('export ');
     }
 
-    printer.write('function ${_name}()');
+    printer.write('function');
+    if (typeParameters!=null) {
+      printer.write('<');
+      printer.join(typeParameters);
+      printer.write('>');
+    }
+    if (name != null) {
+      printer.write(' ${name}');
+    }
+
+    printer.write('()');
+
     if (returnType != null) {
       printer.write(" : ");
       printer.accept(returnType);
