@@ -1,4 +1,4 @@
-void doSomethingWithLists() {
+bool doSomethingWithLists() {
   List<String> list = [
     "one",
     "two",
@@ -19,4 +19,6 @@ void doSomethingWithLists() {
 
   print("First ${x.first} , ${x.last} : ${x.sublist(2,3).first}");
 
+
+  return true;
 }

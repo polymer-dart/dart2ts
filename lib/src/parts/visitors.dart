@@ -68,4 +68,31 @@ class TopLevelFunctionVisitor extends GeneralizingAstVisitor<dynamic> {
   void run() {
     _topLevelFunctionContext._functionDeclaration.accept(this);
   }
+
+  @override
+  visitFunctionDeclaration(FunctionDeclaration node) {
+    node.returnType?.accept(new TypeAnnotationVisitor(_topLevelFunctionContext,
+        (t) => _topLevelFunctionContext.returnType = t));
+  }
+}
+
+class TypeAnnotationVisitor extends GeneralizingAstVisitor<dynamic> {
+  Context _context;
+  void Function(TSType type) _handler;
+  TypeAnnotationVisitor(this._context, this._handler);
+
+  @override
+  visitTypeAnnotation(TypeAnnotation node) {
+    _handler(_context.typeManager.toTsType(node.type));
+  }
+
+  @override
+  visitTypeName(TypeName node) {
+    _handler(_context.typeManager.toTsType(node.type));
+  }
+
+  @override
+  visitGenericFunctionType(GenericFunctionType node) {
+    _handler(_context.typeManager.toTsType(node.type));
+  }
 }

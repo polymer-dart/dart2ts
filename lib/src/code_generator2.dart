@@ -106,6 +106,8 @@ class Dart2TsBuilder extends _BaseBuilder {
   }
 }
 
+typedef void PrinterConsumer(IndentingPrinter p);
+
 /**
  * Printer
  */
@@ -149,6 +151,17 @@ class IndentingPrinter {
     writers.forEach((w) {
       write(d);
       this.accept(w);
+      d = delim;
+    });
+  }
+
+  void consume(PrinterConsumer c) => c(this);
+
+  void joinConsumers(Iterable<PrinterConsumer> writers, [String delim = ',']) {
+    String d = '';
+    writers.forEach((w) {
+      write(d);
+      this.consume(w);
       d = delim;
     });
   }

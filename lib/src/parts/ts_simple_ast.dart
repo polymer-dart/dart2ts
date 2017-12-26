@@ -1,6 +1,5 @@
 part of '../code_generator2.dart';
 
-
 /**
  * TS Generator
  * (to be moved in another lib)
@@ -28,8 +27,12 @@ class TSLibrary extends TSNode {
   }
 }
 
-class TSType extends TSNode {
+abstract class TSType extends TSNode {}
+
+class TSSimpleType extends TSType {
   String _name;
+
+  TSSimpleType(this._name);
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -37,28 +40,77 @@ class TSType extends TSNode {
   }
 }
 
-class TSGenericType extends TSType {
+class TSFunctionType extends TSType {
+  TSType _returnType;
   List<TSType> _typeArguments;
+  List<TSType> _argumentsType;
+
+  TSFunctionType(this._returnType, this._argumentsType, [this._typeArguments]);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    if (_typeArguments?.isNotEmpty ?? false) {
+      printer.write('<');
+      printer.join(_typeArguments);
+      printer.write('>');
+    }
+    printer.write('(');
+    printer.join(_argumentsType);
+    printer.write(') => ');
+    printer.accept(_returnType);
+  }
+}
+
+class TSInterfaceType extends TSType {
+  Map<String, TSType> _fields;
+
+  TSInterfaceType(this._fields);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write('{');
+    printer.joinConsumers(_fields.keys.map((k) => (IndentingPrinter p) {
+          p.write("${k}? : ");
+          p.accept(_fields[k]);
+        }));
+    printer.write('}');
+  }
+}
+
+class TSGenericType extends TSSimpleType {
+  Iterable<TSType> _typeArguments;
+
+  TSGenericType(String name, this._typeArguments) : super(name);
 
   @override
   void writeCode(IndentingPrinter printer) {
     super.writeCode(printer);
-    printer.write('<');
-    printer.join(_typeArguments);
-    printer.write('>');
+    if (_typeArguments?.isNotEmpty ?? false) {
+      printer.write('<');
+      printer.join(_typeArguments);
+      printer.write('>');
+    }
   }
+}
 
+class TSOptionalType extends TSType {
+  TSType _type;
 
+  TSOptionalType(this._type);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.accept(_type);
+    printer.write('?');
+  }
 }
 
 class TSFunction extends TSNode {
   String _name;
   bool topLevel;
+  TSType returnType;
 
-  TSFunction(
-      this._name, {
-        this.topLevel: false,
-      });
+  TSFunction(this._name, {this.topLevel: false, this.returnType});
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -66,7 +118,12 @@ class TSFunction extends TSNode {
       printer.write('export ');
     }
 
-    printer.write('function ${_name} () {');
+    printer.write('function ${_name}()');
+    if (returnType != null) {
+      printer.write(" : ");
+      printer.accept(returnType);
+    }
+    printer.write(' {');
     printer.indent();
     printer.writeln('/* body */');
     printer.indent(-1);
