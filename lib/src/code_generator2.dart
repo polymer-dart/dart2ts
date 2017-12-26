@@ -142,7 +142,20 @@ class IndentingPrinter {
     _newLine = true;
   }
 
+  void accept(PrinterWriter w) => w.writeCode(this);
+
+  void join(Iterable<PrinterWriter> writers, [String delim = ',']) {
+    String d = '';
+    writers.forEach((w) {
+      write(d);
+      this.accept(w);
+      d = delim;
+    });
+  }
+
   String get buffer => _buffer.toString();
 }
 
-
+abstract class PrinterWriter {
+  void writeCode(IndentingPrinter printer);
+}
