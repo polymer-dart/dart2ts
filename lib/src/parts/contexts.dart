@@ -3,10 +3,45 @@ part of '../code_generator2.dart';
 abstract class Context {
   TypeManager get typeManager;
 
-  TSExpression generateExpression(Expression defaultValue) {
-    // TODO
-    return new TSExpression();
+  E processExpression<E extends TSExpression>(Expression expression) {
+    if (expression == null) {
+      return null;
+    }
+    return expression.accept(new ExpressionVisitor<E>(this));
   }
+
+  TSFunction processFunctionExpression(FunctionExpression functionExpression) {
+    return processExpression<TSFunction>(functionExpression);
+  }
+}
+
+class ExpressionVisitor<E extends TSExpression>
+    extends GeneralizingAstVisitor<E> {
+  Context _context;
+
+  ExpressionVisitor(this._context);
+
+  @override
+  E visitIntegerLiteral(IntegerLiteral node) {
+    return new TSSimpleExpression(node.value.toString()) as E;
+  }
+
+  @override
+  E visitExpression(Expression node) {
+    return new TSExpression() as E;
+  }
+
+  @override
+  E visitFunctionExpression(FunctionExpression node) {
+    return new FunctionExpressionContext(_context, node).generateTypescript() as E;
+  }
+
+  @override
+  E visitSimpleStringLiteral(SimpleStringLiteral node) {
+    return new TSSimpleExpression(node.value) as E;
+  }
+
+
 }
 
 class TopLevelContext {
@@ -144,18 +179,20 @@ class FormalParameterCollector extends GeneralizingAstVisitor {
   @override
   visitDefaultFormalParameter(DefaultFormalParameter node) {
     super.visitDefaultFormalParameter(node);
+    if (node.defaultValue == null) {
+      return;
+    }
     if (node.kind == ParameterKind.NAMED) {
       namedDefaults[node.identifier.name] =
-          _context.generateExpression(node.defaultValue);
+          _context.processExpression(node.defaultValue);
     } else {
       defaults[node.identifier.name] =
-          _context.generateExpression(node.defaultValue);
+          _context.processExpression(node.defaultValue);
     }
   }
 
   @override
   visitFormalParameter(FormalParameter node) {
-    //super.visitFormalParameter(node);
     if (node.kind == ParameterKind.NAMED) {
       namedType ??= new TSInterfaceType();
       namedType.fields[node.identifier.name] =
@@ -171,22 +208,19 @@ class FormalParameterCollector extends GeneralizingAstVisitor {
 
 class TopLevelFunctionContext extends TopLevelDeclarationContext {
   FunctionDeclaration _functionDeclaration;
-  FunctionExpressionContext _functionExpressionContext;
 
   TSType returnType;
 
   TopLevelFunctionContext(FileContext fileContext, this._functionDeclaration)
-      : super(fileContext) {
-    _functionExpressionContext = new FunctionExpressionContext(
-        this, _functionDeclaration.functionExpression);
-  }
+      : super(fileContext) {}
 
   @override
   void generateTypescript(TSLibrary tsLibrary) {
-    tsLibrary.addChild(_functionExpressionContext.generateTypescript()
-      ..name = _functionDeclaration.name.name
-      ..returnType = parentContext.typeManager
-          .toTsType(_functionDeclaration?.returnType?.type));
+    tsLibrary.addChild(
+        processFunctionExpression(_functionDeclaration.functionExpression)
+          ..name = _functionDeclaration.name.name
+          ..returnType = parentContext.typeManager
+              .toTsType(_functionDeclaration?.returnType?.type));
   }
 }
 

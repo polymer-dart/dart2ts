@@ -123,7 +123,7 @@ class TSTypeParameter extends TSNode {
   }
 }
 
-class TSFunction extends TSNode {
+class TSFunction extends TSExpression {
   String name;
   bool topLevel;
   TSType returnType;
@@ -216,6 +216,18 @@ class TSParameter extends TSNode {
       printer.accept(type);
     }
   }
+}
+
+class TSSimpleExpression extends TSExpression {
+  String _expression;
+  TSSimpleExpression(this._expression);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write(_expression);
+  }
+
+
 }
 
 class TSExpression extends TSNode {
