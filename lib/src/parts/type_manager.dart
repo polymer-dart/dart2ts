@@ -1,6 +1,5 @@
 part of '../code_generator2.dart';
 
-
 class TSImport {
   String prefix;
   String path;
@@ -93,7 +92,7 @@ class TypeManager {
 
       // Collect if metadata
       String name =
-      getAnnotation(e.metadata, isJS)?.getField('name')?.toStringValue();
+          getAnnotation(e.metadata, isJS)?.getField('name')?.toStringValue();
       if (name != null && name.isNotEmpty) {
         Match m = NAME_PATTERN.matchAsPrefix(name);
         String module = getAnnotation(e.metadata, isModule)
@@ -118,20 +117,20 @@ class TypeManager {
 
   static Set<DartType> nativeTypes() =>
       ((TypeProvider x) => new Set<DartType>.from([
-        x.boolType,
-        x.stringType,
-        x.intType,
-        x.numType,
-        x.doubleType,
-        x.functionType,
-      ]))(currentContext.typeProvider);
+            x.boolType,
+            x.stringType,
+            x.intType,
+            x.numType,
+            x.doubleType,
+            x.functionType,
+          ]))(currentContext.typeProvider);
 
   static Set<String> nativeClasses =
-  new Set.from(['List', 'Map', 'Iterable', 'Iterator']);
+      new Set.from(['List', 'Map', 'Iterable', 'Iterator']);
 
   static bool isNativeType(DartType t) =>
       nativeTypes().contains(t) ||
-          t.element.library.isDartCore && (nativeClasses.contains(t.element.name));
+      t.element.library.isDartCore && (nativeClasses.contains(t.element.name));
 
   String toTsName(Element element, {bool nopath: false}) {
     TSPath jspath = _collectJSPath(
@@ -177,15 +176,15 @@ class TypeManager {
         }
 
         if (type.namedParameterTypes.isNotEmpty) {
-          yield new TSInterfaceType(new Map.fromIterable(
-              type.namedParameterTypes.keys,
-              value: (k) =>
-              new TSOptionalType(toTsType(type.namedParameterTypes[k]))));
+          yield new TSInterfaceType(
+              fields: new Map.fromIterable(type.namedParameterTypes.keys,
+                  value: (k) => new TSOptionalType(
+                      toTsType(type.namedParameterTypes[k]))));
         }
       }();
 
       Iterable<TSType> typeArguments =
-      type.typeArguments?.map((t) => toTsType(t));
+          type.typeArguments?.map((t) => toTsType(t));
 
       return new TSFunctionType(toTsType(type.returnType), args, typeArguments);
     }
@@ -207,8 +206,8 @@ class TypeManager {
 
       Iterable<TSType> typeArgs;
       if (!noTypeArgs &&
-          type is ParameterizedType &&
-          type.typeArguments?.isNotEmpty ??
+              type is ParameterizedType &&
+              type.typeArguments?.isNotEmpty ??
           false) {
         typeArgs =
             ((type as ParameterizedType).typeArguments).map((t) => toTsType(t));

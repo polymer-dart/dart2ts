@@ -1,12 +1,12 @@
-bool boolFunction() {
+bool boolFunction(int arg) {
   return null;
 }
 
-int intFunction() {
+int intFunction(int arg,[int opt,int opt2=4]) {
   return null;
 }
 
-String stringFunction() {
+String stringFunction(int arg,{int named,int named2:4}) {
   return null;
 }
 

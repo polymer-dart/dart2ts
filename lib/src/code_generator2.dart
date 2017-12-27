@@ -141,23 +141,27 @@ class IndentingPrinter {
 
   void accept(PrinterWriter w) => w.writeCode(this);
 
-  void join(Iterable<PrinterWriter> writers, [String delim = ',']) {
-    String d = '';
-    writers.forEach((w) {
-      write(d);
-      this.accept(w);
-      d = delim;
-    });
+  void join(Iterable<PrinterWriter> writers, {String delim = ',',bool newLine=false}) {
+
+    joinConsumers(writers.map((w)=>(p){
+      p.accept(w);
+    }),delim: delim,newLine: newLine);
   }
 
   void consume(PrinterConsumer c) => c(this);
 
-  void joinConsumers(Iterable<PrinterConsumer> writers, [String delim = ',']) {
-    String d = '';
+  void joinConsumers(Iterable<PrinterConsumer> writers, {String delim = ',',bool newLine:false}) {
+    bool first = true;
     writers.forEach((w) {
-      write(d);
+      if (!first) {
+        write(delim);
+        if (newLine) {
+          writeln();
+        }
+      } else {
+        first=false;
+      }
       this.consume(w);
-      d = delim;
     });
   }
 

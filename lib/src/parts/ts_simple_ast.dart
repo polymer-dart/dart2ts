@@ -62,16 +62,18 @@ class TSFunctionType extends TSType {
 }
 
 class TSInterfaceType extends TSType {
-  Map<String, TSType> _fields;
+  Map<String, TSType> fields;
 
-  TSInterfaceType(this._fields);
+  TSInterfaceType({this.fields}) {
+    fields ??= {};
+  }
 
   @override
   void writeCode(IndentingPrinter printer) {
     printer.write('{');
-    printer.joinConsumers(_fields.keys.map((k) => (IndentingPrinter p) {
+    printer.joinConsumers(fields.keys.map((k) => (IndentingPrinter p) {
           p.write("${k}? : ");
-          p.accept(_fields[k]);
+          p.accept(fields[k]);
         }));
     printer.write('}');
   }
@@ -126,12 +128,18 @@ class TSFunction extends TSNode {
   bool topLevel;
   TSType returnType;
   Iterable<TSTypeParameter> typeParameters;
+  Iterable<TSParameter> parameters;
+  Map<String, TSExpression> defaults;
+  Map<String, TSExpression> namedDefaults;
 
   TSFunction({
     this.name,
     this.topLevel: false,
     this.returnType,
     this.typeParameters,
+    this.parameters,
+    this.defaults,
+    this.namedDefaults,
   });
 
   @override
@@ -152,16 +160,68 @@ class TSFunction extends TSNode {
       printer.write('>');
     }
 
-    printer.write('()');
+    printer.write('(');
+    printer.join(parameters);
+    printer.write(')');
 
     if (returnType != null) {
       printer.write(" : ");
       printer.accept(returnType);
     }
-    printer.write(' {');
+    printer.writeln(' {');
     printer.indent();
+    printer.writeln('/* init */');
+
+    // Init all values
+    defaults.keys.forEach((def) {
+      printer.write("${def} = ${def} || ");
+      printer.accept(defaults[def]);
+      printer.writeln(";");
+    });
+
+    if (namedDefaults?.isNotEmpty ?? false) {
+      printer.writeln('${NAMED_ARGUMENTS} = Object.assign({');
+      printer.indent(1);
+      printer.joinConsumers(namedDefaults.keys.map((k) => (p) {
+            p.write('"${k}" : ');
+            p.accept(namedDefaults[k]);
+          }),newLine: true);
+      printer.indent(-1);
+      printer.writeln('}, ${NAMED_ARGUMENTS});');
+    }
+
     printer.writeln('/* body */');
+
     printer.indent(-1);
     printer.writeln("}");
+  }
+}
+
+class TSParameter extends TSNode {
+  String name;
+  TSType type;
+  bool optional;
+
+  TSParameter({this.name, this.type,this.optional=false});
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    assert(name != null, "Parameters should have a name");
+    printer.write(name);
+    if (optional) {
+      printer.write('?');
+    }
+    if (type != null) {
+      printer.write(" : ");
+      printer.accept(type);
+    }
+  }
+}
+
+class TSExpression extends TSNode {
+  @override
+  void writeCode(IndentingPrinter printer) {
+    // TODO: implement writeCode
+    printer.write("/* TODO : EXPRESSION */");
   }
 }

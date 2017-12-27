@@ -2,6 +2,11 @@ part of '../code_generator2.dart';
 
 abstract class Context {
   TypeManager get typeManager;
+
+  TSExpression generateExpression(Expression defaultValue) {
+    // TODO
+    return new TSExpression();
+  }
 }
 
 class TopLevelContext {
@@ -99,10 +104,68 @@ class FunctionExpressionContext extends Context with ChildContext {
       typeParameters = null;
     }
 
+    // arguments
+    FormalParameterCollector parameterCollector =
+        new FormalParameterCollector(this);
+    (_functionExpression.parameters?.parameters ?? []).forEach((p) {
+      p.accept(parameterCollector);
+    });
+
     return new TSFunction(
       topLevel: true,
       typeParameters: typeParameters,
+      parameters: new List.from(parameterCollector.tsParameters),
+      defaults: parameterCollector.defaults,
+      namedDefaults: parameterCollector.namedDefaults,
     );
+  }
+}
+
+const String NAMED_ARGUMENTS = '_namedArguments';
+
+class FormalParameterCollector extends GeneralizingAstVisitor {
+  Context _context;
+
+  FormalParameterCollector(this._context);
+
+  Map<String, TSExpression> defaults = {};
+  Map<String, TSExpression> namedDefaults = {};
+  List<TSParameter> parameters = [];
+  TSInterfaceType namedType;
+
+  Iterable<TSParameter> get tsParameters sync* {
+    yield* parameters;
+    if (namedType != null) {
+      yield new TSParameter(
+          name: NAMED_ARGUMENTS, type: namedType, optional: true);
+    }
+  }
+
+  @override
+  visitDefaultFormalParameter(DefaultFormalParameter node) {
+    super.visitDefaultFormalParameter(node);
+    if (node.kind == ParameterKind.NAMED) {
+      namedDefaults[node.identifier.name] =
+          _context.generateExpression(node.defaultValue);
+    } else {
+      defaults[node.identifier.name] =
+          _context.generateExpression(node.defaultValue);
+    }
+  }
+
+  @override
+  visitFormalParameter(FormalParameter node) {
+    //super.visitFormalParameter(node);
+    if (node.kind == ParameterKind.NAMED) {
+      namedType ??= new TSInterfaceType();
+      namedType.fields[node.identifier.name] =
+          _context.typeManager.toTsType(node.element.type);
+    } else {
+      parameters.add(new TSParameter(
+          name: node.identifier.name,
+          type: _context.typeManager.toTsType(node.element.type),
+          optional: node.kind.isOptional));
+    }
   }
 }
 
