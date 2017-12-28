@@ -108,10 +108,13 @@ typedef void PrinterConsumer(IndentingPrinter p);
  */
 
 class IndentingPrinter {
+  int defaultIndent;
   StringBuffer _buffer = new StringBuffer();
 
   int _currentIndent = 0;
   bool _newLine = true;
+
+  IndentingPrinter({this.defaultIndent=4});
 
   void write(String some) {
     if (some?.isEmpty ?? true) {
@@ -131,7 +134,14 @@ class IndentingPrinter {
     _newLine = false;
   }
 
-  void indent([int count = 1]) => _currentIndent += count;
+  void indent([int count]) => _currentIndent += count??defaultIndent;
+  void deindent([int count]) => _currentIndent -= count??defaultIndent;
+
+  void indented(void consumer(IndentingPrinter),{int count}) {
+    indent(count);
+    consumer(this);
+    deindent(count);
+  }
 
   void writeln([String line = '']) {
     write(line);

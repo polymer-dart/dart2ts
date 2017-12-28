@@ -3,11 +3,11 @@ bool boolFunction(int arg) {
 }
 
 int intFunction(int arg,[int opt,int opt2=4]) {
-  return null;
+  return 5;
 }
 
 String stringFunction(int arg,{int named,int named2:4}) {
-  return null;
+  return "Hello Jhonny!";
 }
 
 varFunction(String nornalArg, [int optionalArg]) {

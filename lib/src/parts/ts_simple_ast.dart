@@ -131,6 +131,7 @@ class TSFunction extends TSExpression {
   Iterable<TSParameter> parameters;
   Map<String, TSExpression> defaults;
   Map<String, TSExpression> namedDefaults;
+  TSBody body;
 
   TSFunction({
     this.name,
@@ -140,6 +141,7 @@ class TSFunction extends TSExpression {
     this.parameters,
     this.defaults,
     this.namedDefaults,
+    this.body,
   });
 
   @override
@@ -181,19 +183,76 @@ class TSFunction extends TSExpression {
 
     if (namedDefaults?.isNotEmpty ?? false) {
       printer.writeln('${NAMED_ARGUMENTS} = Object.assign({');
-      printer.indent(1);
+      printer.indent();
       printer.joinConsumers(namedDefaults.keys.map((k) => (p) {
             p.write('"${k}" : ');
             p.accept(namedDefaults[k]);
           }),newLine: true);
-      printer.indent(-1);
+      printer.deindent();
       printer.writeln('}, ${NAMED_ARGUMENTS});');
     }
 
-    printer.writeln('/* body */');
+    if (body!=null) {
+      printer.writeln('/* body */');
+      printer.accept(body);
+    }
 
-    printer.indent(-1);
+    printer.deindent();
     printer.writeln("}");
+  }
+}
+
+abstract class TSStatement extends TSNode {
+
+}
+
+class TSReturnStatement extends TSStatement {
+  TSExpression value;
+  TSReturnStatement([this.value]);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write('return');
+    if (value!=null) {
+      printer.write(' ');
+      printer.accept(value);
+    }
+  }
+}
+
+class TSUnknownStatement extends TSStatement {
+  Statement _unknown;
+  TSUnknownStatement(this._unknown);
+
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write("/* TODO : ${_unknown} */");
+  }
+}
+
+class TSBody extends TSNode {
+  bool withBrackets;
+  Iterable<TSStatement> statements;
+  TSBody({this.statements,this.withBrackets:true});
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    if (withBrackets) {
+      printer.writeln('{');
+      printer.indented((p) {
+        statements.forEach((s){
+          p.accept(s);
+          p.writeln(';');
+        });
+      });
+      printer.writeln(('}'));
+    } else {
+      statements.forEach((s){
+        printer.accept(s);
+        printer.writeln(';');
+      });
+    }
   }
 }
 
@@ -230,10 +289,15 @@ class TSSimpleExpression extends TSExpression {
 
 }
 
-class TSExpression extends TSNode {
+abstract class TSExpression extends TSNode {
+}
+
+class TSUnknownExpression extends TSExpression {
+  Expression _unknown;
+
+  TSUnknownExpression(this._unknown);
   @override
   void writeCode(IndentingPrinter printer) {
-    // TODO: implement writeCode
-    printer.write("/* TODO : EXPRESSION */");
+    printer.write(('/* TODO : ${_unknown} */'));
   }
 }
