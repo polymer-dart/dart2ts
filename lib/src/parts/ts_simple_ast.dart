@@ -170,41 +170,43 @@ class TSFunction extends TSExpression {
       printer.write(" : ");
       printer.accept(returnType);
     }
-    printer.writeln(' {');
-    printer.indent();
-    printer.writeln('/* init */');
 
-    // Init all values
-    defaults.keys.forEach((def) {
-      printer.write("${def} = ${def} || ");
-      printer.accept(defaults[def]);
-      printer.writeln(";");
-    });
+    if (body != null) {
+      printer.writeln(' {');
+      printer.indented((printer) {
+        printer.writeln('/* init */');
 
-    if (namedDefaults?.isNotEmpty ?? false) {
-      printer.writeln('${NAMED_ARGUMENTS} = Object.assign({');
-      printer.indent();
-      printer.joinConsumers(namedDefaults.keys.map((k) => (p) {
-            p.write('"${k}" : ');
-            p.accept(namedDefaults[k]);
-          }),newLine: true);
-      printer.deindent();
-      printer.writeln('}, ${NAMED_ARGUMENTS});');
+        // Init all values
+        defaults.keys.forEach((def) {
+          printer.write("${def} = ${def} || ");
+          printer.accept(defaults[def]);
+          printer.writeln(";");
+        });
+
+        if (namedDefaults?.isNotEmpty ?? false) {
+          printer.writeln('${NAMED_ARGUMENTS} = Object.assign({');
+
+          printer.indented((printer) {
+            printer.joinConsumers(
+                namedDefaults.keys.map((k) => (p) {
+                      p.write('"${k}" : ');
+                      p.accept(namedDefaults[k]);
+                    }),
+                newLine: true);
+          });
+
+          printer.writeln('}, ${NAMED_ARGUMENTS});');
+        }
+
+        printer.writeln('/* body */');
+        printer.accept(body);
+      });
+      printer.writeln("}");
     }
-
-    if (body!=null) {
-      printer.writeln('/* body */');
-      printer.accept(body);
-    }
-
-    printer.deindent();
-    printer.writeln("}");
   }
 }
 
-abstract class TSStatement extends TSNode {
-
-}
+abstract class TSStatement extends TSNode {}
 
 class TSReturnStatement extends TSStatement {
   TSExpression value;
@@ -213,7 +215,7 @@ class TSReturnStatement extends TSStatement {
   @override
   void writeCode(IndentingPrinter printer) {
     printer.write('return');
-    if (value!=null) {
+    if (value != null) {
       printer.write(' ');
       printer.accept(value);
     }
@@ -224,7 +226,6 @@ class TSUnknownStatement extends TSStatement {
   Statement _unknown;
   TSUnknownStatement(this._unknown);
 
-
   @override
   void writeCode(IndentingPrinter printer) {
     printer.write("/* TODO : ${_unknown} */");
@@ -234,21 +235,21 @@ class TSUnknownStatement extends TSStatement {
 class TSBody extends TSNode {
   bool withBrackets;
   Iterable<TSStatement> statements;
-  TSBody({this.statements,this.withBrackets:true});
+  TSBody({this.statements, this.withBrackets: true});
 
   @override
   void writeCode(IndentingPrinter printer) {
     if (withBrackets) {
       printer.writeln('{');
       printer.indented((p) {
-        statements.forEach((s){
+        statements.forEach((s) {
           p.accept(s);
           p.writeln(';');
         });
       });
       printer.writeln(('}'));
     } else {
-      statements.forEach((s){
+      statements.forEach((s) {
         printer.accept(s);
         printer.writeln(';');
       });
@@ -261,7 +262,7 @@ class TSParameter extends TSNode {
   TSType type;
   bool optional;
 
-  TSParameter({this.name, this.type,this.optional=false});
+  TSParameter({this.name, this.type, this.optional = false});
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -285,12 +286,9 @@ class TSSimpleExpression extends TSExpression {
   void writeCode(IndentingPrinter printer) {
     printer.write(_expression);
   }
-
-
 }
 
-abstract class TSExpression extends TSNode {
-}
+abstract class TSExpression extends TSNode {}
 
 class TSUnknownExpression extends TSExpression {
   Expression _unknown;
