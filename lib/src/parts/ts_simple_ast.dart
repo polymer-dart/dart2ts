@@ -184,7 +184,8 @@ class TSFunction extends TSExpression implements TSStatement {
         printer.writeln('/* init */');
 
         // Init all values
-        defaults.keys.forEach((def) {
+
+        defaults?.keys?.forEach((def) {
           printer.write("${def} = ${def} || ");
           printer.accept(defaults[def]);
           printer.writeln(";");
@@ -292,9 +293,19 @@ class TSBody extends TSNode {
   }
 }
 
-abstract class TSInvoking extends TSExpression {
-  List<TSExpression> get _arguments;
-  Map<String, TSExpression> get _namedArguments;
+class TSInvoke extends TSExpression {
+  /// True if you want to call the method using square brakets notation
+  TSExpression _target;
+  List<TSExpression> _arguments;
+  Map<String, TSExpression> _namedArguments;
+
+  TSInvoke(this._target, [this._arguments, this._namedArguments]);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.accept(_target);
+    writeArguments(printer);
+  }
 
   void writeArguments(IndentingPrinter printer) {
     printer.write('(');
@@ -313,45 +324,64 @@ abstract class TSInvoking extends TSExpression {
   }
 }
 
-class TSInvokeMethod extends TSInvoking {
-  /// True if you want to call the method using square brakets notation
-  bool withBrackets = false;
-  TSExpression _target;
+class TSDotExpression extends TSExpression {
+  TSExpression _expression;
   String _name;
-  List<TSExpression> _arguments;
-  Map<String, TSExpression> _namedArguments;
-  TSInvokeMethod(this._target, this._name,
-      [this._arguments, this._namedArguments]);
+
+  TSDotExpression(this._expression, this._name);
 
   @override
   void writeCode(IndentingPrinter printer) {
-    if (withBrackets) {
-      printer.accept(_target);
-      printer.write('[${_name}]');
-    } else {
-      printer.accept(_target);
-      printer.write('.');
-      printer.write(_name);
-    }
-    writeArguments(printer);
+    printer.accept(_expression);
+    printer.write('.${_name}');
   }
 }
 
-class TSInvokeFunction extends TSInvoking {
-  String _name;
-  List<TSExpression> _arguments;
-  Map<String, TSExpression> _namedArguments;
-  TSInvokeFunction(this._name, [this._arguments, this._namedArguments]);
+class TSSquareExpression extends TSExpression {
+  TSExpression _expression;
+  TSExpression _index;
+
+  TSSquareExpression(this._expression, this._index);
 
   @override
   void writeCode(IndentingPrinter printer) {
-    printer.write(_name);
-    writeArguments(printer);
+    printer.accept(_expression);
+    printer.write('[');
+    printer.accept(_index);
+    printer.write(']');
+  }
+}
+
+class TSBracketExpression extends TSExpression {
+  TSExpression _expression;
+
+  TSBracketExpression(this._expression);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write('(');
+    printer.accept(_expression);
+    printer.write(')');
+  }
+}
+
+class TSAssignamentExpression extends TSExpression {
+  TSExpression _target;
+  TSExpression _value;
+
+  TSAssignamentExpression(this._target, this._value);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.accept(_target);
+    printer.write(' = ');
+    printer.accept(_value);
   }
 }
 
 class TSObjectLiteral extends TSExpression {
   Map<String, TSExpression> _fields;
+
   TSObjectLiteral(this._fields);
 
   @override
@@ -387,6 +417,7 @@ class TSVariableDeclaration extends TSNode {
   String _name;
   TSExpression _initializer;
   TSType _type;
+
   TSVariableDeclaration(this._name, this._initializer, this._type);
 
   @override
@@ -407,7 +438,9 @@ class TSVariableDeclaration extends TSNode {
 
 class TSVariableDeclarations extends TSStatement {
   Iterable<TSVariableDeclaration> _declarations;
+
   TSVariableDeclarations(this._declarations);
+
   @override
   void writeCode(IndentingPrinter printer) {
     printer.write('let ');
@@ -417,7 +450,9 @@ class TSVariableDeclarations extends TSStatement {
 
 class TSExpressionStatement extends TSStatement {
   TSExpression _expression;
+
   TSExpressionStatement(this._expression);
+
   @override
   void writeCode(IndentingPrinter printer) {
     printer.accept(_expression);

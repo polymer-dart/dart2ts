@@ -148,31 +148,108 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
     if (node.leftOperand.bestType is InterfaceType) {
       InterfaceType cls = node.leftOperand.bestType as InterfaceType;
-      MethodElement method = findMethod(cls,node.operator.lexeme);
+      MethodElement method = findMethod(cls, node.operator.lexeme);
       assert(method != null,
           'Operator ${node.operator} can be used only if defined in ${cls.name}');
-      return new TSInvokeMethod(leftExpression, _operatorName(method,node.operator), [rightExpression])
-        ..withBrackets = true;
+      return new TSInvoke(
+          new TSSquareExpression(
+              leftExpression, _operatorName(method, node.operator)),
+          [rightExpression]);
     }
 
-    return new TSInvokeFunction(
-        'bare.invokeBinaryOperand', [leftExpression, rightExpression]);
+    return new TSInvoke(new TSSimpleExpression('bare.invokeBinaryOperand'), [
+      new TSSimpleExpression('"${node.operator.lexeme}"'),
+      leftExpression,
+      rightExpression
+    ]);
   }
 
+  TSExpression _operatorName(MethodElement method, Token op) {
+    return new TSDotExpression(
+        new TSSimpleExpression(method.enclosingElement.name),
+        "OPERATOR_${op.type.name}");
+  }
 
-  String _operatorName(MethodElement method,Token op) {
-    // TODO : should be a reference TSREference or some , with left being a TSType
-    return "${method.enclosingElement.name}.OPERATOR_${op.type.name}";
+  @override
+  TSExpression visitCascadeExpression(CascadeExpression node) {
+    TSExpression target = new TSSimpleExpression('_');
+    CascadingVisitor cascadingVisitor = new CascadingVisitor(_context, target);
+    TSBody body = new TSBody(statements: () sync* {
+      yield* node.cascadeSections
+          .map((e) => e.accept(cascadingVisitor))
+          .map((e) => new TSExpressionStatement(e));
+      yield new TSReturnStatement(target);
+    }());
+    return new TSInvoke(
+        new TSBracketExpression(new TSFunction(
+            parameters: [new TSParameter(name: '_')],
+            body: body,
+            returnType: _context.typeManager.toTsType(node.target.bestType))),
+        [_context.processExpression(node.target)]);
+  }
+
+  @override
+  TSExpression visitAssignmentExpression(AssignmentExpression node) {
+    return new TSAssignamentExpression(
+        _context.processExpression(node.leftHandSide),
+        _context.processExpression(node.rightHandSide));
+  }
+
+  @override
+  TSExpression visitPropertyAccess(PropertyAccess node) {
+    return new TSDotExpression(
+        node.isCascaded ? null : _context.processExpression(node.target),
+        node.propertyName.name);
   }
 }
 
-MethodElement findMethod(InterfaceType tp,String methodName) {
+class CascadingVisitor extends GeneralizingAstVisitor<TSExpression> {
+  TSExpression _target;
+  Context _context;
+  CascadingVisitor(this._context, this._target);
+
+  @override
+  TSExpression visitPropertyAccess(PropertyAccess node) {
+    TSDotExpression expre = _context.processExpression(node);
+    expre._expression = _target;
+    return expre;
+  }
+
+  @override
+  TSExpression visitMethodInvocation(MethodInvocation node) {
+    TSExpression expre = _context.processExpression(node);
+    // TODO : add target
+    return expre;
+  }
+
+  @override
+  TSExpression visitIndexExpression(IndexExpression node) {
+    TSExpression expre = _context.processExpression(node);
+    // TODO : add target
+    return expre;
+  }
+
+  @override
+  TSExpression visitAssignmentExpression(AssignmentExpression node) {
+    TSExpression left = node.leftHandSide.accept(this);
+    TSAssignamentExpression assign = new TSAssignamentExpression(
+        left, _context.processExpression(node.rightHandSide));
+    return assign;
+  }
+
+  @override
+  TSExpression visitExpression(Expression node) {
+    return _context.processExpression(node);
+  }
+}
+
+MethodElement findMethod(InterfaceType tp, String methodName) {
   MethodElement m = tp.getMethod(methodName);
-  if (m!=null) {
+  if (m != null) {
     return m;
   }
 
-  if (tp.superclass!=null) {
+  if (tp.superclass != null) {
     return findMethod(tp.superclass, methodName);
   }
 
