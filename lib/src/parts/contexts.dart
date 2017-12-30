@@ -5,6 +5,8 @@ abstract class Context<T extends TSNode> {
 
   bool get topLevel;
 
+  bool isAssigning = false;
+
   T translate();
 
   E processExpression<E extends TSExpression>(Expression expression) {
@@ -190,17 +192,50 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitAssignmentExpression(AssignmentExpression node) {
+    AssigningContext assigningContext = new AssigningContext(_context,node.rightHandSide);
     return new TSAssignamentExpression(
-        _context.processExpression(node.leftHandSide),
+        assigningContext.processExpression(node.leftHandSide),
         _context.processExpression(node.rightHandSide));
   }
 
   @override
   TSExpression visitPropertyAccess(PropertyAccess node) {
-    return new TSDotExpression(
-        node.isCascaded ? null : _context.processExpression(node.target),
-        node.propertyName.name);
+    TSExpression target =
+        node.isCascaded ? null : _context.processExpression(node.target);
+
+    // If it's actually a property
+    if (node.propertyName.bestElement != null) {
+      // Check if we can apply an override
+
+      return new TSDotExpression(target, node.propertyName.name);
+    } else {
+      // Use the property accessor helper
+      if (_context.isAssigning) {
+        return new TSInvoke(new TSSimpleExpression('bare.writeProperty'), [
+          target,
+          new TSSimpleExpression('"${node.propertyName.name}"'),
+          _context.processExpression((_context as AssigningContext).value)
+        ]);
+      } else {
+        return new TSInvoke(new TSSimpleExpression('bare.readProperty'),
+            [target, new TSSimpleExpression('"${node.propertyName.name}"')]);
+      }
+    }
   }
+}
+
+class AssigningContext extends Context with ChildContext {
+  Expression _value;
+
+  Expression get value => _value;
+
+  AssigningContext(Context parent, this._value) {
+    parentContext = parent;
+    isAssigning = true;
+  }
+
+  @override
+  TSNode translate() => parentContext.translate();
 }
 
 class CascadingVisitor extends GeneralizingAstVisitor<TSExpression> {
@@ -210,8 +245,17 @@ class CascadingVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitPropertyAccess(PropertyAccess node) {
-    TSDotExpression expre = _context.processExpression(node);
-    expre._expression = _target;
+    TSExpression expre = _context.processExpression(node);
+    if (expre is TSDotExpression) {
+      (expre as TSDotExpression)._expression = _target;
+      AssigningContext assigningContext = _context as AssigningContext;
+      expre = new TSAssignamentExpression(
+          expre,
+          assigningContext.parentContext
+              .processExpression(assigningContext.value));
+    } else if (expre is TSInvoke) {
+      expre._arguments[0] = _target;
+    }
     return expre;
   }
 
@@ -231,10 +275,8 @@ class CascadingVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitAssignmentExpression(AssignmentExpression node) {
-    TSExpression left = node.leftHandSide.accept(this);
-    TSAssignamentExpression assign = new TSAssignamentExpression(
-        left, _context.processExpression(node.rightHandSide));
-    return assign;
+    _context = new AssigningContext(_context, node.rightHandSide);
+    return node.leftHandSide.accept(this);
   }
 
   @override
