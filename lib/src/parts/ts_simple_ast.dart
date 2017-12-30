@@ -293,6 +293,18 @@ class TSBody extends TSNode {
   }
 }
 
+class TSAsExpression extends TSExpression {
+  TSExpression _expression;
+  TSType _type;
+  TSAsExpression(this._expression,this._type);
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.accept(_expression);
+    printer.write(" as ");
+    printer.accept(_type);
+  }
+}
+
 class TSInvoke extends TSExpression {
   /// True if you want to call the method using square brakets notation
   TSExpression _target;

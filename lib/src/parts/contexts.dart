@@ -192,10 +192,22 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitAssignmentExpression(AssignmentExpression node) {
-    AssigningContext assigningContext = new AssigningContext(_context,node.rightHandSide);
+    AssigningContext assigningContext =
+        new AssigningContext(_context, node.rightHandSide);
     return new TSAssignamentExpression(
         assigningContext.processExpression(node.leftHandSide),
         _context.processExpression(node.rightHandSide));
+  }
+
+  @override
+  TSExpression visitParenthesizedExpression(ParenthesizedExpression node) {
+    return new TSBracketExpression(_context.processExpression(node.expression));
+  }
+
+  @override
+  TSExpression visitAsExpression(AsExpression node) {
+    return new TSAsExpression(_context.processExpression(node.expression),
+        _context.typeManager.toTsType(node.type.type));
   }
 
   @override
