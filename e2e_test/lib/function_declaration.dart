@@ -21,3 +21,21 @@ void voidFunction(normalArg, {String namedArgument}) {
 List<E> genericFunction<E>() {
   return null;
 }
+
+functionInsideFunctions() {
+  insideIt(x) {
+    return 10;
+  }
+
+  var anotherFunc = (y) {
+    return y + 1;
+  }
+
+  var anotherFunc2;
+
+  anotherFunc2 = () => "hi";
+
+  var someClosure = (x) => 10;
+
+  return insideIt;
+}

@@ -1,7 +1,9 @@
 part of '../code_generator2.dart';
 
-abstract class Context {
+abstract class Context<T extends TSNode> {
   TypeManager get typeManager;
+
+  T translate();
 
   E processExpression<E extends TSExpression>(Expression expression) {
     if (expression == null) {
@@ -55,6 +57,7 @@ class BodyVisitor extends GeneralizingAstVisitor<TSBody> {
 
 class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
   Context _context;
+
   StatementVisitor(this._context);
 
   @override
@@ -65,6 +68,15 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
   @override
   TSStatement visitStatement(Statement node) {
     return new TSUnknownStatement(node);
+  }
+
+  @override
+  TSStatement visitFunctionDeclarationStatement(
+      FunctionDeclarationStatement node) {
+    FunctionDeclarationContext functionDeclarationContext =
+        new FunctionDeclarationContext(_context, node.functionDeclaration,
+            topLevel: false);
+    return functionDeclarationContext.translate();
   }
 }
 
@@ -85,7 +97,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitFunctionExpression(FunctionExpression node) {
-    return new FunctionExpressionContext(_context, node).generateTypescript();
+    return new FunctionExpressionContext(_context, node).translate();
   }
 
   @override
@@ -97,8 +109,6 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
   TSExpression visitNullLiteral(NullLiteral node) {
     return new TSSimpleExpression('null');
   }
-
-
 }
 
 class TopLevelContext {
@@ -107,6 +117,7 @@ class TopLevelContext {
 
 class ChildContext {
   Context parentContext;
+
   TypeManager get typeManager => parentContext.typeManager;
 }
 
@@ -114,7 +125,7 @@ class ChildContext {
  * Generation Context
  */
 
-class LibraryContext extends Context with TopLevelContext {
+class LibraryContext extends Context<TSLibrary> with TopLevelContext {
   LibraryElement _libraryElement;
   List<FileContext> _fileContexts;
 
@@ -126,18 +137,18 @@ class LibraryContext extends Context with TopLevelContext {
         .toList();
   }
 
-  TSLibrary generateTypescript() {
+  TSLibrary translate() {
     TSLibrary tsLibrary = new TSLibrary(_libraryElement.source.uri.toString());
-    _fileContexts.forEach((fc) => fc.generateTypescript(tsLibrary));
+    tsLibrary._children.addAll(_fileContexts.map((fc) => fc.translate()));
 
     return tsLibrary;
   }
 }
 
-class FileContext extends Context with ChildContext {
+class FileContext extends Context<TSFile> with ChildContext {
   LibraryContext get _libraryContext => parentContext;
   CompilationUnit _compilationUnit;
-  List<TopLevelDeclarationContext> _topLevelContexts;
+  List<Context> _topLevelContexts;
 
   FileContext(LibraryContext parent, this._compilationUnit) {
     this.parentContext = parent;
@@ -149,42 +160,31 @@ class FileContext extends Context with ChildContext {
         .where((x) => x != null));
   }
 
-  void generateTypescript(TSLibrary tsLibrary) {
-    _topLevelContexts.forEach((t) => t.generateTypescript(tsLibrary));
+  TSFile translate() {
+    return new TSFile(
+        _compilationUnit, _topLevelContexts.map((tlc) => tlc.translate()));
   }
 }
 
-class TopLevelDeclarationVisitor
-    extends GeneralizingAstVisitor<TopLevelDeclarationContext> {
+class TopLevelDeclarationVisitor extends GeneralizingAstVisitor<Context> {
   FileContext _fileContext;
 
   TopLevelDeclarationVisitor(this._fileContext);
 
   @override
-  TopLevelDeclarationContext visitFunctionDeclaration(
-      FunctionDeclaration node) {
-    return new TopLevelFunctionContext(_fileContext, node);
+  Context visitFunctionDeclaration(FunctionDeclaration node) {
+    return new FunctionDeclarationContext(_fileContext, node);
   }
 }
 
-abstract class TopLevelDeclarationContext extends Context with ChildContext {
-  FileContext get _fileContext => parentContext;
-
-  TopLevelDeclarationContext(FileContext parent) {
-    this.parentContext = parent;
-  }
-
-  void generateTypescript(TSLibrary tsLibrary);
-}
-
-class FunctionExpressionContext extends Context with ChildContext {
+class FunctionExpressionContext extends Context<TSFunction> with ChildContext {
   FunctionExpression _functionExpression;
 
   FunctionExpressionContext(Context parent, this._functionExpression) {
     parentContext = parent;
   }
 
-  TSFunction generateTypescript() {
+  TSFunction translate() {
     List<TSTypeParameter> typeParameters;
 
     if (_functionExpression.typeParameters != null) {
@@ -266,32 +266,42 @@ class FormalParameterCollector extends GeneralizingAstVisitor {
   }
 }
 
-class TopLevelFunctionContext extends TopLevelDeclarationContext {
+class FunctionDeclarationContext extends Context<TSFunction> with ChildContext {
   FunctionDeclaration _functionDeclaration;
+  bool topLevel;
 
   TSType returnType;
 
-  TopLevelFunctionContext(FileContext fileContext, this._functionDeclaration)
-      : super(fileContext) {}
+  FunctionDeclarationContext(Context parentContext, this._functionDeclaration,
+      {this.topLevel = true}) {
+    this.parentContext = parentContext;
+  }
 
   @override
-  void generateTypescript(TSLibrary tsLibrary) {
-    tsLibrary.addChild(
-        processFunctionExpression(_functionDeclaration.functionExpression)
-          ..name = _functionDeclaration.name.name
-          ..returnType = parentContext.typeManager
-              .toTsType(_functionDeclaration?.returnType?.type));
+  TSFunction translate() {
+    return processFunctionExpression(_functionDeclaration.functionExpression)
+      ..name = _functionDeclaration.name.name
+      ..topLevel = topLevel
+      ..returnType = parentContext.typeManager
+          .toTsType(_functionDeclaration?.returnType?.type);
   }
 }
 
-class ClassContext extends TopLevelDeclarationContext {
-  ClassContext(FileContext fileContext) : super(fileContext);
+class ClassContext extends Context<TSClass> with ChildContext {
+  ClassContext(Context parent) {
+    parentContext = parent;
+  }
+
   @override
-  void generateTypescript(TSLibrary tsLibrary) {
-    // TODO: implement generateTypescript
+  TSClass translate() {
+
   }
 }
 
-class MethodContext extends Context with ChildContext {
+class MethodContext extends Context<TSNode> with ChildContext {
   ClassContext _classContext;
+  @override
+  TSNode translate() {
+    // TODO: implement translate
+  }
 }

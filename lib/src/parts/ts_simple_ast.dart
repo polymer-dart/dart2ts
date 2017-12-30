@@ -27,6 +27,13 @@ class TSLibrary extends TSNode {
   }
 }
 
+class TSClass extends TSNode {
+  @override
+  void writeCode(IndentingPrinter printer) {
+    // TODO: implement writeCode
+  }
+}
+
 abstract class TSType extends TSNode {}
 
 class TSSimpleType extends TSType {
@@ -123,7 +130,7 @@ class TSTypeParameter extends TSNode {
   }
 }
 
-class TSFunction extends TSExpression {
+class TSFunction extends TSExpression implements TSStatement {
   String name;
   bool topLevel;
   TSType returnType;
@@ -210,6 +217,7 @@ abstract class TSStatement extends TSNode {}
 
 class TSReturnStatement extends TSStatement {
   TSExpression value;
+
   TSReturnStatement([this.value]);
 
   @override
@@ -222,19 +230,35 @@ class TSReturnStatement extends TSStatement {
   }
 }
 
+class TSFile extends TSNode {
+  CompilationUnit _cu;
+  Iterable<TSNode> _declarations;
+
+  TSFile(this._cu, this._declarations);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.writeln('/** from ${_cu.element.source.fullName} */');
+    printer.join(_declarations, delim: '', newLine: true);
+    printer.writeln();
+  }
+}
+
 class TSUnknownStatement extends TSStatement {
   Statement _unknown;
+
   TSUnknownStatement(this._unknown);
 
   @override
   void writeCode(IndentingPrinter printer) {
-    printer.write("/* TODO : ${_unknown} */");
+    printer.write("/* TODO (${_unknown.runtimeType}) : ${_unknown} */");
   }
 }
 
 class TSBody extends TSNode {
   bool withBrackets;
   Iterable<TSStatement> statements;
+
   TSBody({this.statements, this.withBrackets: true});
 
   @override
@@ -244,14 +268,14 @@ class TSBody extends TSNode {
       printer.indented((p) {
         statements.forEach((s) {
           p.accept(s);
-          p.writeln(';');
+          if (s is! TSFunction) p.writeln(';');
         });
       });
       printer.writeln(('}'));
     } else {
       statements.forEach((s) {
         printer.accept(s);
-        printer.writeln(';');
+        if (s is! TSFunction) printer.writeln(';');
       });
     }
   }
@@ -280,6 +304,7 @@ class TSParameter extends TSNode {
 
 class TSSimpleExpression extends TSExpression {
   String _expression;
+
   TSSimpleExpression(this._expression);
 
   @override
@@ -294,8 +319,9 @@ class TSUnknownExpression extends TSExpression {
   Expression _unknown;
 
   TSUnknownExpression(this._unknown);
+
   @override
   void writeCode(IndentingPrinter printer) {
-    printer.write(('/* TODO : ${_unknown} */'));
+    printer.write(('/* TODO (${_unknown.runtimeType}): ${_unknown} */'));
   }
 }

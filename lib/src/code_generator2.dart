@@ -95,7 +95,7 @@ class Dart2TsBuilder extends _BaseBuilder {
     LibraryContext libraryContext = new LibraryContext(library);
 
     IndentingPrinter printer = new IndentingPrinter();
-    libraryContext.generateTypescript().writeCode(printer);
+    libraryContext.translate().writeCode(printer);
 
     await buildStep.writeAsString(destId, printer.buffer);
   }
