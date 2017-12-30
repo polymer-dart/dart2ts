@@ -208,12 +208,17 @@ class TSFunction extends TSExpression implements TSStatement {
         printer.writeln('/* body */');
         printer.accept(body);
       });
-      printer.writeln("}");
+      printer.write("}");
     }
   }
+
+  @override
+  bool get needsSeparator => false;
 }
 
-abstract class TSStatement extends TSNode {}
+abstract class TSStatement extends TSNode {
+  bool get needsSeparator => true;
+}
 
 class TSReturnStatement extends TSStatement {
   TSExpression value;
@@ -268,14 +273,20 @@ class TSBody extends TSNode {
       printer.indented((p) {
         statements.forEach((s) {
           p.accept(s);
-          if (s is! TSFunction) p.writeln(';');
+          if (s.needsSeparator)
+            p.writeln(';');
+          else
+            p.writeln();
         });
       });
       printer.writeln(('}'));
     } else {
       statements.forEach((s) {
         printer.accept(s);
-        if (s is! TSFunction) printer.writeln(';');
+        if (s.needsSeparator)
+          printer.writeln(';');
+        else
+          printer.writeln();
       });
     }
   }
@@ -284,16 +295,23 @@ class TSBody extends TSNode {
 class TSVariableDeclaration extends TSNode {
   String _name;
   TSExpression _initializer;
-  TSVariableDeclaration(this._name,this._initializer);
+  TSType _type;
+  TSVariableDeclaration(this._name, this._initializer, this._type);
 
   @override
   void writeCode(IndentingPrinter printer) {
     printer.write(_name);
-    if (_initializer!=null) {
+    if (_type != null) {
+      printer.write(" : ");
+      printer.accept(_type);
+    }
+    if (_initializer != null) {
       printer.write(' = ');
       printer.accept(_initializer);
     }
   }
+
+  bool get needsSeparator => _initializer is! TSFunction;
 }
 
 class TSVariableDeclarations extends TSStatement {
@@ -313,6 +331,9 @@ class TSExpressionStatement extends TSStatement {
   void writeCode(IndentingPrinter printer) {
     printer.accept(_expression);
   }
+
+  @override
+  bool get needsSeparator => _expression is! TSFunction;
 }
 
 class TSParameter extends TSNode {

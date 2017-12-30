@@ -3,6 +3,8 @@ part of '../code_generator2.dart';
 abstract class Context<T extends TSNode> {
   TypeManager get typeManager;
 
+  bool get topLevel;
+
   T translate();
 
   E processExpression<E extends TSExpression>(Expression expression) {
@@ -90,7 +92,7 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
       VariableDeclarationStatement node) {
     return new TSVariableDeclarations(node.variables.variables.map((v) =>
         new TSVariableDeclaration(
-            v.name.name, _context.processExpression(v.initializer))));
+            v.name.name, _context.processExpression(v.initializer),_context.typeManager.toTsType(node.variables.type?.type))));
   }
 }
 
@@ -127,12 +129,16 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
 class TopLevelContext {
   TypeManager typeManager;
+
+  bool get topLevel => true;
 }
 
 class ChildContext {
   Context parentContext;
 
   TypeManager get typeManager => parentContext.typeManager;
+
+  bool get topLevel => false;
 }
 
 /**
@@ -160,7 +166,6 @@ class LibraryContext extends Context<TSLibrary> with TopLevelContext {
 }
 
 class FileContext extends Context<TSFile> with ChildContext {
-  LibraryContext get _libraryContext => parentContext;
   CompilationUnit _compilationUnit;
   List<Context> _topLevelContexts;
 
@@ -221,7 +226,7 @@ class FunctionExpressionContext extends Context<TSFunction> with ChildContext {
     TSBody body = processBody(_functionExpression.body, withBrackets: false);
 
     return new TSFunction(
-        topLevel: true,
+        topLevel: topLevel,
         typeParameters: typeParameters,
         parameters: new List.from(parameterCollector.tsParameters),
         defaults: parameterCollector.defaults,
@@ -312,6 +317,7 @@ class ClassContext extends Context<TSClass> with ChildContext {
 
 class MethodContext extends Context<TSNode> with ChildContext {
   ClassContext _classContext;
+
   @override
   TSNode translate() {
     // TODO: implement translate
