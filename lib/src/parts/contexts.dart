@@ -78,6 +78,20 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
             topLevel: false);
     return functionDeclarationContext.translate();
   }
+
+  @override
+  TSStatement visitExpressionStatement(ExpressionStatement node) {
+    return new TSExpressionStatement(
+        _context.processExpression(node.expression));
+  }
+
+  @override
+  TSStatement visitVariableDeclarationStatement(
+      VariableDeclarationStatement node) {
+    return new TSVariableDeclarations(node.variables.variables.map((v) =>
+        new TSVariableDeclaration(
+            v.name.name, _context.processExpression(v.initializer))));
+  }
 }
 
 class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
@@ -293,9 +307,7 @@ class ClassContext extends Context<TSClass> with ChildContext {
   }
 
   @override
-  TSClass translate() {
-
-  }
+  TSClass translate() {}
 }
 
 class MethodContext extends Context<TSNode> with ChildContext {

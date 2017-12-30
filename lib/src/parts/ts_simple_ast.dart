@@ -281,6 +281,40 @@ class TSBody extends TSNode {
   }
 }
 
+class TSVariableDeclaration extends TSNode {
+  String _name;
+  TSExpression _initializer;
+  TSVariableDeclaration(this._name,this._initializer);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write(_name);
+    if (_initializer!=null) {
+      printer.write(' = ');
+      printer.accept(_initializer);
+    }
+  }
+}
+
+class TSVariableDeclarations extends TSStatement {
+  Iterable<TSVariableDeclaration> _declarations;
+  TSVariableDeclarations(this._declarations);
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write('let ');
+    printer.join(_declarations);
+  }
+}
+
+class TSExpressionStatement extends TSStatement {
+  TSExpression _expression;
+  TSExpressionStatement(this._expression);
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.accept(_expression);
+  }
+}
+
 class TSParameter extends TSNode {
   String name;
   TSType type;

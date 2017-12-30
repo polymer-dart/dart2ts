@@ -22,6 +22,10 @@ List<E> genericFunction<E>() {
   return null;
 }
 
+set topLevelSetter(Function f) {
+
+}
+
 functionInsideFunctions() {
   insideIt(x) {
     return 10;
@@ -34,6 +38,8 @@ functionInsideFunctions() {
   var anotherFunc2;
 
   anotherFunc2 = () => "hi";
+
+  topLevelSetter = () => "bad";
 
   var someClosure = (x) => 10;
 
