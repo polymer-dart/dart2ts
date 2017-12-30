@@ -130,7 +130,8 @@ class TypeManager {
 
   static bool isNativeType(DartType t) =>
       nativeTypes().contains(t) ||
-      t.element.library.isDartCore && (nativeClasses.contains(t.element.name));
+      (t.element.library?.isDartCore ?? false) &&
+          (nativeClasses.contains(t.element.name));
 
   String toTsName(Element element, {bool nopath: false}) {
     TSPath jspath = _collectJSPath(

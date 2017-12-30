@@ -92,7 +92,9 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
       VariableDeclarationStatement node) {
     return new TSVariableDeclarations(node.variables.variables.map((v) =>
         new TSVariableDeclaration(
-            v.name.name, _context.processExpression(v.initializer),_context.typeManager.toTsType(node.variables.type?.type))));
+            v.name.name,
+            _context.processExpression(v.initializer),
+            _context.typeManager.toTsType(node.variables.type?.type))));
   }
 }
 
@@ -125,6 +127,56 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
   TSExpression visitNullLiteral(NullLiteral node) {
     return new TSSimpleExpression('null');
   }
+
+  @override
+  TSExpression visitBinaryExpression(BinaryExpression node) {
+    // Here we should check if
+    // 1. we know what type is the left op =>
+    //   1.1 if it's a natural type => use natural TS operator
+    //   1.2 if it's another type and there's an user defined operator => use it
+    // 2. use the dynamic runtime call to operator that does the above checks at runtime
+
+    TSExpression leftExpression = _context.processExpression(node.leftOperand);
+    TSExpression rightExpression =
+        _context.processExpression(node.rightOperand);
+
+    if (TypeManager.isNativeType(node.leftOperand.bestType) ||
+        !node.operator.isUserDefinableOperator) {
+      return new TSBinaryExpression(
+          leftExpression, node.operator.lexeme.toString(), rightExpression);
+    }
+
+    if (node.leftOperand.bestType is InterfaceType) {
+      InterfaceType cls = node.leftOperand.bestType as InterfaceType;
+      MethodElement method = findMethod(cls,node.operator.lexeme);
+      assert(method != null,
+          'Operator ${node.operator} can be used only if defined in ${cls.name}');
+      return new TSInvokeMethod(leftExpression, _operatorName(method,node.operator), [rightExpression])
+        ..withBrackets = true;
+    }
+
+    return new TSInvokeFunction(
+        'bare.invokeBinaryOperand', [leftExpression, rightExpression]);
+  }
+
+
+  String _operatorName(MethodElement method,Token op) {
+    // TODO : should be a reference TSREference or some , with left being a TSType
+    return "${method.enclosingElement.name}.OPERATOR_${op.type.name}";
+  }
+}
+
+MethodElement findMethod(InterfaceType tp,String methodName) {
+  MethodElement m = tp.getMethod(methodName);
+  if (m!=null) {
+    return m;
+  }
+
+  if (tp.superclass!=null) {
+    return findMethod(tp.superclass, methodName);
+  }
+
+  return null;
 }
 
 class TopLevelContext {

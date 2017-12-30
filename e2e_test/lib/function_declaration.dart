@@ -26,12 +26,14 @@ set topLevelSetter(Function f) {
 
 }
 
+Function get topLevelSetter => null;
+
 functionInsideFunctions() {
   insideIt(x) {
     return 10;
   }
 
-  var anotherFunc = (y) {
+  Function anotherFunc = (y) {
     return y + 1;
   }
 
@@ -40,6 +42,8 @@ functionInsideFunctions() {
   anotherFunc2 = () => "hi";
 
   topLevelSetter = () => "bad";
+
+  print('${topLevelSetter}');
 
   var someClosure = (x) => 10;
 

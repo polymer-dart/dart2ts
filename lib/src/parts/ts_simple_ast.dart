@@ -292,6 +292,97 @@ class TSBody extends TSNode {
   }
 }
 
+abstract class TSInvoking extends TSExpression {
+  List<TSExpression> get _arguments;
+  Map<String, TSExpression> get _namedArguments;
+
+  void writeArguments(IndentingPrinter printer) {
+    printer.write('(');
+    printer.joinConsumers(() sync* {
+      if (_arguments != null) {
+        yield* _arguments.map((a) => (p) => p.accept(a));
+      }
+
+      if (_namedArguments != null) {
+        yield (p) {
+          p.accept(new TSObjectLiteral(_namedArguments));
+        };
+      }
+    }());
+    printer.write(')');
+  }
+}
+
+class TSInvokeMethod extends TSInvoking {
+  /// True if you want to call the method using square brakets notation
+  bool withBrackets = false;
+  TSExpression _target;
+  String _name;
+  List<TSExpression> _arguments;
+  Map<String, TSExpression> _namedArguments;
+  TSInvokeMethod(this._target, this._name,
+      [this._arguments, this._namedArguments]);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    if (withBrackets) {
+      printer.accept(_target);
+      printer.write('[${_name}]');
+    } else {
+      printer.accept(_target);
+      printer.write('.');
+      printer.write(_name);
+    }
+    writeArguments(printer);
+  }
+}
+
+class TSInvokeFunction extends TSInvoking {
+  String _name;
+  List<TSExpression> _arguments;
+  Map<String, TSExpression> _namedArguments;
+  TSInvokeFunction(this._name, [this._arguments, this._namedArguments]);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write(_name);
+    writeArguments(printer);
+  }
+}
+
+class TSObjectLiteral extends TSExpression {
+  Map<String, TSExpression> _fields;
+  TSObjectLiteral(this._fields);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.writeln('{');
+    printer.indented((p) {
+      p.joinConsumers(_fields.keys.map((k) => (p) {
+            p.write(k);
+            p.write(' : ');
+            p.accept(_fields[k]);
+          }));
+    });
+    printer.write(('}'));
+  }
+}
+
+class TSBinaryExpression extends TSExpression {
+  TSExpression _left;
+  TSExpression _right;
+  String _operand;
+
+  TSBinaryExpression(this._left, this._operand, this._right);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.accept(_left);
+    printer.write(' ${_operand} ');
+    printer.accept(_right);
+  }
+}
+
 class TSVariableDeclaration extends TSNode {
   String _name;
   TSExpression _initializer;
