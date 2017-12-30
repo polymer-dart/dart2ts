@@ -5,7 +5,11 @@ abstract class Context<T extends TSNode> {
 
   bool get topLevel;
 
-  bool isAssigning = false;
+  bool get isAssigning;
+  bool get isCascading;
+
+  TSExpression get cascadingTarget;
+  TSExpression get assigningValue;
 
   T translate();
 
@@ -36,6 +40,12 @@ abstract class Context<T extends TSNode> {
     withVisitor ??= new StatementVisitor(this);
     return statement.accept(withVisitor);
   }
+
+  AssigningContext enterAssigning(TSExpression value) =>
+      new AssigningContext(this, value);
+
+  CascadingContext enterCascade(TSExpression target) =>
+      new CascadingContext(this, target);
 }
 
 class BodyVisitor extends GeneralizingAstVisitor<TSBody> {
@@ -175,10 +185,11 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
   @override
   TSExpression visitCascadeExpression(CascadeExpression node) {
     TSExpression target = new TSSimpleExpression('_');
-    CascadingVisitor cascadingVisitor = new CascadingVisitor(_context, target);
+    CascadingContext cascadingContext = _context.enterCascade(target);
+    //CascadingVisitor cascadingVisitor = new CascadingVisitor(_context, target);
     TSBody body = new TSBody(statements: () sync* {
       yield* node.cascadeSections
-          .map((e) => e.accept(cascadingVisitor))
+          .map((e) => cascadingContext.processExpression(e))
           .map((e) => new TSExpressionStatement(e));
       yield new TSReturnStatement(target);
     }());
@@ -192,11 +203,9 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitAssignmentExpression(AssignmentExpression node) {
-    AssigningContext assigningContext =
-        new AssigningContext(_context, node.rightHandSide);
-    return new TSAssignamentExpression(
-        assigningContext.processExpression(node.leftHandSide),
-        _context.processExpression(node.rightHandSide));
+    TSExpression value = _context.processExpression(node.rightHandSide);
+    AssigningContext assigningContext = _context.enterAssigning(value);
+    return assigningContext.processExpression(node.leftHandSide);
   }
 
   @override
@@ -212,21 +221,23 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitPropertyAccess(PropertyAccess node) {
-    TSExpression target =
-        node.isCascaded ? null : _context.processExpression(node.target);
+    TSExpression target = node.isCascaded
+        ? _context.cascadingTarget
+        : _context.processExpression(node.target);
 
     // If it's actually a property
     if (node.propertyName.bestElement != null) {
       // Check if we can apply an override
 
-      return new TSDotExpression(target, node.propertyName.name);
+      return _mayWrapInAssignament(
+          new TSDotExpression(target, node.propertyName.name));
     } else {
       // Use the property accessor helper
       if (_context.isAssigning) {
         return new TSInvoke(new TSSimpleExpression('bare.writeProperty'), [
           target,
           new TSSimpleExpression('"${node.propertyName.name}"'),
-          _context.processExpression((_context as AssigningContext).value)
+          _context.assigningValue
         ]);
       } else {
         return new TSInvoke(new TSSimpleExpression('bare.readProperty'),
@@ -234,67 +245,45 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       }
     }
   }
+
+  TSExpression _mayWrapInAssignament(TSExpression expre) {
+    if (_context.isAssigning) {
+      return new TSAssignamentExpression(expre, _context.assigningValue);
+    } else {
+      return expre;
+    }
+  }
 }
 
 class AssigningContext extends Context with ChildContext {
-  Expression _value;
+  TSExpression _value;
 
-  Expression get value => _value;
+  TSExpression get assigningValue => _value;
+  bool get isAssigning => true;
 
   AssigningContext(Context parent, this._value) {
     parentContext = parent;
-    isAssigning = true;
   }
 
   @override
   TSNode translate() => parentContext.translate();
 }
 
-class CascadingVisitor extends GeneralizingAstVisitor<TSExpression> {
-  TSExpression _target;
-  Context _context;
-  CascadingVisitor(this._context, this._target);
+class CascadingContext extends Context with ChildContext {
+  TSExpression _cascadingTarget;
 
-  @override
-  TSExpression visitPropertyAccess(PropertyAccess node) {
-    TSExpression expre = _context.processExpression(node);
-    if (expre is TSDotExpression) {
-      (expre as TSDotExpression)._expression = _target;
-      AssigningContext assigningContext = _context as AssigningContext;
-      expre = new TSAssignamentExpression(
-          expre,
-          assigningContext.parentContext
-              .processExpression(assigningContext.value));
-    } else if (expre is TSInvoke) {
-      expre._arguments[0] = _target;
-    }
-    return expre;
+  CascadingContext(Context parent, this._cascadingTarget) {
+    parentContext = parent;
   }
 
   @override
-  TSExpression visitMethodInvocation(MethodInvocation node) {
-    TSExpression expre = _context.processExpression(node);
-    // TODO : add target
-    return expre;
-  }
+  TSNode translate() => parentContext.translate();
 
   @override
-  TSExpression visitIndexExpression(IndexExpression node) {
-    TSExpression expre = _context.processExpression(node);
-    // TODO : add target
-    return expre;
-  }
+  bool get isCascading => true;
 
   @override
-  TSExpression visitAssignmentExpression(AssignmentExpression node) {
-    _context = new AssigningContext(_context, node.rightHandSide);
-    return node.leftHandSide.accept(this);
-  }
-
-  @override
-  TSExpression visitExpression(Expression node) {
-    return _context.processExpression(node);
-  }
+  TSExpression get cascadingTarget => _cascadingTarget;
 }
 
 MethodElement findMethod(InterfaceType tp, String methodName) {
@@ -314,6 +303,11 @@ class TopLevelContext {
   TypeManager typeManager;
 
   bool get topLevel => true;
+
+  bool get isAssigning => false;
+  bool get isCascading => false;
+  TSExpression get assigningValue => null;
+  TSExpression get cascadingTarget => null;
 }
 
 class ChildContext {
@@ -322,6 +316,10 @@ class ChildContext {
   TypeManager get typeManager => parentContext.typeManager;
 
   bool get topLevel => false;
+  bool get isAssigning => parentContext.isAssigning;
+  bool get isCascading => parentContext.isCascading;
+  TSExpression get assigningValue => parentContext.assigningValue;
+  TSExpression get cascadingTarget => parentContext.cascadingTarget;
 }
 
 /**
