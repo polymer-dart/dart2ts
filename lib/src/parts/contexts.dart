@@ -49,25 +49,7 @@ abstract class Context<T extends TSNode> {
   CascadingContext enterCascade(TSExpression target) =>
       new CascadingContext(this, target);
 
-  exitAssignament() => new NoAssignament(this);
-}
-
-class NoAssignament extends Context with ChildContext {
-
-  NoAssignament(Context _context) {
-    parentContext = _context;
-  }
-
-
-  @override
-  bool get isAssigning => false;
-
-
-  @override
-  TSExpression get assigningValue => null;
-
-  @override
-  TSNode translate() => parentContext.translate();
+  exitAssignament() => this;
 }
 
 class BodyVisitor extends GeneralizingAstVisitor<TSBody> {
@@ -228,10 +210,12 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     // Check for implicit this
 
     if (node.staticElement is PropertyAccessorElement) {
-      PropertyInducingElement el = (node.staticElement as PropertyAccessorElement).variable;
+      PropertyInducingElement el =
+          (node.staticElement as PropertyAccessorElement).variable;
       // check if current class has it
       if (_context.currentClass != null &&
-          findField(_context.currentClass._classDeclaration.element,node.name) ==
+          findField(
+                  _context.currentClass._classDeclaration.element, node.name) ==
               el) {
         return new TSDotExpression(new TSSimpleExpression('this'), node.name);
       }
@@ -260,7 +244,6 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitPropertyAccess(PropertyAccess node) {
-
     TSExpression target = node.isCascaded
         ? _context.cascadingTarget
         : _context.exitAssignament().processExpression(node.target);
@@ -326,6 +309,8 @@ class AssigningContext extends Context with ChildContext {
 
   @override
   TSNode translate() => parentContext.translate();
+
+  exitAssignament() => parentContext;
 }
 
 class CascadingContext extends Context with ChildContext {

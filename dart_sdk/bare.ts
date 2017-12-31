@@ -257,3 +257,10 @@ export function isNot(object: any, type: any): boolean {
     return !is(object, type);
 }
 
+export function readProperty(obj:any,prop:string) {
+    return obj[prop];
+}
+
+export function writeProperty(obj:any,prop:string,val:any) {
+    obj[prop] = val;
+}
