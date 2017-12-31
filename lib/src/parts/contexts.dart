@@ -297,15 +297,13 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
   }
 }
 
-class AssigningContext extends Context with ChildContext {
+class AssigningContext extends ChildContext {
   TSExpression _value;
 
   TSExpression get assigningValue => _value;
   bool get isAssigning => true;
 
-  AssigningContext(Context parent, this._value) {
-    parentContext = parent;
-  }
+  AssigningContext(Context parent, this._value) : super(parent);
 
   @override
   TSNode translate() => parentContext.translate();
@@ -313,12 +311,10 @@ class AssigningContext extends Context with ChildContext {
   exitAssignament() => parentContext;
 }
 
-class CascadingContext extends Context with ChildContext {
+class CascadingContext extends ChildContext {
   TSExpression _cascadingTarget;
 
-  CascadingContext(Context parent, this._cascadingTarget) {
-    parentContext = parent;
-  }
+  CascadingContext(Context parent, this._cascadingTarget) : super(parent);
 
   @override
   TSNode translate() => parentContext.translate();
@@ -368,8 +364,10 @@ class TopLevelContext {
   ClassContext get currentClass => null;
 }
 
-class ChildContext {
+abstract class ChildContext<E extends TSNode> extends Context<E> {
   Context parentContext;
+
+  ChildContext(this.parentContext);
 
   TypeManager get typeManager => parentContext.typeManager;
 
@@ -406,13 +404,11 @@ class LibraryContext extends Context<TSLibrary> with TopLevelContext {
   }
 }
 
-class FileContext extends Context<TSFile> with ChildContext {
+class FileContext extends ChildContext<TSFile> {
   CompilationUnit _compilationUnit;
   List<Context> _topLevelContexts;
 
-  FileContext(LibraryContext parent, this._compilationUnit) {
-    this.parentContext = parent;
-
+  FileContext(LibraryContext parent, this._compilationUnit) : super(parent) {
     TopLevelDeclarationVisitor visitor = new TopLevelDeclarationVisitor(this);
     _topLevelContexts = new List();
     _topLevelContexts.addAll(_compilationUnit.declarations
@@ -442,12 +438,11 @@ class TopLevelDeclarationVisitor extends GeneralizingAstVisitor<Context> {
   }
 }
 
-class FunctionExpressionContext extends Context<TSFunction> with ChildContext {
+class FunctionExpressionContext extends ChildContext<TSFunction> {
   FunctionExpression _functionExpression;
 
-  FunctionExpressionContext(Context parent, this._functionExpression) {
-    parentContext = parent;
-  }
+  FunctionExpressionContext(Context parent, this._functionExpression)
+      : super(parent);
 
   TSFunction translate() {
     List<TSTypeParameter> typeParameters;
@@ -531,16 +526,15 @@ class FormalParameterCollector extends GeneralizingAstVisitor {
   }
 }
 
-class FunctionDeclarationContext extends Context<TSFunction> with ChildContext {
+class FunctionDeclarationContext extends ChildContext<TSFunction> {
   FunctionDeclaration _functionDeclaration;
   bool topLevel;
 
   TSType returnType;
 
   FunctionDeclarationContext(Context parentContext, this._functionDeclaration,
-      {this.topLevel = true}) {
-    this.parentContext = parentContext;
-  }
+      {this.topLevel = true})
+      : super(parentContext);
 
   @override
   TSFunction translate() {
@@ -552,12 +546,10 @@ class FunctionDeclarationContext extends Context<TSFunction> with ChildContext {
   }
 }
 
-class ClassContext extends Context<TSClass> with ChildContext {
+class ClassContext extends ChildContext<TSClass> {
   ClassDeclaration _classDeclaration;
   ClassContext get currentClass => this;
-  ClassContext(Context parent, this._classDeclaration) {
-    parentContext = parent;
-  }
+  ClassContext(Context parent, this._classDeclaration) : super(parent);
 
   TSClass _tsClass;
 
@@ -603,13 +595,11 @@ class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
   TSNode visitConstructorDeclaration(ConstructorDeclaration node) {}
 }
 
-class MethodContext extends Context<TSNode> with ChildContext {
+class MethodContext extends ChildContext<TSNode> {
   MethodDeclaration _methodDeclaration;
   ClassContext get _classContext => parentContext;
 
-  MethodContext(ClassContext parent, this._methodDeclaration) {
-    parentContext = parent;
-  }
+  MethodContext(ClassContext parent, this._methodDeclaration) : super(parent);
 
   @override
   TSNode translate() {
