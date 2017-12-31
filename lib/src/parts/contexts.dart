@@ -352,7 +352,7 @@ FieldElement findField(ClassElement tp, String fieldName) {
   return null;
 }
 
-class TopLevelContext {
+abstract class TopLevelContext<E extends TSNode> extends Context<E> {
   TypeManager typeManager;
 
   bool get topLevel => true;
@@ -383,7 +383,7 @@ abstract class ChildContext<E extends TSNode> extends Context<E> {
  * Generation Context
  */
 
-class LibraryContext extends Context<TSLibrary> with TopLevelContext {
+class LibraryContext extends TopLevelContext<TSLibrary> {
   LibraryElement _libraryElement;
   List<FileContext> _fileContexts;
 
