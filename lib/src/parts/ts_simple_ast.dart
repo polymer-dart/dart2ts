@@ -13,11 +13,14 @@ class TSLibrary extends TSNode {
   String _name;
   List<TSNode> _children = [];
 
+  Iterable<TSImport> imports;
+
   TSLibrary(this._name) {}
 
   @override
   void writeCode(IndentingPrinter printer) {
     printer.writeln("/** Library ${_name} */");
+    imports.forEach((i) => printer.accept(i));
     printer.writeln();
     _children.forEach((n) => n.writeCode(printer));
   }
@@ -28,9 +31,19 @@ class TSLibrary extends TSNode {
 }
 
 class TSClass extends TSNode {
+  String name;
+  Iterable<TSNode> members;
+
   @override
   void writeCode(IndentingPrinter printer) {
-    // TODO: implement writeCode
+    printer.writeln('class ${name} {');
+    printer.indented((p) {
+      members.forEach((m) {
+        p.accept(m);
+        p.writeln();
+      });
+    });
+    printer.writeln('}');
   }
 }
 
@@ -139,6 +152,9 @@ class TSFunction extends TSExpression implements TSStatement {
   Map<String, TSExpression> defaults;
   Map<String, TSExpression> namedDefaults;
   TSBody body;
+  bool asMethod = false;
+  bool isGetter = false;
+  bool isSetter = false;
 
   TSFunction({
     this.name,
@@ -149,6 +165,9 @@ class TSFunction extends TSExpression implements TSStatement {
     this.defaults,
     this.namedDefaults,
     this.body,
+    this.asMethod: false,
+    this.isGetter: false,
+    this.isSetter: false,
   });
 
   @override
@@ -157,7 +176,9 @@ class TSFunction extends TSExpression implements TSStatement {
       printer.write('export ');
     }
 
-    printer.write('function');
+    if (!asMethod) printer.write('function');
+    if (isGetter) printer.write('get');
+    if (isSetter) printer.write('set');
 
     if (name != null) {
       printer.write(' ${name}');
@@ -170,7 +191,7 @@ class TSFunction extends TSExpression implements TSStatement {
     }
 
     printer.write('(');
-    printer.join(parameters);
+    if (parameters != null) printer.join(parameters);
     printer.write(')');
 
     if (returnType != null) {
@@ -296,7 +317,7 @@ class TSBody extends TSNode {
 class TSAsExpression extends TSExpression {
   TSExpression _expression;
   TSType _type;
-  TSAsExpression(this._expression,this._type);
+  TSAsExpression(this._expression, this._type);
   @override
   void writeCode(IndentingPrinter printer) {
     printer.accept(_expression);
@@ -448,15 +469,38 @@ class TSVariableDeclaration extends TSNode {
   bool get needsSeparator => _initializer is! TSFunction;
 }
 
-class TSVariableDeclarations extends TSStatement {
-  Iterable<TSVariableDeclaration> _declarations;
-
-  TSVariableDeclarations(this._declarations);
+class TSNodes extends TSNode {
+  List<TSNode> _nodes;
+  TSNodes(this._nodes);
 
   @override
   void writeCode(IndentingPrinter printer) {
-    printer.write('let ');
+    _nodes.forEach((n) {
+      printer.accept(n);
+      printer.writeln();
+    });
+  }
+}
+
+class TSVariableDeclarations extends TSStatement {
+  Iterable<TSVariableDeclaration> _declarations;
+  bool isStatic;
+  bool isField;
+
+  TSVariableDeclarations(this._declarations,{this.isStatic:false,this.isField:false});
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    if (isStatic) {
+      printer.write('static ');
+    }
+    if (!isField) {
+      printer.write('let ');
+    }
     printer.join(_declarations);
+    if (isField) {
+      printer.write(';');
+    }
   }
 }
 

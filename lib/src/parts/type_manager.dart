@@ -1,11 +1,15 @@
 part of '../code_generator2.dart';
 
-class TSImport {
+class TSImport extends TSNode {
   String prefix;
   String path;
   LibraryElement library;
 
   TSImport({this.prefix, this.path, this.library});
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.writeln('import * as ${prefix} from "${path}";');
+  }
 }
 
 class TSPath {
@@ -260,5 +264,12 @@ class TypeManager {
     } else {
       return new TSSimpleType("${p}${actualName}");
     }
+  }
+
+  Iterable<TSImport> get allImports => _prefixes.values;
+
+  String namespaceForPrefix(PrefixElement prefix) {
+    return namespace(
+        _current.getImportsWithPrefix(prefix).first.importedLibrary);
   }
 }
