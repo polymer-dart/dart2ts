@@ -48,6 +48,26 @@ abstract class Context<T extends TSNode> {
 
   CascadingContext enterCascade(TSExpression target) =>
       new CascadingContext(this, target);
+
+  exitAssignament() => new NoAssignament(this);
+}
+
+class NoAssignament extends Context with ChildContext {
+
+  NoAssignament(Context _context) {
+    parentContext = _context;
+  }
+
+
+  @override
+  bool get isAssigning => false;
+
+
+  @override
+  TSExpression get assigningValue => null;
+
+  @override
+  TSNode translate() => parentContext.translate();
 }
 
 class BodyVisitor extends GeneralizingAstVisitor<TSBody> {
@@ -240,9 +260,10 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitPropertyAccess(PropertyAccess node) {
+
     TSExpression target = node.isCascaded
         ? _context.cascadingTarget
-        : _context.processExpression(node.target);
+        : _context.exitAssignament().processExpression(node.target);
     return asFieldAccess(target, node.propertyName);
   }
 

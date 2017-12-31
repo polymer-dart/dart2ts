@@ -51,12 +51,14 @@ doSomething() {
   // Cascading
   SomeClass x = new SomeClass()
     ..parent = (new SomeClass()..field = "pippo")
+    ..parent.field = "Fino"
     ..otherField = "ciccio"
     ..field = "pluto";
 
   // Cascading with unknown
   var y = (x as dynamic)
     ..parent = (new SomeClass()..field = "pippo")
+    ..parent.field = "pino"
     ..otherField = "brook"
     ..field = "pluto";
 }
