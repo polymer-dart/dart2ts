@@ -33,10 +33,28 @@ class TSLibrary extends TSNode {
 class TSClass extends TSNode {
   String name;
   Iterable<TSNode> members;
+  TSType superClass;
+  bool topLevel;
+  bool isInterface;
+
+  TSClass({this.topLevel: true, this.isInterface: false});
 
   @override
   void writeCode(IndentingPrinter printer) {
-    printer.writeln('class ${name} {');
+    if (topLevel) {
+      printer.write('export ');
+    }
+    if (isInterface) {
+      printer.write('interface');
+    } else {
+      printer.write('class');
+    }
+    printer.write(' ${name} ');
+    if (superClass != null) {
+      printer.write('extends ');
+      printer.accept(superClass);
+    }
+    printer.writeln('{');
     printer.indented((p) {
       members.forEach((m) {
         p.accept(m);
@@ -149,6 +167,7 @@ class TSFunction extends TSExpression implements TSStatement {
   TSType returnType;
   Iterable<TSTypeParameter> typeParameters;
   Iterable<TSParameter> parameters;
+  Map<String, TSType> namedParameters;
   Map<String, TSExpression> defaults;
   Map<String, TSExpression> namedDefaults;
   TSBody body;
@@ -156,19 +175,27 @@ class TSFunction extends TSExpression implements TSStatement {
   bool isGetter = false;
   bool isSetter = false;
 
-  TSFunction({
-    this.name,
-    this.topLevel: false,
-    this.returnType,
-    this.typeParameters,
-    this.parameters,
-    this.defaults,
-    this.namedDefaults,
-    this.body,
-    this.asMethod: false,
-    this.isGetter: false,
-    this.isSetter: false,
-  });
+  TSFunction(
+      {this.name,
+      this.topLevel: false,
+      this.returnType,
+      this.typeParameters,
+      this.parameters,
+      this.namedParameters,
+      this.defaults,
+      this.namedDefaults,
+      this.body,
+      this.asMethod: false,
+      this.isGetter: false,
+      this.isSetter: false,
+      FormalParameterCollector withParameterCollector}) {
+    if (withParameterCollector != null) {
+      parameters = new List.from(withParameterCollector.tsParameters);
+      namedParameters = withParameterCollector.namedType?.fields;
+      defaults = withParameterCollector.defaults;
+      namedDefaults = withParameterCollector.namedDefaults;
+    }
+  }
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -176,12 +203,12 @@ class TSFunction extends TSExpression implements TSStatement {
       printer.write('export ');
     }
 
-    if (!asMethod) printer.write('function');
-    if (isGetter) printer.write('get');
-    if (isSetter) printer.write('set');
+    if (!asMethod) printer.write('function ');
+    if (isGetter) printer.write('get ');
+    if (isSetter) printer.write('set ');
 
     if (name != null) {
-      printer.write(' ${name}');
+      printer.write(name);
     }
 
     if (typeParameters != null) {
@@ -202,7 +229,7 @@ class TSFunction extends TSExpression implements TSStatement {
     if (body != null) {
       printer.writeln(' {');
       printer.indented((printer) {
-        printer.writeln('/* init */');
+        //printer.writeln('/* init */');
 
         // Init all values
 
@@ -227,7 +254,14 @@ class TSFunction extends TSExpression implements TSStatement {
           printer.writeln('}, ${NAMED_ARGUMENTS});');
         }
 
-        printer.writeln('/* body */');
+        // Explode named args
+        namedParameters?.keys?.forEach((k) {
+          printer.write('let ${k} : ');
+          printer.accept(namedParameters[k]);
+          printer.writeln(' = ${NAMED_ARGUMENTS}.${k};');
+        });
+
+        //printer.writeln('/* body */');
         printer.accept(body);
       });
       printer.write("}");
@@ -487,7 +521,8 @@ class TSVariableDeclarations extends TSStatement {
   bool isStatic;
   bool isField;
 
-  TSVariableDeclarations(this._declarations,{this.isStatic:false,this.isField:false});
+  TSVariableDeclarations(this._declarations,
+      {this.isStatic: false, this.isField: false});
 
   @override
   void writeCode(IndentingPrinter printer) {

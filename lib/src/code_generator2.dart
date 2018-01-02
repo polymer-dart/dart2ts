@@ -115,7 +115,7 @@ class IndentingPrinter {
   int _currentIndent = 0;
   bool _newLine = true;
 
-  IndentingPrinter({this.defaultIndent=4});
+  IndentingPrinter({this.defaultIndent = 4});
 
   void write(String some) {
     if (some?.isEmpty ?? true) {
@@ -135,10 +135,10 @@ class IndentingPrinter {
     _newLine = false;
   }
 
-  void indent([int count]) => _currentIndent += count??defaultIndent;
-  void deindent([int count]) => _currentIndent -= count??defaultIndent;
+  void indent([int count]) => _currentIndent += count ?? defaultIndent;
+  void deindent([int count]) => _currentIndent -= count ?? defaultIndent;
 
-  void indented(void consumer(IndentingPrinter),{int count}) {
+  void indented(void consumer(IndentingPrinter), {int count}) {
     indent(count);
     consumer(this);
     deindent(count);
@@ -152,16 +152,20 @@ class IndentingPrinter {
 
   void accept(PrinterWriter w) => w.writeCode(this);
 
-  void join(Iterable<PrinterWriter> writers, {String delim = ',',bool newLine=false}) {
-
-    joinConsumers(writers.map((w)=>(p){
-      p.accept(w);
-    }),delim: delim,newLine: newLine);
+  void join(Iterable<PrinterWriter> writers,
+      {String delim = ',', bool newLine = false}) {
+    joinConsumers(
+        writers.map((w) => (p) {
+              p.accept(w);
+            }),
+        delim: delim,
+        newLine: newLine);
   }
 
   void consume(PrinterConsumer c) => c(this);
 
-  void joinConsumers(Iterable<PrinterConsumer> writers, {String delim = ',',bool newLine:false}) {
+  void joinConsumers(Iterable<PrinterConsumer> writers,
+      {String delim = ',', bool newLine: false}) {
     bool first = true;
     writers.forEach((w) {
       if (!first) {
@@ -170,7 +174,7 @@ class IndentingPrinter {
           writeln();
         }
       } else {
-        first=false;
+        first = false;
       }
       this.consume(w);
     });
