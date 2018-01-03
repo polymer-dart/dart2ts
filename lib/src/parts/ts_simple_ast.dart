@@ -318,7 +318,7 @@ class TSFunction extends TSExpression implements TSStatement {
         if (initializers!=null) {
           initializers.forEach((st){
             printer.accept(st);
-            printer.writeln();
+            printer.writeln(";");
           });
         }
 
@@ -331,6 +331,17 @@ class TSFunction extends TSExpression implements TSStatement {
 
   @override
   bool get needsSeparator => false;
+}
+
+class TSList extends TSExpression {
+  List<TSExpression> _elements;
+  TSList(this._elements);
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write('[');
+    printer.join(_elements);
+    printer.write(']');
+  }
 }
 
 abstract class TSStatement extends TSNode {

@@ -93,11 +93,12 @@ class Dart2TsBuilder extends _BaseBuilder {
         "${path.withoutExtension(buildStep.inputId.path)}.ts");
     _logger.fine('Processing ${library.location} for ${destId}');
 
-    LibraryContext libraryContext = new LibraryContext(library);
-
     IndentingPrinter printer = new IndentingPrinter();
-    libraryContext.translate().writeCode(printer);
+    runWithContext(library.context, () {
+      LibraryContext libraryContext = new LibraryContext(library);
 
+      libraryContext.translate().writeCode(printer);
+    });
     await buildStep.writeAsString(destId, printer.buffer);
   }
 }

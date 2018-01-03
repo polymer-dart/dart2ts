@@ -157,6 +157,12 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     return new TSSimpleExpression('null');
   }
 
+
+  @override
+  TSExpression visitListLiteral(ListLiteral node) {
+    return new TSList(new List.from(node.elements.map((e)=>_context.processExpression(e))));
+  }
+
   @override
   TSExpression visitBinaryExpression(BinaryExpression node) {
     // Here we should check if
@@ -788,6 +794,10 @@ class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
       node.parameters.accept(collector);
 
       TSBody body = _context.processBody(node.body, withBrackets: false);
+      InitializerCollector initializerCollector =
+          new InitializerCollector(_context);
+      List<TSStatement> initializers =
+          initializerCollector.processInitializers(node.initializers);
 
       return new TSFunction(
         name: (node.name?.name?.length ?? 0) > 0 ? node.name.name : 'create',
@@ -795,6 +805,7 @@ class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
         isStatic: true,
         withParameterCollector: collector,
         body: body,
+        initializers: initializers,
         returnType:
             _context.typeManager.toTsType(node.element.enclosingElement.type),
       );
@@ -812,12 +823,17 @@ class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
 
       TSBody body = _context.processBody(node.body, withBrackets: false);
 
+      InitializerCollector initializerCollector =
+          new InitializerCollector(_context);
+      List<TSStatement> initializers =
+          initializerCollector.processInitializers(node.initializers);
+
       return new TSFunction(
         asMethod: true,
+        initializers: initializers,
         asDefaultConstructor: true,
-        callSuper: (_context._classDeclaration.name.staticType as InterfaceType)
-                .superclass !=
-            null,
+        callSuper: (_context._classDeclaration.element.type).superclass !=
+            currentContext.typeProvider.objectType,
         withParameterCollector: collector,
         body: body,
       );
@@ -838,22 +854,20 @@ class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
     List<TSStatement> initializers =
         initializerCollector.processInitializers(node.initializers);
 
+    String metName = '_${node.name.name}';
+
     TSExpression init = new TSInvoke(
         new TSBracketExpression(new TSFunction(
             body: new TSBody(statements: [
           new TSVariableDeclarations([
             new TSVariableDeclaration(
                 'ctor',
-                new TSFunction(
-                  withParameterCollector: parameterCollector,
-                  body: body,
-                  initializers: initializers,
-                )..parameters.insert(
-                    0,
-                    new TSParameter(
-                        name: 'this',
-                        type: new TSSimpleType(
-                            _context._classDeclaration.name.name))),
+                new TSDotExpression(
+                    new TSStaticRef(
+                        _context.typeManager
+                            .toTsType(_context._classDeclaration.element.type),
+                        'prototype'),
+                    metName),
                 null)
           ]),
           new TSExpressionStatement(new TSAssignamentExpression(
@@ -863,13 +877,27 @@ class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
                   'prototype'))),
           new TSReturnStatement(new TSAsExpression(
               new TSSimpleExpression('ctor'), new TSSimpleType('any'))),
-        ]))),
+        ], withBrackets: false))),
         []);
-    TSVariableDeclarations field = new TSVariableDeclarations(
-        [new TSVariableDeclaration(node.name.name, init, ctorType)],
-        isStatic: true, isField: true);
 
-    return field;
+    List<TSNode> nodes = [
+      // actual constructor
+      new TSFunction(
+        name: metName,
+        withParameterCollector: parameterCollector,
+        body: body,
+        asMethod: true,
+        initializers: initializers,
+      ),
+      // getter
+      new TSVariableDeclarations(
+        [new TSVariableDeclaration(node.name.name, init, ctorType)],
+        isStatic: true,
+        isField: true,
+      ),
+    ];
+
+    return new TSNodes(nodes);
   }
 }
 
@@ -892,7 +920,7 @@ class InitializerCollector extends GeneralizingAstVisitor<TSStatement> {
     if (node.constructorName == null) {
       target = new TSSimpleExpression('super[bare.init]');
     } else {
-      target = new TSSimpleExpression('super.${node.constructorName.name}');
+      target = new TSSimpleExpression('super._${node.constructorName.name}');
     }
 
     ArgumentListCollector argumentListCollector =
@@ -910,7 +938,7 @@ class InitializerCollector extends GeneralizingAstVisitor<TSStatement> {
     if (node.constructorName == null) {
       target = new TSSimpleExpression('this[bare.init]');
     } else {
-      target = new TSSimpleExpression('this.${node.constructorName.name}');
+      target = new TSSimpleExpression('this._${node.constructorName.name}');
     }
 
     ArgumentListCollector argumentListCollector =
