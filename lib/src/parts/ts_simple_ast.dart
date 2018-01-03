@@ -165,11 +165,10 @@ class TSStringInterpolation extends TSExpression {
   List<TSNode> _elements;
   TSStringInterpolation(this._elements);
 
-
   @override
   void writeCode(IndentingPrinter printer) {
     printer.write('`');
-    printer.join(_elements,delim: '');
+    printer.join(_elements, delim: '');
     printer.write('`');
   }
 }
@@ -179,9 +178,9 @@ class TSInterpolationExpression extends TSNode {
   TSInterpolationExpression(this._expression);
   @override
   void writeCode(IndentingPrinter printer) {
-   printer.write('\${');
-   printer.accept(_expression);
-   printer.write('}');
+    printer.write('\${');
+    printer.accept(_expression);
+    printer.write('}');
   }
 }
 
@@ -198,6 +197,10 @@ class TSFunction extends TSExpression implements TSStatement {
   bool asMethod = false;
   bool isGetter = false;
   bool isSetter = false;
+  bool isStatic = false;
+  bool asDefaultConstructor = false;
+  bool callSuper = false;
+  List<TSStatement> initializers;
 
   TSFunction(
       {this.name,
@@ -211,7 +214,11 @@ class TSFunction extends TSExpression implements TSStatement {
       this.body,
       this.asMethod: false,
       this.isGetter: false,
+      this.asDefaultConstructor: false,
       this.isSetter: false,
+      this.isStatic: false,
+      this.callSuper: false,
+      this.initializers,
       FormalParameterCollector withParameterCollector}) {
     if (withParameterCollector != null) {
       parameters = new List.from(withParameterCollector.tsParameters);
@@ -227,9 +234,31 @@ class TSFunction extends TSExpression implements TSStatement {
       printer.write('export ');
     }
 
-    if (!asMethod) printer.write('function ');
-    if (isGetter) printer.write('get ');
-    if (isSetter) printer.write('set ');
+    if (asDefaultConstructor) {
+      printer.writeln('constructor(...args)');
+      printer.write('constructor(');
+      printer.join(parameters);
+      printer.writeln(') {');
+      printer.indented((p) {
+        if (callSuper) {
+          p.writeln('super(bare.init);');
+        }
+        // Call bare init
+        p.write('arguments[0] != bare.init && this[bare.init](');
+        p.joinConsumers(parameters.map((par) => (p) {
+              p.write(par.name);
+            }));
+        p.writeln(');');
+      });
+      printer.writeln('}');
+
+      printer.write(('[bare.init]'));
+    } else {
+      if (isStatic) printer.write('static ');
+      if (!asMethod) printer.write('function ');
+      if (isGetter) printer.write('get ');
+      if (isSetter) printer.write('set ');
+    }
 
     if (name != null) {
       printer.write(name);
@@ -284,6 +313,14 @@ class TSFunction extends TSExpression implements TSStatement {
           printer.accept(namedParameters[k]);
           printer.writeln(' = ${NAMED_ARGUMENTS}.${k};');
         });
+
+        // Initializers
+        if (initializers!=null) {
+          initializers.forEach((st){
+            printer.accept(st);
+            printer.writeln();
+          });
+        }
 
         //printer.writeln('/* body */');
         printer.accept(body);
@@ -384,16 +421,42 @@ class TSAsExpression extends TSExpression {
   }
 }
 
+class TSStaticRef extends TSExpression {
+  TSType _type;
+  String _name;
+
+  TSStaticRef(this._type, this._name);
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.accept(_type);
+    printer.write('.${_name}');
+  }
+}
+
+class TSTypeRef extends TSExpression {
+  TSType _type;
+
+  TSTypeRef(this._type);
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.accept(_type);
+  }
+}
+
 class TSInvoke extends TSExpression {
   /// True if you want to call the method using square brakets notation
   TSExpression _target;
   List<TSExpression> _arguments;
   Map<String, TSExpression> _namedArguments;
+  bool asNew = false;
 
   TSInvoke(this._target, [this._arguments, this._namedArguments]);
 
   @override
   void writeCode(IndentingPrinter printer) {
+    if (asNew) {
+      printer.write("new ");
+    }
     printer.accept(_target);
     writeArguments(printer);
   }

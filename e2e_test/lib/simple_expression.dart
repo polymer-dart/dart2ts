@@ -17,7 +17,7 @@ class SomeClass {
 }
 
 class Derived extends SomeClass {
-  implicitThis2() {
+  implicitThis2(String val) {
     String prev = field + otherField;
     field=val;
     otherField = val;

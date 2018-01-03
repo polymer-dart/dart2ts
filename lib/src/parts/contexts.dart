@@ -312,13 +312,129 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitStringInterpolation(StringInterpolation node) {
-    InterpolationElementVisitor visitor = new InterpolationElementVisitor(_context);
+    InterpolationElementVisitor visitor =
+        new InterpolationElementVisitor(_context);
     return new TSStringInterpolation(
         new List.from(node.elements.map((m) => m.accept(visitor))));
   }
 
+  @override
+  TSExpression visitInstanceCreationExpression(
+      InstanceCreationExpression node) {
+    /**
+     * If we know the constructor just callit
+     * otherwise use the helper function
+     */
+    ArgumentListCollector collector = new ArgumentListCollector(_context);
+    node.argumentList.accept(collector);
+    ConstructorElement elem = node.constructorName.staticElement;
+    if (elem != null) {
+      return _newObjectWithConstructor(elem, node, collector);
+    } else {
+      assert(node.bestType != null,
+          'We should know at least the type to call "new" here ?');
+      TSType myType = _context.typeManager.toTsType(node.bestType);
 
+      return new TSInvoke(
+          new TSSimpleExpression('bare.createInstance'),
+          new List()
+            ..addAll([
+              new TSTypeRef(myType),
+              new TSSimpleExpression(node.constructorName?.name?.name != null
+                  ? '"${node.constructorName?.name?.name}"'
+                  : 'null'),
+            ])
+            ..addAll(collector.arguments),
+          collector.namedArguments)
+        ..asNew = true;
+    }
+  }
 
+  TSExpression _newObjectWithConstructor(ConstructorElement ctor,
+      InstanceCreationExpression node, ArgumentListCollector collector) {
+    TSType myType = _context.typeManager.toTsType(ctor.enclosingElement.type);
+    if (ctor.isFactory) {
+      // Invoke as normal static method
+      return new TSInvoke(new TSStaticRef(myType, ctor.name),
+          collector.arguments, collector.namedArguments);
+    } else if ((ctor.name?.length ?? 0) > 0) {
+      // Invoke named constructor
+      return new TSInvoke(new TSStaticRef(myType, ctor.name),
+          collector.arguments, collector.namedArguments)
+        ..asNew = true;
+    } else {
+      // Invoke normal constructor
+      return new TSInvoke(
+          new TSTypeRef(myType), collector.arguments, collector.namedArguments)
+        ..asNew = true;
+    }
+  }
+
+  @override
+  TSExpression visitMethodInvocation(MethodInvocation node) {
+    // Same as with constructor
+    /**
+     * If we know the constructor just callit
+     * otherwise use the helper function
+     */
+    ArgumentListCollector collector = new ArgumentListCollector(_context);
+    node.argumentList.accept(collector);
+    ExecutableElement elem = node.methodName.staticElement;
+    TSExpression target;
+    if (node.target != null) {
+      target = new TSDotExpression(
+          _context.processExpression(node.target), node.methodName.name);
+    } else {
+      target = _context.processExpression(node.methodName);
+    }
+
+    if (elem != null) {
+      // Invoke normal method
+      return new TSInvoke(
+          target, collector.arguments, collector.namedArguments);
+    } else {
+      return new TSInvoke(
+          new TSSimpleExpression('bare.invokeMethod'),
+          new List()
+            ..addAll([
+              target,
+              new TSSimpleExpression('"${node.methodName.name}"'),
+            ])
+            ..addAll(collector.arguments),
+          collector.namedArguments)
+        ..asNew = true;
+    }
+  }
+}
+
+class ArgumentListCollector extends GeneralizingAstVisitor {
+  Context _context;
+  ArgumentListCollector(this._context);
+  List<TSExpression> arguments = [];
+  Map<String, TSExpression> namedArguments;
+
+  void processArgumentList(ArgumentList arg) {
+    arg.accept(this);
+  }
+
+  @override
+  visitArgumentList(ArgumentList node) {
+    node.arguments.forEach((n) {
+      n.accept(this);
+    });
+  }
+
+  @override
+  visitNamedExpression(NamedExpression node) {
+    namedArguments ??= {};
+    namedArguments[node.name.label.name] =
+        _context.processExpression(node.expression);
+  }
+
+  @override
+  visitExpression(Expression node) {
+    arguments.add(_context.processExpression(node));
+  }
 }
 
 class InterpolationElementVisitor extends GeneralizingAstVisitor<TSNode> {
@@ -327,7 +443,8 @@ class InterpolationElementVisitor extends GeneralizingAstVisitor<TSNode> {
 
   @override
   TSNode visitInterpolationExpression(InterpolationExpression node) {
-    return new TSInterpolationExpression(_context.processExpression(node.expression));
+    return new TSInterpolationExpression(
+        _context.processExpression(node.expression));
   }
 
   @override
@@ -663,11 +780,47 @@ class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
 
   @override
   TSNode visitConstructorDeclaration(ConstructorDeclaration node) {
-    if (node.name != null) {
+    if (node.factoryKeyword != null) {
+      // Return a static method declaration
+
+      FormalParameterCollector collector =
+          new FormalParameterCollector(_context);
+      node.parameters.accept(collector);
+
+      TSBody body = _context.processBody(node.body, withBrackets: false);
+
+      return new TSFunction(
+        name: (node.name?.name?.length ?? 0) > 0 ? node.name.name : 'create',
+        asMethod: true,
+        isStatic: true,
+        withParameterCollector: collector,
+        body: body,
+        returnType:
+            _context.typeManager.toTsType(node.element.enclosingElement.type),
+      );
+    } else if (node.name != null) {
       namedConstructors[node.name.name] = node;
 
       // Create the static
       return _createNamedConstructor(node);
+    } else {
+      // Create a default constructor
+
+      FormalParameterCollector collector =
+          new FormalParameterCollector(_context);
+      node.parameters.accept(collector);
+
+      TSBody body = _context.processBody(node.body, withBrackets: false);
+
+      return new TSFunction(
+        asMethod: true,
+        asDefaultConstructor: true,
+        callSuper: (_context._classDeclaration.name.staticType as InterfaceType)
+                .superclass !=
+            null,
+        withParameterCollector: collector,
+        body: body,
+      );
     }
   }
 
@@ -680,6 +833,11 @@ class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
 
     TSBody body = _context.processBody(node.body, withBrackets: false);
 
+    InitializerCollector initializerCollector =
+        new InitializerCollector(_context);
+    List<TSStatement> initializers =
+        initializerCollector.processInitializers(node.initializers);
+
     TSExpression init = new TSInvoke(
         new TSBracketExpression(new TSFunction(
             body: new TSBody(statements: [
@@ -689,6 +847,7 @@ class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
                 new TSFunction(
                   withParameterCollector: parameterCollector,
                   body: body,
+                  initializers: initializers,
                 )..parameters.insert(
                     0,
                     new TSParameter(
@@ -711,6 +870,63 @@ class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
         isStatic: true, isField: true);
 
     return field;
+  }
+}
+
+class InitializerCollector extends GeneralizingAstVisitor<TSStatement> {
+  Context _context;
+  InitializerCollector(this._context);
+
+  List<TSStatement> processInitializers(
+      List<ConstructorInitializer> initializers) {
+    if (initializers == null) {
+      return null;
+    }
+
+    return new List.from(initializers.map((init) => init.accept(this)));
+  }
+
+  @override
+  TSStatement visitSuperConstructorInvocation(SuperConstructorInvocation node) {
+    TSExpression target;
+    if (node.constructorName == null) {
+      target = new TSSimpleExpression('super[bare.init]');
+    } else {
+      target = new TSSimpleExpression('super.${node.constructorName.name}');
+    }
+
+    ArgumentListCollector argumentListCollector =
+        new ArgumentListCollector(_context)
+          ..processArgumentList(node.argumentList);
+
+    return new TSExpressionStatement(new TSInvoke(target,
+        argumentListCollector.arguments, argumentListCollector.namedArguments));
+  }
+
+  @override
+  TSStatement visitRedirectingConstructorInvocation(
+      RedirectingConstructorInvocation node) {
+    TSExpression target;
+    if (node.constructorName == null) {
+      target = new TSSimpleExpression('this[bare.init]');
+    } else {
+      target = new TSSimpleExpression('this.${node.constructorName.name}');
+    }
+
+    ArgumentListCollector argumentListCollector =
+        new ArgumentListCollector(_context)
+          ..processArgumentList(node.argumentList);
+
+    return new TSExpressionStatement(new TSInvoke(target,
+        argumentListCollector.arguments, argumentListCollector.namedArguments));
+  }
+
+  @override
+  TSStatement visitConstructorFieldInitializer(
+      ConstructorFieldInitializer node) {
+    return new TSExpressionStatement(new TSAssignamentExpression(
+        new TSSimpleExpression('this.${node.fieldName.name}'),
+        _context.processExpression(node.expression)));
   }
 }
 
