@@ -4,3 +4,8 @@ sample*.js.map
 index.js
 index.js.map
 index.d.ts
+function_declaration.ts
+list_sample.ts
+operand_sample.ts
+simple_expression.ts
+class_constructors.ts

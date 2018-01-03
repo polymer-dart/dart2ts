@@ -161,12 +161,36 @@ class TSTypeParameter extends TSNode {
   }
 }
 
+class TSStringInterpolation extends TSExpression {
+  List<TSNode> _elements;
+  TSStringInterpolation(this._elements);
+
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write('`');
+    printer.join(_elements,delim: '');
+    printer.write('`');
+  }
+}
+
+class TSInterpolationExpression extends TSNode {
+  TSExpression _expression;
+  TSInterpolationExpression(this._expression);
+  @override
+  void writeCode(IndentingPrinter printer) {
+   printer.write('\${');
+   printer.accept(_expression);
+   printer.write('}');
+  }
+}
+
 class TSFunction extends TSExpression implements TSStatement {
   String name;
   bool topLevel;
   TSType returnType;
   Iterable<TSTypeParameter> typeParameters;
-  Iterable<TSParameter> parameters;
+  List<TSParameter> parameters;
   Map<String, TSType> namedParameters;
   Map<String, TSExpression> defaults;
   Map<String, TSExpression> namedDefaults;

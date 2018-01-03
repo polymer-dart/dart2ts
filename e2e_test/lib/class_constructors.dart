@@ -16,6 +16,14 @@ class SomeClass {
   factory SomeClass.noRemorse() => new SomeClass.withName("No repent");
 }
 
+class DerivedClass extends SomeClass {
+  DerivedClass() : super.withName('pippo',ord1:100);
+
+  DerivedClass.withName() : super.withOrg(1000){
+    message = "Overridden";
+  }
+}
+
 void useEm() {
   SomeClass x = new SomeClass('hi',ord:5);
 

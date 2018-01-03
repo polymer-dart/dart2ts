@@ -309,6 +309,31 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       }
     }
   }
+
+  @override
+  TSExpression visitStringInterpolation(StringInterpolation node) {
+    InterpolationElementVisitor visitor = new InterpolationElementVisitor(_context);
+    return new TSStringInterpolation(
+        new List.from(node.elements.map((m) => m.accept(visitor))));
+  }
+
+
+
+}
+
+class InterpolationElementVisitor extends GeneralizingAstVisitor<TSNode> {
+  Context _context;
+  InterpolationElementVisitor(this._context);
+
+  @override
+  TSNode visitInterpolationExpression(InterpolationExpression node) {
+    return new TSInterpolationExpression(_context.processExpression(node.expression));
+  }
+
+  @override
+  TSNode visitInterpolationString(InterpolationString node) {
+    return new TSSimpleExpression(node.value);
+  }
 }
 
 class AssigningContext<A extends TSNode, B extends Context<A>>
@@ -642,11 +667,11 @@ class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
       namedConstructors[node.name.name] = node;
 
       // Create the static
-      return _createStaticConstructor(node);
+      return _createNamedConstructor(node);
     }
   }
 
-  TSNode _createStaticConstructor(ConstructorDeclaration node) {
+  TSNode _createNamedConstructor(ConstructorDeclaration node) {
     TSType ctorType = new TSSimpleType(
         '${_context._classDeclaration.name.name}_${node.name.name}');
 
@@ -664,7 +689,12 @@ class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
                 new TSFunction(
                   withParameterCollector: parameterCollector,
                   body: body,
-                ),
+                )..parameters.insert(
+                    0,
+                    new TSParameter(
+                        name: 'this',
+                        type: new TSSimpleType(
+                            _context._classDeclaration.name.name))),
                 null)
           ]),
           new TSExpressionStatement(new TSAssignamentExpression(
