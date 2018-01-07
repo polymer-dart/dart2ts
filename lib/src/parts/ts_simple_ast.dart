@@ -11,7 +11,7 @@ abstract class TSNode extends PrinterWriter {
 
 class TSLibrary extends TSNode {
   String _name;
-  List<TSNode> _children = [];
+  List<TSFile> _children = [];
 
   Iterable<TSImport> imports;
 
@@ -20,12 +20,42 @@ class TSLibrary extends TSNode {
   @override
   void writeCode(IndentingPrinter printer) {
     printer.writeln("/** Library ${_name} */");
+
     imports.forEach((i) => printer.accept(i));
     printer.writeln();
-    _children.forEach((n) => n.writeCode(printer));
+
+    List<String> exported = [];
+    List<TSNode> topLevelGetterAndSetters = [];
+    _children.forEach((f) {
+      f._declarations.forEach((d) {
+
+        if (d is TSFunction && (d.isGetter||d.isSetter)) {
+          topLevelGetterAndSetters.add(d);
+        } else {
+          printer.accept(d);
+          printer.writeln();
+        }
+        if (d is TSFunction) {
+          exported.add(d.name);
+        } else if (d is TSClass && !d.isInterface) {
+          exported.add(d.name);
+        }
+      });
+    });
+
+    printer.writeln('export class Library {');
+    printer.indented((p) {
+      exported.forEach((d) {
+        p.writeln("${d} = ${d};");
+      });
+      topLevelGetterAndSetters.forEach((n) => printer.accept(n));
+    });
+    printer.writeln('}');
+    printer.writeln('var _library : Library = new Library();');
+    printer.writeln('export default _library;');
   }
 
-  void addChild(TSNode child) {
+  void addChild(TSFile child) {
     _children.add(child);
   }
 }
@@ -315,8 +345,8 @@ class TSFunction extends TSExpression implements TSStatement {
         });
 
         // Initializers
-        if (initializers!=null) {
-          initializers.forEach((st){
+        if (initializers != null) {
+          initializers.forEach((st) {
             printer.accept(st);
             printer.writeln(";");
           });
@@ -331,6 +361,50 @@ class TSFunction extends TSExpression implements TSStatement {
 
   @override
   bool get needsSeparator => false;
+}
+
+class TSPrefixOperandExpression extends TSExpression {
+  String _op;
+  TSExpression _expr;
+
+  TSPrefixOperandExpression(this._op, this._expr);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write(_op);
+    printer.accept(_expr);
+  }
+}
+
+class TSConditionalExpression extends TSExpression {
+  TSExpression _cond;
+  TSExpression _true;
+  TSExpression _false;
+
+  TSConditionalExpression(this._cond, this._true, this._false);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.accept(_cond);
+    printer.write(' ? ');
+    printer.accept(_true);
+    printer.write(' : ');
+    printer.accept(_false);
+  }
+}
+
+class TSIndexExpression extends TSExpression {
+  TSExpression _target;
+  TSExpression _index;
+  TSIndexExpression(this._target, this._index);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.accept(_target);
+    printer.write('[');
+    printer.accept(_index);
+    printer.write(']');
+  }
 }
 
 class TSList extends TSExpression {

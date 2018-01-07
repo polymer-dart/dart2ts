@@ -8,7 +8,7 @@ class TSImport extends TSNode {
   TSImport({this.prefix, this.path, this.library});
   @override
   void writeCode(IndentingPrinter printer) {
-    printer.writeln('import * as ${prefix} from "${path}";');
+    printer.writeln('import {default as ${prefix}} from "${path}";');
   }
 }
 
@@ -46,6 +46,9 @@ class TypeManager {
   String namespace(LibraryElement lib) => namespaceFor(lib: lib);
 
   String namespaceFor({String uri, String modulePath, LibraryElement lib}) {
+    if (lib!=null&&lib==_current) {
+      return null;
+    }
     uri ??= lib.source.uri.toString();
 
     return _prefixes.putIfAbsent(uri, () {
