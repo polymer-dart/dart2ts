@@ -1,7 +1,7 @@
 export class SampleClass {
 
     get doc() {
-        return _library.document;
+        return module.document;
     }
 }
 
@@ -10,17 +10,12 @@ export class OtherClass extends SampleClass {
 
 }
 
-export class Library {
-    SampleClass= SampleClass;
-    OtherClass= OtherClass;
-
+export class Module {
     get document() {
         return "ciao";
     }
 
 }
 
-var _library:Library = new Library();
 
-
-export default _library;
+export var module = new Module();

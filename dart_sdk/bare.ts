@@ -1,5 +1,25 @@
 // Some triks borrowed from dart_sdk
 
+// Extend global Array
+
+declare global {
+    interface Array<T> {
+        first: T,
+        last: T
+    }
+}
+
+Object.defineProperty(Array.prototype, "first", {
+    get: function () {
+        return this[0];
+    }
+});
+
+Object.defineProperty(Array.prototype, "last", {
+    get: function () {
+        return this[this.length - 1];
+    }
+});
 
 export function named(target: any, propertyKey: string, descriptor: PropertyDescriptor) {
     descriptor.get = () => namedConstructor(target, propertyKey);
@@ -173,7 +193,7 @@ export namespace IterableHelpers {
 
 export namespace NumberHelpers {
     export namespace methods {
-        export function parse(s:string):number {
+        export function parse(s: string): number {
             return parseFloat(s);
         }
     }
@@ -181,7 +201,7 @@ export namespace NumberHelpers {
 
 export namespace IntHelpers {
     export namespace methods {
-        export function parse(s:string):number {
+        export function parse(s: string): number {
             return parseInt(s);
         }
     }
@@ -239,11 +259,11 @@ export namespace StringHelpers {
     }
 }
 
-export function callGenericMethod(target:any,methodName:string,...args:Array<any>):any {
+export function callGenericMethod(target: any, methodName: string, ...args: Array<any>): any {
     // Here we should intercept string and list methods
 
     // If not intercepts :
-    return target[methodName].call(target,...args);
+    return target[methodName].call(target, ...args);
 }
 
 export function is(object: any, type: any): boolean {
@@ -257,10 +277,19 @@ export function isNot(object: any, type: any): boolean {
     return !is(object, type);
 }
 
-export function readProperty(obj:any,prop:string) {
+export function readProperty(obj: any, prop: string) {
     return obj[prop];
 }
 
-export function writeProperty(obj:any,prop:string,val:any) {
+export function writeProperty(obj: any, prop: string, val: any) {
     obj[prop] = val;
+}
+
+
+export function invokeBinaryOperand<T>(op: string, left: T, right: T): T {
+    return {
+        '+': function (a, b) {
+            return a + b;
+        }
+    }[op](left, right);
 }

@@ -8,7 +8,7 @@ class TSImport extends TSNode {
   TSImport({this.prefix, this.path, this.library});
   @override
   void writeCode(IndentingPrinter printer) {
-    printer.writeln('import {default as ${prefix}} from "${path}";');
+    printer.writeln('import * as ${prefix} from "${path}";');
   }
 }
 
@@ -46,7 +46,7 @@ class TypeManager {
   String namespace(LibraryElement lib) => namespaceFor(lib: lib);
 
   String namespaceFor({String uri, String modulePath, LibraryElement lib}) {
-    if (lib!=null&&lib==_current) {
+    if (lib != null && lib == _current) {
       return null;
     }
     uri ??= lib.source.uri.toString();
@@ -93,13 +93,15 @@ class TypeManager {
 
   TSPath _collectJSPath(Element start) {
     var collector = (Element e, TSPath p, var c) {
+      DartObject anno = getAnnotation(e.metadata, isJS);
+      if (anno == null) return;
+
       if (e is! LibraryElement) {
         c(e.enclosingElement, p, c);
       }
 
       // Collect if metadata
-      String name =
-          getAnnotation(e.metadata, isJS)?.getField('name')?.toStringValue();
+      String name = anno.getField('name')?.toStringValue();
       if (name != null && name.isNotEmpty) {
         Match m = NAME_PATTERN.matchAsPrefix(name);
         String module = getAnnotation(e.metadata, isModule)
@@ -157,11 +159,18 @@ class TypeManager {
         name = jspath.name;
       }
     } else {
-      name = element.name;
+      String prefix = namespace(element.library);
+      String mod = ""; // TODO: add "module." for topLevel getters and setters.
+      if (prefix != null && isTopLevel(element)) {
+        name = "${prefix}.${element.name}";
+      } else
+        name = element.name;
     }
 
     return name;
   }
+
+  static bool isTopLevel(Element e) => e.library.units.contains(e.enclosingElement);
 
   TSType toTsType(DartType type,
       {bool noTypeArgs: false, bool inTypeOf: false}) {

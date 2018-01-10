@@ -1,4 +1,4 @@
-export * from "./lib/async";
+// export * from "./lib/async";
 
 export abstract class Future<X> extends Promise<X> {
 

@@ -43,16 +43,13 @@ class TSLibrary extends TSNode {
       });
     });
 
-    printer.writeln('export class Library {');
+    printer.writeln('export class Module {');
     printer.indented((p) {
-      exported.forEach((d) {
-        p.writeln("${d} = ${d};");
-      });
+
       topLevelGetterAndSetters.forEach((n) => printer.accept(n));
     });
     printer.writeln('}');
-    printer.writeln('var _library : Library = new Library();');
-    printer.writeln('export default _library;');
+    printer.writeln('export var module : Module = new Module();');
   }
 
   void addChild(TSFile child) {

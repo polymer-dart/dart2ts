@@ -7,7 +7,7 @@ bool doSomethingWithLists() {
   ];
 
 
-  var e = list.map((s)-> "Value ${s}");
+  var e = list.map((s)=> "Value ${s}");
 
   List<String> anotherList = e.toList();
 
