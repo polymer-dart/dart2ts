@@ -449,28 +449,31 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     node.argumentList.accept(collector);
     ExecutableElement elem = node.methodName.staticElement;
     TSExpression target;
+    TSExpression method;
     if (_context.isCascading) {
-      target =
-          new TSDotExpression(_context.cascadingTarget, node.methodName.name);
+      target = _context.cascadingTarget;
+      method = new TSDotExpression(target, node.methodName.name);
     } else if (node.target != null) {
       if (node.target is SimpleIdentifier &&
           (node.target as SimpleIdentifier).bestElement is PrefixElement) {
         Element el = (node.target as SimpleIdentifier).bestElement;
-        target = new TSDotExpression(
+        target = new TSSimpleExpression('null');
+        method = new TSDotExpression(
             new TSSimpleExpression(_context.typeManager.namespaceForPrefix(el)),
             node.methodName.name);
       } else {
-        target = new TSDotExpression(
-            _context.processExpression(node.target), node.methodName.name);
+        target = _context.processExpression(node.target);
+        method = new TSDotExpression(target, node.methodName.name);
       }
     } else {
-      target = _context.processExpression(node.methodName);
+      target = new TSSimpleExpression('null');
+      method = _context.processExpression(node.methodName);
     }
 
     if (elem != null) {
       // Invoke normal method / function
       return new TSInvoke(
-          target, collector.arguments, collector.namedArguments);
+          method, collector.arguments, collector.namedArguments);
     } else {
       return new TSInvoke(
           new TSSimpleExpression('bare.invokeMethod'),
@@ -481,7 +484,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
             ])
             ..addAll(collector.arguments),
           collector.namedArguments)
-        ..asNew = true;
+        ..asNew = false;
     }
   }
 }
@@ -672,15 +675,13 @@ class TopLevelDeclarationVisitor extends GeneralizingAstVisitor<Context> {
 
   @override
   Context visitFunctionDeclaration(FunctionDeclaration node) {
-    if (getAnnotation(node.element.metadata, isJS)!=null)
-      return null;
+    if (getAnnotation(node.element.metadata, isJS) != null) return null;
     return new FunctionDeclarationContext(_fileContext, node);
   }
 
   @override
   Context visitClassDeclaration(ClassDeclaration node) {
-    if (getAnnotation(node.element.metadata, isJS)!=null)
-      return null;
+    if (getAnnotation(node.element.metadata, isJS) != null) return null;
     return new ClassContext(_fileContext, node);
   }
 }

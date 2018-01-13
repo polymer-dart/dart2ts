@@ -28,8 +28,7 @@ class TSLibrary extends TSNode {
     List<TSNode> topLevelGetterAndSetters = [];
     _children.forEach((f) {
       f._declarations.forEach((d) {
-
-        if (d is TSFunction && (d.isGetter||d.isSetter)) {
+        if (d is TSFunction && (d.isGetter || d.isSetter)) {
           topLevelGetterAndSetters.add(d);
         } else {
           printer.accept(d);
@@ -45,7 +44,6 @@ class TSLibrary extends TSNode {
 
     printer.writeln('export class Module {');
     printer.indented((p) {
-
       topLevelGetterAndSetters.forEach((n) => printer.accept(n));
     });
     printer.writeln('}');
@@ -331,7 +329,9 @@ class TSFunction extends TSExpression implements TSStatement {
                 newLine: true);
           });
 
-          printer.writeln('}, ${NAMED_ARGUMENTS});');
+          printer.writeln('}, ${NAMED_ARGUMENTS} || {});');
+        } else if (namedParameters?.isNotEmpty ?? false) {
+          printer.writeln('${NAMED_ARGUMENTS} = ${NAMED_ARGUMENTS} || {};');
         }
 
         // Explode named args

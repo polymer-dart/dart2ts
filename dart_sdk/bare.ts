@@ -4,22 +4,57 @@
 
 declare global {
     interface Array<T> {
-        first: T,
-        last: T
+        first: T;
+        last: T;
+        sublist(from:number,to:number):Array<T>;
+        isEmpty:boolean;
+        isNotEmpty:boolean;
+        add(e:T):void;
+        remove(e:T):void;
     }
 }
 
-Object.defineProperty(Array.prototype, "first", {
-    get: function () {
+function extendPrototype(type,other) {
+    let object = other.prototype;
+    Object.getOwnPropertyNames(object).forEach(function(n:string){
+        if (n==='constructor') {
+            return;
+        }
+      let des : PropertyDescriptor = Object.getOwnPropertyDescriptor(object,n);
+      Object.defineProperty(type.prototype,n,des);
+    });
+    Object.getOwnPropertySymbols(object).forEach(function(n:symbol){
+        let des : PropertyDescriptor = Object.getOwnPropertyDescriptor(object,n);
+        Object.defineProperty(type.prototype,n,des);
+    });
+}
+
+
+extendPrototype(Array,class <T> extends Array<T> {
+    get first():T {
         return this[0];
+    }
+    get last():T {
+        return this[this.length-1];
+    }
+
+    sublist(from:number,to:number):Array<T> {
+        return this.slice(from,to);
+    }
+    add(e:T):void {
+        this.push(e);
+    }
+
+    remove(e:T):void {
+        this.splice(this.indexOf(e),1);
     }
 });
 
-Object.defineProperty(Array.prototype, "last", {
-    get: function () {
-        return this[this.length - 1];
-    }
-});
+export function invokeMethod(o:any,method:string,...args:Array<any>):any {
+    o = o || this;
+    return o[method].apply(o,args);
+}
+
 
 export function named(target: any, propertyKey: string, descriptor: PropertyDescriptor) {
     descriptor.get = () => namedConstructor(target, propertyKey);
