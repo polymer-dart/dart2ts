@@ -1,11 +1,11 @@
 {
   "compilerOptions": {
     "module": "es6",
-    "target": "es2015",
+    "target": "es6",
     "sourceMap": true,
     "declaration": true,
     "experimentalDecorators" :true,
-    "lib": ["es2015","esnext.asynciterable","DOM","ScriptHost"]
+    "lib": ["es6","es2016","esnext.asynciterable","DOM","ScriptHost"]
   },
   "exclude": [
     "node_modules"

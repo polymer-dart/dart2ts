@@ -1,14 +1,14 @@
 {
   "compilerOptions": {
     "module": "es6",
-    "target": "es2015",
+    "target": "es6",
     "sourceMap": true,
     "declaration": true,
     "rootDir":"./lib/",
     "experimentalDecorators" :true,
 	"lib": [      
       "dom",
-      "es2015",
+      "es6",
       "esnext.asynciterable"
     ]
   },

@@ -945,12 +945,23 @@ class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
           new TSVariableDeclarations([
             new TSVariableDeclaration(
                 'ctor',
-                new TSDotExpression(
-                    new TSStaticRef(
-                        _context.typeManager
-                            .toTsType(_context._classDeclaration.element.type),
-                        'prototype'),
-                    metName),
+                new TSFunction(
+                    parameters: [new TSParameter(name: '...args')],
+                    body: new TSBody(withBrackets: false, statements: [
+                      new TSExpressionStatement(new TSInvoke(
+                          new TSDotExpression(
+                              new TSDotExpression(
+                                  new TSStaticRef(
+                                      _context.typeManager.toTsType(_context
+                                          ._classDeclaration.element.type),
+                                      'prototype'),
+                                  metName),
+                              'apply'),
+                          [
+                            new TSSimpleExpression('this'),
+                            new TSSimpleExpression('args')
+                          ]))
+                    ])),
                 null)
           ]),
           new TSExpressionStatement(new TSAssignamentExpression(
