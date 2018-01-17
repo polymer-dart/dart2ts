@@ -14,10 +14,13 @@ import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
 import 'package:source_gen/source_gen.dart';
 import 'package:analyzer/dart/element/visitor.dart';
+import 'package:resource/resource.dart' as res;
+import 'package:yaml/yaml.dart';
 
 part 'package:dart2ts/src/parts/contexts.dart';
 part 'package:dart2ts/src/parts/ts_simple_ast.dart';
 part 'parts/type_manager.dart';
+
 
 /**
  * Second version of the code generator.
@@ -95,8 +98,9 @@ class Dart2TsBuilder extends _BaseBuilder {
     _logger.fine('Processing ${library.location} for ${destId}');
 
     IndentingPrinter printer = new IndentingPrinter();
+    Overrides overrides = await Overrides.forCurrentContext();
     runWithContext(library.context, () {
-      LibraryContext libraryContext = new LibraryContext(library);
+      LibraryContext libraryContext = new LibraryContext(library, overrides);
 
       libraryContext.translate().writeCode(printer);
     });

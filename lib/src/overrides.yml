@@ -1,19 +1,19 @@
 overrides:
- -  library_name: dart:core
+ "dart:core":
     classes:
-      -
-         dart_class: List
-         ts_class: List
-         ts_require: dart_sdk/collection
+      List:
+         to:
+          class: DartList
+          from: dart_sdk/collection
          properties:
-           - name: first
-             ts_name: [dart.first]
-           - name: last
-             ts_name: [dart.last]
-      -
-         dart_class: Iterable
-         ts_class: Iterable
-         ts_require: dart_sdk/collection
+           first: "[dart.first]"
+           last: "[dart.last]"
          methods:
-          - name: where
-            ts_name: [dart.where]
+           map: "[dart.map]"
+      Iterable:
+         to:
+          class: DartIterable
+          from: dart_sdk/collection
+         methods:
+          where: "[dart.where]"
+          join: "[dart.join]"

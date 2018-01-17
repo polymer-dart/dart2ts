@@ -9,6 +9,8 @@ dependencies:
   analyzer: ^0.30.0
   args: any
   source_gen: any
+  resource: "^2.1.2"
+  yaml: any
 executables:
  dart2ts: dart2ts
 environment:

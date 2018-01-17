@@ -1,5 +1,70 @@
 part of '../code_generator2.dart';
 
+class Overrides {
+  var _yaml;
+  var _overrides;
+  Overrides(this._yaml) {
+    this._overrides = _yaml['overrides'] ?? {};
+  }
+
+  static Future<Overrides> forCurrentContext() async {
+    res.Resource resource =
+        new res.Resource('package:dart2ts/src/overrides.yml');
+    String str = await resource.readAsString();
+
+    return new Overrides(loadYaml(str));
+  }
+
+  TSExpression checkMethod(
+      Expression target, String methodName, TSExpression tsTarget,
+      {TSExpression orElse()}) {
+    // TODO : implement
+
+    DartType type = target.bestType;
+    LibraryElement from = type?.element?.library;
+    Uri fromUri = from?.source?.uri;
+
+    _logger
+        .info("Checking method for {${fromUri}}${type.name} -> ${methodName}");
+    if (type == null || fromUri == null) {
+      return orElse();
+    }
+
+    var libOverrides = _overrides[fromUri.toString()];
+    if (libOverrides == null) {
+      return orElse();
+    }
+
+    var classOverrides = (libOverrides['classes']??{})[type.name];
+
+    if (classOverrides == null) {
+      return orElse();
+    }
+
+    String methodOverrides = (classOverrides['methods'] ?? {})[methodName];
+
+    if (methodOverrides == null) {
+      return orElse();
+    }
+
+    // TODO : Import the right library and replace the prefix in the overrides
+    //  - that's because we would like to use symbols exported from the lib containing the override
+    // for example : x.map -> x[mylib.map]
+    // where mylib is the import prefixe for the library where symbol "map" is exported.
+
+    // Square or dot ?
+
+    if (methodOverrides.startsWith('[')) {
+      return new TSIndexExpression(
+          tsTarget,
+          new TSSimpleExpression(
+              methodOverrides.substring(1, methodOverrides.length - 1)));
+    } else {
+      return new TSDotExpression(tsTarget, methodOverrides);
+    }
+  }
+}
+
 abstract class Context<T extends TSNode> {
   TypeManager get typeManager;
 
@@ -12,6 +77,10 @@ abstract class Context<T extends TSNode> {
   TSExpression get assigningValue;
 
   ClassContext get currentClass;
+
+  Overrides get overrides;
+
+  Expression get cascadingExpression;
 
   T translate();
 
@@ -51,8 +120,8 @@ abstract class Context<T extends TSNode> {
   AssigningContext enterAssigning(TSExpression value) =>
       new AssigningContext(this, value);
 
-  CascadingContext enterCascade(TSExpression target) =>
-      new CascadingContext(this, target);
+  CascadingContext enterCascade(Expression dartTarget, TSExpression target) =>
+      new CascadingContext(this, target, dartTarget);
 
   exitAssignament() => this;
 
@@ -221,7 +290,8 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
   @override
   TSExpression visitCascadeExpression(CascadeExpression node) {
     TSExpression target = new TSSimpleExpression('_');
-    CascadingContext cascadingContext = _context.enterCascade(target);
+    CascadingContext cascadingContext =
+        _context.enterCascade(node.target, target);
     //CascadingVisitor cascadingVisitor = new CascadingVisitor(_context, target);
     TSBody body = new TSBody(statements: () sync* {
       yield* node.cascadeSections
@@ -452,7 +522,9 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     TSExpression method;
     if (_context.isCascading) {
       target = _context.cascadingTarget;
-      method = new TSDotExpression(target, node.methodName.name);
+      method = _context.overrides.checkMethod(
+          _context.cascadingExpression, node.methodName.name, target,
+          orElse: () => new TSDotExpression(target, node.methodName.name));
     } else if (node.target != null) {
       if (node.target is SimpleIdentifier &&
           (node.target as SimpleIdentifier).bestElement is PrefixElement) {
@@ -463,7 +535,11 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
             node.methodName.name);
       } else {
         target = _context.processExpression(node.target);
-        method = new TSDotExpression(target, node.methodName.name);
+
+        // Check for method substitution
+        method = _context.overrides.checkMethod(
+            node.target, node.methodName.name, target,
+            orElse: () => new TSDotExpression(target, node.methodName.name));
       }
     } else {
       target = new TSSimpleExpression('null');
@@ -553,8 +629,10 @@ class AssigningContext<A extends TSNode, B extends Context<A>>
 class CascadingContext<A extends TSNode, B extends Context<A>>
     extends ChildContext<A, B, A> {
   TSExpression _cascadingTarget;
+  Expression _target;
 
-  CascadingContext(B parent, this._cascadingTarget) : super(parent);
+  CascadingContext(B parent, this._cascadingTarget, this._target)
+      : super(parent);
 
   @override
   A translate() => parentContext.translate();
@@ -564,6 +642,9 @@ class CascadingContext<A extends TSNode, B extends Context<A>>
 
   @override
   TSExpression get cascadingTarget => _cascadingTarget;
+
+  @override
+  Expression get cascadingExpression => _target;
 }
 
 MethodElement findMethod(InterfaceType tp, String methodName) {
@@ -601,6 +682,7 @@ abstract class TopLevelContext<E extends TSNode> extends Context<E> {
   bool get isCascading => false;
   TSExpression get assigningValue => null;
   TSExpression get cascadingTarget => null;
+  Expression get cascadingExpression => null;
   ClassContext get currentClass => null;
 }
 
@@ -617,7 +699,9 @@ abstract class ChildContext<A extends TSNode, P extends Context<A>,
   bool get isCascading => parentContext.isCascading;
   TSExpression get assigningValue => parentContext.assigningValue;
   TSExpression get cascadingTarget => parentContext.cascadingTarget;
+  Expression get cascadingExpression => parentContext.cascadingExpression;
   ClassContext get currentClass => parentContext.currentClass;
+  Overrides get overrides => parentContext.overrides;
 }
 
 /**
@@ -627,8 +711,11 @@ abstract class ChildContext<A extends TSNode, P extends Context<A>,
 class LibraryContext extends TopLevelContext<TSLibrary> {
   LibraryElement _libraryElement;
   List<FileContext> _fileContexts;
+  Overrides _overrides;
 
-  LibraryContext(this._libraryElement) {
+  Overrides get overrides => _overrides;
+
+  LibraryContext(this._libraryElement, this._overrides) {
     typeManager = new TypeManager(_libraryElement);
     _fileContexts = _libraryElement.units
         .map((cu) => cu.computeNode())
