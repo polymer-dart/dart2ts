@@ -6,14 +6,14 @@ overrides:
           class: DartList
           from: dart_sdk/collection
          properties:
-           first: "[dart.first]"
-           last: "[dart.last]"
+           first: "$first"
+           last: "$last"
          methods:
-           map: "[dart.map]"
+           map: "$map"
       Iterable:
          to:
           class: DartIterable
           from: dart_sdk/collection
          methods:
-          where: "[dart.where]"
-          join: "[dart.join]"
+          where: "$where"
+          join: "$join"

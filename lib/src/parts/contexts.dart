@@ -3,6 +3,7 @@ part of '../code_generator2.dart';
 class Overrides {
   var _yaml;
   var _overrides;
+  TypeManager typeManager;
   Overrides(this._yaml) {
     this._overrides = _yaml['overrides'] ?? {};
   }
@@ -35,7 +36,7 @@ class Overrides {
       return orElse();
     }
 
-    var classOverrides = (libOverrides['classes']??{})[type.name];
+    var classOverrides = (libOverrides['classes'] ?? {})[type.name];
 
     if (classOverrides == null) {
       return orElse();
@@ -52,13 +53,24 @@ class Overrides {
     // for example : x.map -> x[mylib.map]
     // where mylib is the import prefixe for the library where symbol "map" is exported.
 
+    String module = classOverrides['to']['from'];
+
+    String prefix =
+        typeManager.namespaceFor(uri: "module:${module}", modulePath: module);
+
     // Square or dot ?
 
     if (methodOverrides.startsWith('[')) {
-      return new TSIndexExpression(
-          tsTarget,
-          new TSSimpleExpression(
-              methodOverrides.substring(1, methodOverrides.length - 1)));
+      String sym = methodOverrides.substring(1, methodOverrides.length - 1);
+      sym = sym.replaceAllMapped(new RegExp(r"\${([^}]*)}"), (Match m) {
+        String n = m.group(1);
+        if (n == "prefix") {
+          return prefix;
+        }
+
+        return "\${${n}}";
+      });
+      return new TSIndexExpression(tsTarget, new TSSimpleExpression(sym));
     } else {
       return new TSDotExpression(tsTarget, methodOverrides);
     }
@@ -717,6 +729,7 @@ class LibraryContext extends TopLevelContext<TSLibrary> {
 
   LibraryContext(this._libraryElement, this._overrides) {
     typeManager = new TypeManager(_libraryElement);
+    _overrides.typeManager = typeManager;
     _fileContexts = _libraryElement.units
         .map((cu) => cu.computeNode())
         .map((cu) => new FileContext(this, cu))
