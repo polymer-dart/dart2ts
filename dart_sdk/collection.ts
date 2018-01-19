@@ -38,47 +38,26 @@ declare global {
 
 }
 
-extendPrototype(Array, class<T> extends Array<T> implements DartIterable<T> {
-    $join(separator: string): string {
-        return this.join(separator);
-    }
-    get $first(): T {
-        return this[0];
-    }
-
-    get $last(): T {
-        return this[this.length - 1];
-    }
-
-    $sublist(from: number, to: number): Array<T> {
-        return this.slice(from, to);
-    }
-
-    $add(e: T): void {
-        this.push(e);
-    }
-
-    $remove(e: T): void {
-        this.splice(this.indexOf(e), 1);
-    }
-
-    $map<X>(f: (t: T) => X): DartIterable<X> {
-        return toDartIterable(function* () {
-            for (let t of this) {
-                yield f(t);
-            }
-        }());
-    }
-});
 
 export interface DartIterable<T> extends Iterable<T> {
     readonly $first: T;
     readonly $last: T;
-    $join(separator:string):string;
+
+    $join(separator: string): string;
+
+    $map<X>(f: (t: T) => X): DartIterable<X>;
 }
 
-function toDartIterable<X>(x: Iterable<X>) {
-    return new class implements DartIterable<X> {
+function toDartIterable<X>(x: Iterable<X>): DartIterable<X> {
+    return new (class implements DartIterable<X> {
+        $map<T>(f: (t: X) => T): DartIterable<T> {
+            return toDartIterable<T>(function* () {
+                for (let t of this) {
+                    yield f(t);
+                }
+            }());
+        }
+
         $join(separator: string): string {
             return Array.from(this).join(separator);
         }
@@ -103,5 +82,50 @@ function toDartIterable<X>(x: Iterable<X>) {
         [Symbol.iterator](): Iterator<X> {
             return x[Symbol.iterator]();
         }
+    }) as DartIterable<X>;
+}
+
+
+let inited: boolean = false;
+
+export function initCollections() {
+    if (inited) {
+        return;
     }
+
+    extendPrototype(Array, class<T> extends Array<T> implements DartIterable<T> {
+        $join(separator: string): string {
+            return this.join(separator);
+        }
+
+        get $first(): T {
+            return this[0];
+        }
+
+        get $last(): T {
+            return this[this.length - 1];
+        }
+
+        $sublist(from: number, to: number): Array<T> {
+            return this.slice(from, to);
+        }
+
+        $add(e: T): void {
+            this.push(e);
+        }
+
+        $remove(e: T): void {
+            this.splice(this.indexOf(e), 1);
+        }
+
+        $map<X>(f: (t: T) => X): DartIterable<X> {
+            let self = this;
+            return toDartIterable<X>(function* () {
+                for (let t of self) {
+                    yield f(t);
+                }
+            }());
+        }
+    });
+
 }

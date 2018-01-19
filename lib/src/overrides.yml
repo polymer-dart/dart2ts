@@ -10,10 +10,14 @@ overrides:
            last: "$last"
          methods:
            map: "$map"
+           sublist: "$sublist"
       Iterable:
          to:
           class: DartIterable
           from: dart_sdk/collection
+         properties:
+           first: "$first"
+           last: "$last"
          methods:
           where: "$where"
           join: "$join"

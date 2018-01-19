@@ -75,6 +75,36 @@ class Overrides {
       return new TSDotExpression(tsTarget, methodOverrides);
     }
   }
+
+  String checkProperty(ClassElement target, String name) {
+    DartType type = target.type;
+    LibraryElement from = type?.element?.library;
+    Uri fromUri = from?.source?.uri;
+
+    _logger.info("Checking props for {${fromUri}}${type.name} -> ${name}");
+    if (type == null || fromUri == null) {
+      return name;
+    }
+
+    var libOverrides = _overrides[fromUri.toString()];
+    if (libOverrides == null) {
+      return name;
+    }
+
+    var classOverrides = (libOverrides['classes'] ?? {})[type.name];
+
+    if (classOverrides == null) {
+      return name;
+    }
+
+    String propsOverrides = (classOverrides['properties'] ?? {})[name];
+
+    if (propsOverrides == null) {
+      return name;
+    }
+
+    return propsOverrides;
+  }
 }
 
 abstract class Context<T extends TSNode> {
@@ -443,8 +473,13 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     if (identifier.bestElement != null) {
       // Check if we can apply an override
 
+      String name = identifier.name;
+
+      name = _context.overrides
+          .checkProperty(identifier.bestElement.enclosingElement, name);
+
       return _mayWrapInAssignament(
-          new TSDotExpression(expression, identifier.name));
+          new TSDotExpression(expression, name));
     } else {
       // Use the property accessor helper
       if (_context.isAssigning) {
