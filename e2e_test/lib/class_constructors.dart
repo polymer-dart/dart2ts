@@ -1,3 +1,5 @@
+import 'function_declaration.dart' as func;
+
 class SomeClass {
   String name;
   int ord=4;
@@ -34,4 +36,16 @@ void useEm() {
   SomeClass w = new SomeClass.noRemorse();
 
   List<SomeClass> abcd = [x,y,z,w];
+}
+
+void useTopFromAnother() {
+  func.topLevelSetter=useEm;
+
+  func.topLevelVar = useEm;
+
+  func.topLevelVar();
+
+  func.topLevelSetter();
+
+  print("F1 :${func.topLevelSetter}, F2: ${func.topLevelVar}");
 }

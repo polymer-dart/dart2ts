@@ -21,7 +21,6 @@ part 'package:dart2ts/src/parts/contexts.dart';
 part 'package:dart2ts/src/parts/ts_simple_ast.dart';
 part 'parts/type_manager.dart';
 
-
 /**
  * Second version of the code generator.
  */
@@ -37,12 +36,8 @@ class Dart2TsBuildCommand extends Command<bool> {
 
   Dart2TsBuildCommand() {
     this.argParser
-      ..addOption('dir',
-          defaultsTo: '.',
-          abbr: 'd',
-          help: 'the base path of the package to process')
-      ..addFlag('watch',
-          abbr: 'w', defaultsTo: false, help: 'watch for changes');
+      ..addOption('dir', defaultsTo: '.', abbr: 'd', help: 'the base path of the package to process')
+      ..addFlag('watch', abbr: 'w', defaultsTo: false, help: 'watch for changes');
   }
 
   @override
@@ -50,16 +45,13 @@ class Dart2TsBuildCommand extends Command<bool> {
     PackageGraph graph = new PackageGraph.forPath(argResults['dir']);
 
     List<BuildAction> actions = [
-      new BuildAction(new Dart2TsBuilder(), graph.root.name,
-          inputs: ['lib/**.dart', 'web/**.dart'])
+      new BuildAction(new Dart2TsBuilder(), graph.root.name, inputs: ['lib/**.dart', 'web/**.dart'])
     ];
 
     if (argResults['watch'] == true) {
-      watch(actions,
-          packageGraph: graph, onLog: (_) {}, deleteFilesByDefault: true);
+      watch(actions, packageGraph: graph, onLog: (_) {}, deleteFilesByDefault: true);
     } else {
-      build(actions,
-          packageGraph: graph, onLog: (_) {}, deleteFilesByDefault: true);
+      build(actions, packageGraph: graph, onLog: (_) {}, deleteFilesByDefault: true);
     }
   }
 }
@@ -93,8 +85,7 @@ abstract class _BaseBuilder extends Builder {
 class Dart2TsBuilder extends _BaseBuilder {
   @override
   Future generateForLibrary(LibraryElement library, BuildStep buildStep) async {
-    AssetId destId = new AssetId(buildStep.inputId.package,
-        "${path.withoutExtension(buildStep.inputId.path)}.ts");
+    AssetId destId = new AssetId(buildStep.inputId.package, "${path.withoutExtension(buildStep.inputId.path)}.ts");
     _logger.fine('Processing ${library.location} for ${destId}');
 
     IndentingPrinter printer = new IndentingPrinter();
@@ -136,8 +127,7 @@ class IndentingPrinter {
   }
 
   void _startLine() {
-    _buffer.write(new String.fromCharCodes(
-        new List.filled(_currentIndent, ' '.codeUnitAt(0))));
+    _buffer.write(new String.fromCharCodes(new List.filled(_currentIndent, ' '.codeUnitAt(0))));
     _newLine = false;
   }
 
@@ -158,8 +148,7 @@ class IndentingPrinter {
 
   void accept(PrinterWriter w) => w.writeCode(this);
 
-  void join(Iterable<PrinterWriter> writers,
-      {String delim = ',', bool newLine = false}) {
+  void join(Iterable<PrinterWriter> writers, {String delim = ',', bool newLine = false}) {
     joinConsumers(
         writers.map((w) => (p) {
               p.accept(w);
@@ -170,8 +159,7 @@ class IndentingPrinter {
 
   void consume(PrinterConsumer c) => c(this);
 
-  void joinConsumers(Iterable<PrinterConsumer> writers,
-      {String delim = ',', bool newLine: false}) {
+  void joinConsumers(Iterable<PrinterConsumer> writers, {String delim = ',', bool newLine: false}) {
     bool first = true;
     writers.forEach((w) {
       if (!first) {

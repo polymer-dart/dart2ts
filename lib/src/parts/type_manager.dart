@@ -16,8 +16,7 @@ class TSPath {
   List<String> modulePathElements = [];
   List<String> namespacePathElements = [];
 
-  String get moduleUri =>
-      modulePathElements.isEmpty ? null : "module:${modulePath}";
+  String get moduleUri => modulePathElements.isEmpty ? null : "module:${modulePath}";
 
   String get modulePath => modulePathElements.join('/');
 
@@ -29,9 +28,7 @@ class TypeManager {
 
   TypeManager(this._current);
 
-  Map<String, TSImport> _prefixes = {
-    '#NOURI#': new TSImport(prefix: 'bare', path: 'dart_sdk/bare')
-  };
+  Map<String, TSImport> _prefixes = {'#NOURI#': new TSImport(prefix: 'bare', path: 'dart_sdk/bare')};
 
   String _nextPrefix() => "lib${_prefixes.length}";
 
@@ -60,8 +57,7 @@ class TypeManager {
 
         String name = lib.name.substring(5);
 
-        return new TSImport(
-            prefix: name, path: "dart_sdk/${name}", library: lib);
+        return new TSImport(prefix: name, path: "dart_sdk/${name}", library: lib);
       }
 
       // If same package produce a relative path
@@ -71,14 +67,10 @@ class TypeManager {
       String libPath;
 
       if (id.package == currentId.package) {
-        libPath = path.joinAll([
-          '.',
-          path.withoutExtension(
-              path.relative(id.path, from: path.dirname(currentId.path)))
-        ]);
-      } else {
         libPath =
-            path.join("${id.package}", "${path.withoutExtension(id.path)}");
+            path.joinAll(['.', path.withoutExtension(path.relative(id.path, from: path.dirname(currentId.path)))]);
+      } else {
+        libPath = path.join("${id.package}", "${path.withoutExtension(id.path)}");
       }
 
       // Fix import for libs in subfolders for windows
@@ -104,9 +96,7 @@ class TypeManager {
       String name = anno.getField('name')?.toStringValue();
       if (name != null && name.isNotEmpty) {
         Match m = NAME_PATTERN.matchAsPrefix(name);
-        String module = getAnnotation(e.metadata, isModule)
-            ?.getField('path')
-            ?.toStringValue();
+        String module = getAnnotation(e.metadata, isModule)?.getField('path')?.toStringValue();
         if (m != null && (m[2] != null || module != null)) {
           p.modulePathElements.add(module ?? m[2]);
           if ((m[3] ?? '').isNotEmpty) p.namespacePathElements.add(m[3]);
@@ -124,47 +114,45 @@ class TypeManager {
     return p;
   }
 
-  static Set<DartType> nativeTypes() =>
-      ((TypeProvider x) => new Set<DartType>.from([
-            x.boolType,
-            x.stringType,
-            x.intType,
-            x.numType,
-            x.doubleType,
-            x.functionType,
-          ]))(currentContext.typeProvider);
+  static Set<DartType> nativeTypes() => ((TypeProvider x) => new Set<DartType>.from([
+        x.boolType,
+        x.stringType,
+        x.intType,
+        x.numType,
+        x.doubleType,
+        x.functionType,
+      ]))(currentContext.typeProvider);
 
-  static Set<String> nativeClasses =
-      new Set.from(['List', 'Map', 'Iterable', 'Iterator']);
+  static Set<String> nativeClasses = new Set.from(['List', 'Map', 'Iterable', 'Iterator']);
 
   static bool isNativeType(DartType t) =>
-      nativeTypes().contains(t) ||
-      (t.element.library?.isDartCore ?? false) &&
-          (nativeClasses.contains(t.element.name));
+      nativeTypes().contains(t) || (t.element.library?.isDartCore ?? false) && (nativeClasses.contains(t.element.name));
+
+  static String _name(Element e) => (e is PropertyAccessorElement)?e.variable.name:e.name;
 
   String toTsName(Element element, {bool nopath: false}) {
-    TSPath jspath = _collectJSPath(
-        element); // note: we should check if var is top, but ... whatever.
+
+
+    TSPath jspath = _collectJSPath(element); // note: we should check if var is top, but ... whatever.
     String name;
     if (nopath) {
       return jspath.namespacePathElements.last;
     }
     if (jspath.namespacePathElements.isNotEmpty) {
       if (jspath.modulePathElements.isNotEmpty) {
-        name =
-            namespaceFor(uri: jspath.moduleUri, modulePath: jspath.modulePath) +
-                "." +
-                jspath.name;
+        name = namespaceFor(uri: jspath.moduleUri, modulePath: jspath.modulePath) + "." + jspath.name;
       } else {
         name = jspath.name;
       }
     } else {
       String prefix = namespace(element.library);
-      String mod = ""; // TODO: add "module." for topLevel getters and setters.
+      if ((element is PropertyAccessorElement) && isTopLevel(element)) {
+        prefix = prefix == null ? "module" : "${prefix}.module";
+      }
       if (prefix != null && isTopLevel(element)) {
-        name = "${prefix}.${element.name}";
+        name = "${prefix}.${_name(element)}";
       } else
-        name = element.name;
+        name = _name(element);
     }
 
     return name;
@@ -172,8 +160,7 @@ class TypeManager {
 
   static bool isTopLevel(Element e) => e.library.units.contains(e.enclosingElement);
 
-  TSType toTsType(DartType type,
-      {bool noTypeArgs: false, bool inTypeOf: false}) {
+  TSType toTsType(DartType type, {bool noTypeArgs: false, bool inTypeOf: false}) {
     if (type == null) {
       return null;
     }
@@ -195,13 +182,11 @@ class TypeManager {
         if (type.namedParameterTypes.isNotEmpty) {
           yield new TSInterfaceType(
               fields: new Map.fromIterable(type.namedParameterTypes.keys,
-                  value: (k) => new TSOptionalType(
-                      toTsType(type.namedParameterTypes[k]))));
+                  value: (k) => new TSOptionalType(toTsType(type.namedParameterTypes[k]))));
         }
       }();
 
-      Iterable<TSType> typeArguments =
-          type.typeArguments?.map((t) => toTsType(t));
+      Iterable<TSType> typeArguments = type.typeArguments?.map((t) => toTsType(t));
 
       return new TSFunctionType(toTsType(type.returnType), args, typeArguments);
     }
@@ -214,20 +199,14 @@ class TypeManager {
 
       String prefix;
       if (moduleUri != null) {
-        prefix =
-            namespaceFor(uri: path.moduleUri, modulePath: path.modulePath) +
-                '.';
+        prefix = namespaceFor(uri: path.moduleUri, modulePath: path.modulePath) + '.';
       } else {
         prefix = "";
       }
 
       Iterable<TSType> typeArgs;
-      if (!noTypeArgs &&
-              type is ParameterizedType &&
-              type.typeArguments?.isNotEmpty ??
-          false) {
-        typeArgs =
-            ((type as ParameterizedType).typeArguments).map((t) => toTsType(t));
+      if (!noTypeArgs && type is ParameterizedType && type.typeArguments?.isNotEmpty ?? false) {
+        typeArgs = ((type as ParameterizedType).typeArguments).map((t) => toTsType(t));
       } else {
         typeArgs = null;
       }
@@ -240,9 +219,7 @@ class TypeManager {
     }
 
     String p;
-    if (type.element != null &&
-        type.element.library != _current &&
-        !isNativeType(type)) {
+    if (type.element != null && type.element.library != _current && !isNativeType(type)) {
       p = "${namespace(type.element.library)}.";
     } else {
       p = "";
@@ -251,8 +228,7 @@ class TypeManager {
     String actualName;
     if (isListType(type)) {
       actualName = "Array";
-    } else if (type == currentContext.typeProvider.numType ||
-        type == currentContext.typeProvider.intType) {
+    } else if (type == currentContext.typeProvider.numType || type == currentContext.typeProvider.intType) {
       actualName = 'number';
     } else if (type == currentContext.typeProvider.stringType) {
       actualName = 'string';
@@ -268,11 +244,8 @@ class TypeManager {
       actualName = '"${actualName}"';
     }
 
-    if (!noTypeArgs &&
-        type is ParameterizedType &&
-        type.typeArguments.isNotEmpty) {
-      return new TSGenericType(
-          "${p}${actualName}", type.typeArguments.map((t) => toTsType(t)));
+    if (!noTypeArgs && type is ParameterizedType && type.typeArguments.isNotEmpty) {
+      return new TSGenericType("${p}${actualName}", type.typeArguments.map((t) => toTsType(t)));
     } else {
       return new TSSimpleType("${p}${actualName}");
     }
@@ -281,7 +254,6 @@ class TypeManager {
   Iterable<TSImport> get allImports => _prefixes.values;
 
   String namespaceForPrefix(PrefixElement prefix) {
-    return namespace(
-        _current.getImportsWithPrefix(prefix).first.importedLibrary);
+    return namespace(_current.getImportsWithPrefix(prefix).first.importedLibrary);
   }
 }

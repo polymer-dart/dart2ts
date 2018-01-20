@@ -28,7 +28,7 @@ class TSLibrary extends TSNode {
     List<TSNode> topLevelGetterAndSetters = [];
     _children.forEach((f) {
       f._declarations.forEach((d) {
-        if (d is TSFunction && (d.isGetter || d.isSetter)) {
+        if ((d is TSFunction && (d.isGetter || d.isSetter)) || d is TSVariableDeclarations) {
           topLevelGetterAndSetters.add(d);
         } else {
           printer.accept(d);
@@ -44,7 +44,10 @@ class TSLibrary extends TSNode {
 
     printer.writeln('export class Module {');
     printer.indented((p) {
-      topLevelGetterAndSetters.forEach((n) => printer.accept(n));
+      topLevelGetterAndSetters.forEach((n) {
+        printer.accept(n);
+        printer.writeln();
+      });
     });
     printer.writeln('}');
     printer.writeln('export var module : Module = new Module();');
@@ -255,7 +258,7 @@ class TSFunction extends TSExpression implements TSStatement {
 
   @override
   void writeCode(IndentingPrinter printer) {
-    if (topLevel) {
+    if (topLevel && !isGetter && !isSetter) {
       printer.write('export ');
     }
 
@@ -280,7 +283,7 @@ class TSFunction extends TSExpression implements TSStatement {
       printer.write(('[bare.init]'));
     } else {
       if (isStatic) printer.write('static ');
-      if (!asMethod) printer.write('function ');
+      if (!asMethod && !isGetter && !isSetter) printer.write('function ');
       if (isGetter) printer.write('get ');
       if (isSetter) printer.write('set ');
     }
@@ -689,9 +692,9 @@ class TSVariableDeclarations extends TSStatement {
   Iterable<TSVariableDeclaration> _declarations;
   bool isStatic;
   bool isField;
+  bool isTopLevel;
 
-  TSVariableDeclarations(this._declarations,
-      {this.isStatic: false, this.isField: false});
+  TSVariableDeclarations(this._declarations, {this.isStatic: false, this.isField: false,this.isTopLevel:false});
 
   @override
   void writeCode(IndentingPrinter printer) {

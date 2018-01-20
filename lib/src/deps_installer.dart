@@ -32,12 +32,8 @@ class Dart2TsInstallCommand extends Command<bool> {
 
   Dart2TsInstallCommand() {
     this.argParser
-      ..addOption('dir',
-          defaultsTo: '.',
-          abbr: 'd',
-          help: 'the base path of the package to process')
-      ..addOption('out',
-          defaultsTo: 'deps', abbr: 'o', help: 'install folder path');
+      ..addOption('dir', defaultsTo: '.', abbr: 'd', help: 'the base path of the package to process')
+      ..addOption('out', defaultsTo: 'deps', abbr: 'o', help: 'install folder path');
   }
 
   @override
@@ -53,22 +49,18 @@ class Dart2TsInstallCommand extends Command<bool> {
     }
 
     // Read packages file
-    Map<String, Uri> pkgs =
-        packages.parse(packagesFile.readAsBytesSync(), path.toUri(rootPath));
+    Map<String, Uri> pkgs = packages.parse(packagesFile.readAsBytesSync(), path.toUri(rootPath));
 
     // Recursively collect all the NOT DEV DEPS
 
     Map<String, Pubspec> deps = new Map();
 
     Pubspec collectDeps(String fromPath, [int depth = 0]) {
-      var content = loadYaml(
-          new File(path.join(fromPath, 'pubspec.yaml')).readAsStringSync());
-      Pubspec pubspec =
-          new Pubspec(packagePath: fromPath, content: content, depth: depth);
+      var content = loadYaml(new File(path.join(fromPath, 'pubspec.yaml')).readAsStringSync());
+      Pubspec pubspec = new Pubspec(packagePath: fromPath, content: content, depth: depth);
       deps[name] = pubspec;
       (pubspec.dependencies ?? {}).keys.forEach((String k) {
-        deps.putIfAbsent(k,
-            () => collectDeps(path.dirname(pkgs[k].toFilePath()), depth + 1));
+        deps.putIfAbsent(k, () => collectDeps(path.dirname(pkgs[k].toFilePath()), depth + 1));
       });
 
       return pubspec;
@@ -124,12 +116,7 @@ class Dart2TsInstallCommand extends Command<bool> {
     // For each dep -> install (note: it should be already there)
     pubspec.dependencies.keys.forEach((String name) {
       ProcessResult res = Process.runSync(
-          'npm',
-          [
-            'install',
-            '--save',
-            '${path.relative(path.join(pkgRoot,name),from:f.parent.path)}'
-          ],
+          'npm', ['install', '--save', '${path.relative(path.join(pkgRoot,name),from:f.parent.path)}'],
           workingDirectory: f.parent.path);
       if (res.exitCode != 0) {
         throw "${filePath} ERROR!\n${res.stdout} / ${res.stderr}";

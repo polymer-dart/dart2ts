@@ -1,3 +1,5 @@
+import 'function_declaration.dart';
+
 bool doSomethingWithLists() {
   List<String> list = [
     "one",
@@ -21,4 +23,18 @@ bool doSomethingWithLists() {
 
 
   return true;
+}
+
+
+
+void useTopFromAnother() {
+  topLevelSetter=doSomethingWithLists;
+
+  topLevelVar = doSomethingWithLists;
+
+  topLevelVar();
+
+  topLevelSetter();
+
+  print("F1 :${topLevelSetter}, F2: ${topLevelVar}");
 }

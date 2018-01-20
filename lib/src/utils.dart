@@ -6,11 +6,9 @@ import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/src/generated/engine.dart';
 
-bool isListType(DartType type) =>
-    isTypeInstanceOf(type?.element?.context?.typeProvider?.listType, type);
+bool isListType(DartType type) => isTypeInstanceOf(type?.element?.context?.typeProvider?.listType, type);
 
-bool isIterableType(DartType type) =>
-    isTypeInstanceOf(type?.element?.context?.typeProvider?.iterableType, type);
+bool isIterableType(DartType type) => isTypeInstanceOf(type?.element?.context?.typeProvider?.iterableType, type);
 
 bool isTypeInstanceOf(ParameterizedType base, DartType type) =>
     type != null &&
@@ -21,118 +19,76 @@ bool isTypeInstanceOf(ParameterizedType base, DartType type) =>
 final Uri _DART2TS_URI = Uri.parse('package:dart2ts/annotations.dart');
 final Uri _DART2TS_ASSET_URI = Uri.parse('asset:dart2ts/lib/annotations.dart');
 
-final Uri _POLYMER_REGISTER_URI =
-    Uri.parse('package:polymer_element/annotations.dart');
-final Uri _POLYMER_REGISTER_ASSET_URI =
-    Uri.parse('asset:polymer_element/lib/annotations.dart');
+final Uri _POLYMER_REGISTER_URI = Uri.parse('package:polymer_element/annotations.dart');
+final Uri _POLYMER_REGISTER_ASSET_URI = Uri.parse('asset:polymer_element/lib/annotations.dart');
 final Uri _JS_URI = Uri.parse('package:js/js.dart');
 final Uri _JS_ASSET_URI = Uri.parse('asset:js/lib/js.dart');
 
 final Uri _POLYMER_INIT_URI = Uri.parse('package:polymerize_common/init.dart');
-final Uri _POLYMER_INIT_ASSET_URI =
-    Uri.parse('asset:polymerize_common/lib/init.dart');
+final Uri _POLYMER_INIT_ASSET_URI = Uri.parse('asset:polymerize_common/lib/init.dart');
 
 final Uri _POLYMER_MAP_URI = Uri.parse('package:polymerize_common/map.dart');
-final Uri _POLYMER_MAP_ASSET_URI =
-    Uri.parse('asset:polymerize_common/lib/map.dart');
+final Uri _POLYMER_MAP_ASSET_URI = Uri.parse('asset:polymerize_common/lib/map.dart');
 
-final Uri _POLYMER_HTML_IMPORT_URI =
-    Uri.parse('package:polymerize_common/html_import.dart');
-final Uri _POLYMER_HTML_IMPORT_ASSET_URI =
-    Uri.parse('asset:polymerize_common/lib/html_import.dart');
+final Uri _POLYMER_HTML_IMPORT_URI = Uri.parse('package:polymerize_common/html_import.dart');
+final Uri _POLYMER_HTML_IMPORT_ASSET_URI = Uri.parse('asset:polymerize_common/lib/html_import.dart');
 
 bool isDart2TsUri(Uri u) => u == _DART2TS_URI || u == _DART2TS_ASSET_URI;
 
 bool isJsUri(Uri u) => u == _JS_ASSET_URI || u == _JS_URI;
 
-bool isPolymerElementUri(Uri u) =>
-    u == _POLYMER_REGISTER_ASSET_URI || u == _POLYMER_REGISTER_URI;
+bool isPolymerElementUri(Uri u) => u == _POLYMER_REGISTER_ASSET_URI || u == _POLYMER_REGISTER_URI;
 
-bool isPolymerMapUri(Uri u) =>
-    u == _POLYMER_MAP_URI || u == _POLYMER_MAP_ASSET_URI;
+bool isPolymerMapUri(Uri u) => u == _POLYMER_MAP_URI || u == _POLYMER_MAP_ASSET_URI;
 
-bool isPolymerElementInitUri(Uri u) =>
-    u == _POLYMER_INIT_URI || u == _POLYMER_INIT_ASSET_URI;
+bool isPolymerElementInitUri(Uri u) => u == _POLYMER_INIT_URI || u == _POLYMER_INIT_ASSET_URI;
 
-bool isPolymerElementHtmlImportUri(Uri u) =>
-    u == _POLYMER_HTML_IMPORT_URI || u == _POLYMER_HTML_IMPORT_ASSET_URI;
+bool isPolymerElementHtmlImportUri(Uri u) => u == _POLYMER_HTML_IMPORT_URI || u == _POLYMER_HTML_IMPORT_ASSET_URI;
 
-bool isJS(DartObject o) =>
-    (isJsUri(o.type.element.librarySource.uri)) && (o.type.name == 'JS');
+bool isJS(DartObject o) => (isJsUri(o.type.element.librarySource.uri)) && (o.type.name == 'JS');
 
-bool isAnonymous(DartObject o) =>
-    (isJsUri(o.type.element.librarySource.uri)) &&
-    (o.type.name == '_Anonymous');
+bool isAnonymous(DartObject o) => (isJsUri(o.type.element.librarySource.uri)) && (o.type.name == '_Anonymous');
 
-bool isModule(DartObject o) =>
-    (isDart2TsUri(o.type.element.librarySource.uri)) &&
-    (o.type.name == 'Module');
+bool isModule(DartObject o) => (isDart2TsUri(o.type.element.librarySource.uri)) && (o.type.name == 'Module');
 
 bool isBowerImport(DartObject o) =>
-    o != null &&
-    (isPolymerElementUri(o.type.element.librarySource.uri)) &&
-    (o.type.name == 'BowerImport');
+    o != null && (isPolymerElementUri(o.type.element.librarySource.uri)) && (o.type.name == 'BowerImport');
 
 bool isJsMap(DartObject o) =>
-    o != null &&
-    (isPolymerMapUri(o.type.element.librarySource.uri)) &&
-    (o.type.name == 'JsMap');
+    o != null && (isPolymerMapUri(o.type.element.librarySource.uri)) && (o.type.name == 'JsMap');
 
-bool isDefine(DartObject o) =>
-    (isPolymerElementUri(o.type.element.librarySource.uri)) &&
-    (o.type.name == 'Define');
+bool isDefine(DartObject o) => (isPolymerElementUri(o.type.element.librarySource.uri)) && (o.type.name == 'Define');
 
-bool isObserve(DartObject o) =>
-    (isPolymerElementUri(o.type.element.librarySource.uri)) &&
-    (o.type.name == 'Observe');
+bool isObserve(DartObject o) => (isPolymerElementUri(o.type.element.librarySource.uri)) && (o.type.name == 'Observe');
 
 bool isReduxActionFactory(DartObject o) =>
-    (isPolymerElementUri(o.type.element.librarySource.uri)) &&
-    (o.type.name == 'ReduxActionFactory');
+    (isPolymerElementUri(o.type.element.librarySource.uri)) && (o.type.name == 'ReduxActionFactory');
 
-bool isProperty(DartObject o) =>
-    (isPolymerElementUri(o.type.element.librarySource.uri)) &&
-    (o.type.name == 'Property');
+bool isProperty(DartObject o) => (isPolymerElementUri(o.type.element.librarySource.uri)) && (o.type.name == 'Property');
 
-bool isNotify(DartObject o) =>
-    (isPolymerElementUri(o.type.element.librarySource.uri)) &&
-    (o.type.name == 'Notify');
+bool isNotify(DartObject o) => (isPolymerElementUri(o.type.element.librarySource.uri)) && (o.type.name == 'Notify');
 
 bool isPolymerRegister(DartObject o) =>
-    o != null &&
-    (isPolymerElementUri(o.type.element.librarySource.uri)) &&
-    (o.type.name == 'PolymerRegister');
+    o != null && (isPolymerElementUri(o.type.element.librarySource.uri)) && (o.type.name == 'PolymerRegister');
 
 bool isPolymerBehavior(DartObject o) =>
-    (isPolymerElementUri(o.type.element.librarySource.uri)) &&
-    (o.type.name == 'PolymerBehavior');
+    (isPolymerElementUri(o.type.element.librarySource.uri)) && (o.type.name == 'PolymerBehavior');
 
-bool isStoreDef(DartObject o) =>
-    (isPolymerElementUri(o.type.element.librarySource.uri)) &&
-    (o.type.name == 'StoreDef');
+bool isStoreDef(DartObject o) => (isPolymerElementUri(o.type.element.librarySource.uri)) && (o.type.name == 'StoreDef');
 
 bool isInit(DartObject o) =>
-    o != null &&
-    (isPolymerElementInitUri(o.type.element.librarySource.uri)) &&
-    (o.type.name == 'Init');
+    o != null && (isPolymerElementInitUri(o.type.element.librarySource.uri)) && (o.type.name == 'Init');
 
 bool isEntryPoint(DartObject o) =>
-    o != null &&
-    (isPolymerElementInitUri(o.type.element.librarySource.uri)) &&
-    (o.type.name == 'EntryPoint');
+    o != null && (isPolymerElementInitUri(o.type.element.librarySource.uri)) && (o.type.name == 'EntryPoint');
 
 bool isInitModule(DartObject o) =>
-    o != null &&
-    (isPolymerElementInitUri(o.type.element.librarySource.uri)) &&
-    (o.type.name == 'InitModule');
+    o != null && (isPolymerElementInitUri(o.type.element.librarySource.uri)) && (o.type.name == 'InitModule');
 
 bool isHtmlImport(DartObject o) =>
-    o != null &&
-    (isPolymerElementHtmlImportUri(o.type.element.librarySource.uri)) &&
-    (o.type.name == 'HtmlImport');
+    o != null && (isPolymerElementHtmlImportUri(o.type.element.librarySource.uri)) && (o.type.name == 'HtmlImport');
 
-Iterable<DartObject> allFirstLevelAnnotation(
-        Iterable<CompilationUnit> cus, bool matches(DartObject x)) =>
+Iterable<DartObject> allFirstLevelAnnotation(Iterable<CompilationUnit> cus, bool matches(DartObject x)) =>
     flatten(cus.map((cu) => cu.sortedDirectivesAndDeclarations))
         .map(_element)
         .where(notNull)
@@ -144,11 +100,9 @@ Iterable<DartObject> allFirstLevelAnnotation(
 typedef bool Matcher(DartObject x);
 
 X _whichMatcher<X>(DartObject annotation, Map<X, Matcher> matchers, X orElse) =>
-    matchers.keys
-        .firstWhere((k) => matchers[k](annotation), orElse: () => orElse);
+    matchers.keys.firstWhere((k) => matchers[k](annotation), orElse: () => orElse);
 
-Map<X, Iterable<Y>> _collect<X, Y, Z>(Iterable<Z> i,
-    {X key(Z z), Y value(Z z)}) {
+Map<X, Iterable<Y>> _collect<X, Y, Z>(Iterable<Z> i, {X key(Z z), Y value(Z z)}) {
   Map<X, List<Y>> res = {};
   i.forEach((z) {
     X x = key(z);
@@ -181,38 +135,30 @@ class AnnotationInfo {
 Map<X, List<AnnotationInfo>> firstLevelAnnotationMap<X>(
         Iterable<CompilationUnit> cus, Map<X, Matcher> matchers, X orElse) =>
     _collect(
-        flatten<AnnotationInfo>(flatten<AstNode>(
-                cus.map((cu) => cu.sortedDirectivesAndDeclarations))
+        flatten<AnnotationInfo>(flatten<AstNode>(cus.map((cu) => cu.sortedDirectivesAndDeclarations))
             .map(_element)
             .where((e) => e?.metadata != null)
             .map((e) => e.metadata
                 .map((a) => a.computeConstantValue())
                 .where(notNull)
                 .map((o) => new AnnotationInfo(element: e, annotation: o)))),
-        key: (AnnotationInfo o) =>
-            _whichMatcher(o.annotation, matchers, orElse),
+        key: (AnnotationInfo o) => _whichMatcher(o.annotation, matchers, orElse),
         value: (AnnotationInfo o) => o);
 
-Element _element(AstNode x) =>
-    (x is Declaration) ? x.element : ((x is Directive) ? x.element : null);
+Element _element(AstNode x) => (x is Declaration) ? x.element : ((x is Directive) ? x.element : null);
 
-bool hasAnyFirstLevelAnnotation(
-        Iterable<CompilationUnit> cus, bool matches(DartObject x)) =>
+bool hasAnyFirstLevelAnnotation(Iterable<CompilationUnit> cus, bool matches(DartObject x)) =>
     allFirstLevelAnnotation(cus, matches).isNotEmpty;
 
 DartObject getAnnotation(
         Iterable<ElementAnnotation> metadata, //
         bool matches(DartObject x)) =>
-    metadata
-        .map((an) => an.computeConstantValue())
-        .where(notNull)
-        .firstWhere(matches, orElse: () => null);
+    metadata.map((an) => an.computeConstantValue()).where(notNull).firstWhere(matches, orElse: () => null);
 
 ElementAnnotation getElementAnnotation(
         Iterable<ElementAnnotation> metadata, //
         bool matches(DartObject x)) =>
-    metadata.firstWhere((an) => matches(an.computeConstantValue()),
-        orElse: () => null);
+    metadata.firstWhere((an) => matches(an.computeConstantValue()), orElse: () => null);
 
 Directory findDartSDKHome() {
   if (Platform.environment['DART_HOME'] != null) {
@@ -226,8 +172,7 @@ Directory findDartSDKHome() {
 
 typedef bool matcher(DartObject x);
 
-matcher anyOf(List<matcher> matches) =>
-    (DartObject o) => matches.any((m) => m(o));
+matcher anyOf(List<matcher> matches) => (DartObject o) => matches.any((m) => m(o));
 
 bool notNull(x) => x != null;
 
@@ -251,12 +196,9 @@ PropertyInducingElement findField(Element clazz, String name) {
 
   if (clazz is ClassElement) {
     return clazz.fields.firstWhere((fe) => fe.name == name,
-        orElse: () => flattenWith(
-                    flattenWith(clazz.interfaces ?? <InterfaceType>[],
-                        (InterfaceType x) => x.accessors),
+        orElse: () => flattenWith(flattenWith(clazz.interfaces ?? <InterfaceType>[], (InterfaceType x) => x.accessors),
                     (PropertyAccessorElement ac) => [ac.variable])
-                .firstWhere((PropertyInducingElement ac) => ac.name == name,
-                    orElse: () {
+                .firstWhere((PropertyInducingElement ac) => ac.name == name, orElse: () {
               if (clazz.supertype != clazz) {
                 return findField(clazz.supertype?.element, name);
               }
@@ -274,8 +216,7 @@ String tsMethodName(String name) {
   return name;
 }
 
-bool isAnonymousConstructor(ConstructorElement c) =>
-    (c.name ?? "").isEmpty && !c.isFactory;
+bool isAnonymousConstructor(ConstructorElement c) => (c.name ?? "").isEmpty && !c.isFactory;
 
 DartType getType(AnalysisContext ctx, String libraryUri, String typeName) =>
     getLibrary(ctx, libraryUri).getType(typeName).type;

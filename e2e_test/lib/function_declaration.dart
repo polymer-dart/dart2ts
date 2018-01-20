@@ -28,6 +28,8 @@ set topLevelSetter(Function f) {
 
 Function get topLevelSetter => null;
 
+Function topLevelVar;
+
 functionInsideFunctions() {
   insideIt(x) {
     return 10;
@@ -42,6 +44,8 @@ functionInsideFunctions() {
   anotherFunc2 = () => "hi";
 
   topLevelSetter = () => "bad";
+
+  topLevelVar = () => "TOP";
 
   print('${topLevelSetter}');
 
