@@ -17,11 +17,11 @@ class Overrides {
   }
 
   TSExpression checkMethod(DartType type, String methodName, TSExpression tsTarget, {TSExpression orElse()}) {
-    // TODO : implement
+
     LibraryElement from = type?.element?.library;
     Uri fromUri = from?.source?.uri;
 
-    _logger.info("Checking method for {${fromUri}}${type.name} -> ${methodName}");
+    _logger.fine("Checking method for {${fromUri}}${type.name} -> ${methodName}");
     if (type == null || fromUri == null) {
       return orElse();
     }
@@ -74,7 +74,7 @@ class Overrides {
     LibraryElement from = type?.element?.library;
     Uri fromUri = from?.source?.uri;
 
-    _logger.info("Checking props for {${fromUri}}${type.name} -> ${name}");
+    _logger.fine("Checking props for {${fromUri}}${type.name} -> ${name}");
     if (type == null || fromUri == null) {
       return name;
     }
@@ -530,8 +530,15 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       if (node.target is SimpleIdentifier && (node.target as SimpleIdentifier).bestElement is PrefixElement) {
         Element el = (node.target as SimpleIdentifier).bestElement;
         target = new TSSimpleExpression('null');
+
+        String name =  node.methodName.name;
+
+        if (node.methodName.bestElement is PropertyAccessorElement) {
+          name="module.${name}";
+        }
+
         method = new TSDotExpression(
-            new TSSimpleExpression(_context.typeManager.namespaceForPrefix(el)), node.methodName.name);
+            new TSSimpleExpression(_context.typeManager.namespaceForPrefix(el)),name);
       } else {
         target = _context.processExpression(node.target);
 
