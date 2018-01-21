@@ -1,6 +1,6 @@
 import 'dart:async';
 
-testFuture() async {
+Future testFuture() async {
   await simpleAsyncFunc();
 }
 

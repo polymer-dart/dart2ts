@@ -2,9 +2,11 @@
 
 // Extend global Array
 import * as collection from './collection';
+import {initCollections as initAsync} from "./async";
 
 
 collection.initCollections();
+initAsync();
 
 export function invokeMethod(o: any, method: string, ...args: Array<any>): any {
     o = o || this;

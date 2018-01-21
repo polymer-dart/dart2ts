@@ -1,6 +1,7 @@
 import 'sample2.dart' as xy;
 import 'package:js/js.dart';
 import 'sample3.dart';
+import 'sample4.dart';
 
 void main(List<String> args) {
   printToBody("<h1>GOOD MOOOOOOOOOOOOOOOORNING DART2TS!!</h1>");
@@ -8,8 +9,7 @@ void main(List<String> args) {
 
   printToBody("<b>DOC!</b> : ${document.body}");
 
-  HTMLDivElement e = document.createElement('div')
-    ..innerHTML = 'ciao ciao dart 2ts!!';
+  HTMLDivElement e = document.createElement('div')..innerHTML = 'ciao ciao dart 2ts!!';
   document.body.appendChild(e);
 
   ciao(String x) {
@@ -71,4 +71,8 @@ void main(List<String> args) {
   new xy.MakeItReal();
 
   printToBody('bye!');
+
+  testFuture().then((_) {
+    printToBody("Future works");
+  });
 }

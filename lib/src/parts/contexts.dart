@@ -92,6 +92,45 @@ class Overrides {
 
     return propsOverrides;
   }
+
+  TSType checkType(TypeManager typeManager, String origPrefix, DartType type, bool noTypeArgs, {TSType orElse()}) {
+    LibraryElement from = type?.element?.library;
+    Uri fromUri = from?.source?.uri;
+
+    _logger.fine("Checking type for {${fromUri}}${type.name}");
+    if (type == null || fromUri == null) {
+      return orElse();
+    }
+
+    var libOverrides = _overrides[fromUri.toString()];
+    if (libOverrides == null) {
+      return orElse();
+    }
+
+    var classOverrides = (libOverrides['classes'] ?? {})[type.name];
+
+    if (classOverrides == null || classOverrides['to'] == null || (classOverrides['to'] as YamlMap)['class'] == null) {
+      return orElse();
+    }
+
+    String module = classOverrides['to']['from'];
+
+    String p;
+    if (module == 'global') {
+      p = "";
+    } else if (module != null)
+      p = '${typeManager.namespaceFor(uri: "module:${module}", modulePath: module)}.';
+    else
+      p = origPrefix;
+
+    String actualName = classOverrides['to']['class'];
+
+    if (!noTypeArgs && type is ParameterizedType && type.typeArguments.isNotEmpty) {
+      return new TSGenericType("${p}${actualName}", type.typeArguments.map((t) => typeManager.toTsType(t)));
+    } else {
+      return new TSSimpleType("${p}${actualName}");
+    }
+  }
 }
 
 abstract class Context<T extends TSNode> {

@@ -45,7 +45,7 @@ class TypeManager {
   String namespace(LibraryElement lib) => namespaceFor(lib: lib);
 
   TSExpression checkMethod(DartType type, String methodName, TSExpression tsTarget, {TSExpression orElse()}) =>
-      _overrides.checkMethod(this, type, methodName, tsTarget);
+      _overrides.checkMethod(this, type, methodName, tsTarget, orElse: orElse);
 
   String checkProperty(DartType type, String name) => _overrides.checkProperty(this, type, name);
 
@@ -230,30 +230,32 @@ class TypeManager {
       p = "";
     }
 
-    String actualName;
-    if (isListType(type)) {
-      actualName = "Array";
-    } else if (type == currentContext.typeProvider.numType || type == currentContext.typeProvider.intType) {
-      actualName = 'number';
-    } else if (type == currentContext.typeProvider.stringType) {
-      actualName = 'string';
-    } else if (type == currentContext.typeProvider.boolType) {
-      actualName = 'boolean';
-    } else if (type == getType(currentContext, 'dart:core', 'RegExp')) {
-      actualName = 'RegExpPattern';
-    } else {
-      actualName = type.name;
-    }
+    return _overrides.checkType(this, p, type, noTypeArgs, orElse: () {
+      String actualName;
+      if (isListType(type)) {
+        actualName = "Array";
+      } else if (type == currentContext.typeProvider.numType || type == currentContext.typeProvider.intType) {
+        actualName = 'number';
+      } else if (type == currentContext.typeProvider.stringType) {
+        actualName = 'string';
+      } else if (type == currentContext.typeProvider.boolType) {
+        actualName = 'boolean';
+      } else if (type == getType(currentContext, 'dart:core', 'RegExp')) {
+        actualName = 'RegExpPattern';
+      } else {
+        actualName = type.name;
+      }
 
-    if (nativeTypes().contains(type) && inTypeOf) {
-      actualName = '"${actualName}"';
-    }
+      if (nativeTypes().contains(type) && inTypeOf) {
+        actualName = '"${actualName}"';
+      }
 
-    if (!noTypeArgs && type is ParameterizedType && type.typeArguments.isNotEmpty) {
-      return new TSGenericType("${p}${actualName}", type.typeArguments.map((t) => toTsType(t)));
-    } else {
-      return new TSSimpleType("${p}${actualName}");
-    }
+      if (!noTypeArgs && type is ParameterizedType && type.typeArguments.isNotEmpty) {
+        return new TSGenericType("${p}${actualName}", type.typeArguments.map((t) => toTsType(t)));
+      } else {
+        return new TSSimpleType("${p}${actualName}");
+      }
+    });
   }
 
   Iterable<TSImport> get allImports => _prefixes.values;

@@ -1,10 +1,16 @@
 overrides:
+ "dart:async":
+   classes:
+    Future:
+     to:
+      class: Promise
+      from: global
  "dart:core":
     classes:
       List:
          to:
-          class: DartList
-          from: dart_sdk/collection
+          class: Array
+          from: global
          properties:
            first: "$first"
            last: "$last"
