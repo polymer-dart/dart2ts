@@ -191,6 +191,7 @@ class TSTypeParameter extends TSNode {
 
 class TSStringInterpolation extends TSExpression {
   List<TSNode> _elements;
+
   TSStringInterpolation(this._elements);
 
   @override
@@ -203,7 +204,9 @@ class TSStringInterpolation extends TSExpression {
 
 class TSInterpolationExpression extends TSNode {
   TSExpression _expression;
+
   TSInterpolationExpression(this._expression);
+
   @override
   void writeCode(IndentingPrinter printer) {
     printer.write('\${');
@@ -228,11 +231,13 @@ class TSFunction extends TSExpression implements TSStatement {
   bool isStatic = false;
   bool asDefaultConstructor = false;
   bool callSuper = false;
+  bool isAsync;
   List<TSStatement> initializers;
 
   TSFunction(
       {this.name,
       this.topLevel: false,
+      this.isAsync: false,
       this.returnType,
       this.typeParameters,
       this.parameters,
@@ -253,6 +258,10 @@ class TSFunction extends TSExpression implements TSStatement {
       namedParameters = withParameterCollector.namedType?.fields;
       defaults = withParameterCollector.defaults;
       namedDefaults = withParameterCollector.namedDefaults;
+      initializers ??= [];
+      initializers.addAll(withParameterCollector.fields?.map((f) => new TSExpressionStatement(
+          new TSAssignamentExpression(
+              new TSDotExpression(new TSSimpleExpression('this'), f), new TSSimpleExpression(f)))));
     }
   }
 
@@ -283,6 +292,9 @@ class TSFunction extends TSExpression implements TSStatement {
       printer.write(('[bare.init]'));
     } else {
       if (isStatic) printer.write('static ');
+      if (isAsync) {
+        printer.write("async ");
+      }
       if (!asMethod && !isGetter && !isSetter) printer.write('function ');
       if (isGetter) printer.write('get ');
       if (isSetter) printer.write('set ');
@@ -396,6 +408,7 @@ class TSConditionalExpression extends TSExpression {
 class TSIndexExpression extends TSExpression {
   TSExpression _target;
   TSExpression _index;
+
   TSIndexExpression(this._target, this._index);
 
   @override
@@ -409,7 +422,9 @@ class TSIndexExpression extends TSExpression {
 
 class TSList extends TSExpression {
   List<TSExpression> _elements;
+
   TSList(this._elements);
+
   @override
   void writeCode(IndentingPrinter printer) {
     printer.write('[');
@@ -497,7 +512,9 @@ class TSBody extends TSNode {
 class TSAsExpression extends TSExpression {
   TSExpression _expression;
   TSType _type;
+
   TSAsExpression(this._expression, this._type);
+
   @override
   void writeCode(IndentingPrinter printer) {
     printer.accept(_expression);
@@ -511,6 +528,7 @@ class TSStaticRef extends TSExpression {
   String _name;
 
   TSStaticRef(this._type, this._name);
+
   @override
   void writeCode(IndentingPrinter printer) {
     printer.accept(_type);
@@ -522,9 +540,22 @@ class TSTypeRef extends TSExpression {
   TSType _type;
 
   TSTypeRef(this._type);
+
   @override
   void writeCode(IndentingPrinter printer) {
     printer.accept(_type);
+  }
+}
+
+class TSAwaitExpression extends TSExpression {
+  TSExpression _expr;
+
+  TSAwaitExpression(this._expr);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write("await ");
+    printer.accept(_expr);
   }
 }
 
@@ -677,6 +708,7 @@ class TSVariableDeclaration extends TSNode {
 
 class TSNodes extends TSNode {
   List<TSNode> _nodes;
+
   TSNodes(this._nodes);
 
   @override
@@ -694,7 +726,7 @@ class TSVariableDeclarations extends TSStatement {
   bool isField;
   bool isTopLevel;
 
-  TSVariableDeclarations(this._declarations, {this.isStatic: false, this.isField: false,this.isTopLevel:false});
+  TSVariableDeclarations(this._declarations, {this.isStatic: false, this.isField: false, this.isTopLevel: false});
 
   @override
   void writeCode(IndentingPrinter printer) {

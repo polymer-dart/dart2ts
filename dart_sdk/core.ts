@@ -1,3 +1,6 @@
+export * from './lib/core';
+
+
 export function print(message: String): void {
     console.log(message);
 }

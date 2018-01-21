@@ -17,7 +17,6 @@ class Overrides {
   }
 
   TSExpression checkMethod(DartType type, String methodName, TSExpression tsTarget, {TSExpression orElse()}) {
-
     LibraryElement from = type?.element?.library;
     Uri fromUri = from?.source?.uri;
 
@@ -252,6 +251,16 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
   @override
   TSExpression visitSimpleStringLiteral(SimpleStringLiteral node) {
     return new TSSimpleExpression(node.toSource()); // Preserve the same quotes
+  }
+
+  @override
+  TSExpression visitBooleanLiteral(BooleanLiteral node) {
+    return new TSSimpleExpression(node.value ? 'true' : 'false');
+  }
+
+  @override
+  TSExpression visitAwaitExpression(AwaitExpression node) {
+    return new TSAwaitExpression(node.expression.accept(this));
   }
 
   @override
@@ -531,14 +540,13 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
         Element el = (node.target as SimpleIdentifier).bestElement;
         target = new TSSimpleExpression('null');
 
-        String name =  node.methodName.name;
+        String name = node.methodName.name;
 
         if (node.methodName.bestElement is PropertyAccessorElement) {
-          name="module.${name}";
+          name = "module.${name}";
         }
 
-        method = new TSDotExpression(
-            new TSSimpleExpression(_context.typeManager.namespaceForPrefix(el)),name);
+        method = new TSDotExpression(new TSSimpleExpression(_context.typeManager.namespaceForPrefix(el)), name);
       } else {
         target = _context.processExpression(node.target);
 
@@ -829,7 +837,12 @@ class FunctionExpressionContext extends ChildContext<TSNode, Context<TSNode>, TS
     TSBody body = processBody(_functionExpression.body, withBrackets: false);
 
     return new TSFunction(
-        topLevel: topLevel, typeParameters: typeParameters, withParameterCollector: parameterCollector, body: body);
+      isAsync: _functionExpression.body.isAsynchronous,
+      topLevel: topLevel,
+      typeParameters: typeParameters,
+      withParameterCollector: parameterCollector,
+      body: body,
+    );
   }
 }
 
@@ -844,6 +857,7 @@ class FormalParameterCollector extends GeneralizingAstVisitor {
   Map<String, TSExpression> namedDefaults = {};
   List<TSParameter> parameters = [];
   TSInterfaceType namedType;
+  List<String> fields = [];
 
   Iterable<TSParameter> get tsParameters sync* {
     yield* parameters;
@@ -855,6 +869,9 @@ class FormalParameterCollector extends GeneralizingAstVisitor {
   @override
   visitDefaultFormalParameter(DefaultFormalParameter node) {
     super.visitDefaultFormalParameter(node);
+    if (node.parameter is FieldFormalParameter) {
+      fields.add(node.identifier.name);
+    }
     if (node.defaultValue == null) {
       return;
     }
@@ -863,10 +880,14 @@ class FormalParameterCollector extends GeneralizingAstVisitor {
     } else {
       defaults[node.identifier.name] = _context.processExpression(node.defaultValue);
     }
+
   }
 
   @override
   visitFormalParameter(FormalParameter node) {
+    if (node is FieldFormalParameter) {
+      fields.add(node.identifier.name);
+    }
     if (node.kind == ParameterKind.NAMED) {
       namedType ??= new TSInterfaceType();
       namedType.fields[node.identifier.name] = _context.typeManager.toTsType(node.element.type);
@@ -1172,6 +1193,7 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
 
     result.add(new TSFunction(
       name: name,
+      isAsync: _methodDeclaration.body.isAsynchronous,
       topLevel: topLevel,
       typeParameters: typeParameters,
       asMethod: true,

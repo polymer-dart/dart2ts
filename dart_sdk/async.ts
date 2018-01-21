@@ -1,11 +1,19 @@
 // export * from "./lib/async";
 
+import * as core from './core';
+
 export abstract class Future<X> extends Promise<X> {
 
     static wait(x: Array<Future<any>>): Future<Array<any>> {
         let c: Completer<Array<any>> = new Completer();
         Promise.all(x).then((r) => c.complete(r));
         return c.future;
+    }
+
+    static delayed(d:core.Duration):Future<any> {
+        return new _Future((resolve,reject)=>{
+            setTimeout(()=>resolve(null),d.seconds*1000+d.milliseconds);
+        });
     }
 }
 
