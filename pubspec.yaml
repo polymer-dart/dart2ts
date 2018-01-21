@@ -13,5 +13,7 @@ dependencies:
   yaml: any
 executables:
  dart2ts: dart2ts
+dev_dependencies:
+  test: any
 environment:
     sdk: ">=1.8.0 <2.0.0"

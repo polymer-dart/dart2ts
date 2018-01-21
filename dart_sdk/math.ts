@@ -12,4 +12,10 @@ export function max(x: number, y: number): number {
     return x > y ? x : y;
 }
 
-export const E:number = Math.E;
+export class Module {
+    get E(): number {
+        return Math.E;
+    }
+}
+
+export let module: Module = new Module();
