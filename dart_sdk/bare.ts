@@ -3,6 +3,7 @@
 // Extend global Array
 import * as collection from './collection';
 
+
 collection.initCollections();
 
 export function invokeMethod(o: any, method: string, ...args: Array<any>): any {

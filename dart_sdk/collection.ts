@@ -1,3 +1,5 @@
+import {Duration} from "./lib/core";
+
 function extendPrototype(type, other) {
     let object = other.prototype;
     Object.getOwnPropertyNames(object).forEach(function (n: string) {
@@ -36,6 +38,9 @@ declare global {
     }
 
 
+    interface PromiseConstructor {
+        delayed<T>(d: Duration): Promise<T>;
+    }
 }
 
 
@@ -46,6 +51,10 @@ export interface DartIterable<T> extends Iterable<T> {
     $join(separator: string): string;
 
     $map<X>(f: (t: T) => X): DartIterable<X>;
+}
+
+export interface DartList<T> extends DartIterable<T> {
+
 }
 
 function toDartIterable<X>(x: Iterable<X>): DartIterable<X> {
@@ -88,12 +97,40 @@ function toDartIterable<X>(x: Iterable<X>): DartIterable<X> {
 
 let inited: boolean = false;
 
+
+interface DartStream<T> extends AsyncIterable<T> {
+    $map<U>(mapper: (t: T) => U): DartStream<U>;
+}
+
+function toStream<X>(source: AsyncIterable<X>): DartStream<X> {
+
+    return new (class implements DartStream<X> {
+
+        [Symbol.asyncIterator](): AsyncIterator<X> {
+            return source[Symbol.asyncIterator]();
+        }
+
+        $map<U>(mapper: (t: X) => U): DartStream<U> {
+            let it: AsyncIterable<X> = this;
+            return toStream((async function* () {
+                for await (let x of it) {
+                    yield mapper(x);
+                }
+            })());
+        }
+    });
+}
+
+interface DartFuture<T> extends Promise<T> {
+    readonly stream$: DartStream<T>;
+}
+
 export function initCollections() {
     if (inited) {
         return;
     }
 
-    extendPrototype(Array, class<T> extends Array<T> implements DartIterable<T> {
+    extendPrototype(Array, class<T> extends Array<T> implements DartList<T> {
         $join(separator: string): string {
             return this.join(separator);
         }
@@ -125,6 +162,28 @@ export function initCollections() {
                     yield f(t);
                 }
             }());
+        }
+    });
+
+    extendPrototype(Promise, class<X> extends Promise<X> implements DartFuture<X> {
+        get stream$(): DartStream<X> {
+            let p = this;
+            return toStream((async function* () {
+                let res: X = await p;
+                yield res;
+            })());
+        }
+    });
+
+    Object.defineProperty(Promise, 'delayed', {
+        "get": function () {
+            return function (d: Duration): Promise<any> {
+                return new Promise<any>((resolve, reject) => {
+                    setTimeout(() => {
+                        resolve();
+                    }, d.milliseconds + d.seconds * 1000);
+                });
+            }
         }
     });
 
