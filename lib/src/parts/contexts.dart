@@ -3,7 +3,6 @@ part of '../code_generator2.dart';
 class Overrides {
   var _yaml;
   var _overrides;
-  TypeManager typeManager;
 
   Overrides(this._yaml) {
     this._overrides = _yaml['overrides'] ?? {};
@@ -16,7 +15,8 @@ class Overrides {
     return new Overrides(loadYaml(str));
   }
 
-  TSExpression checkMethod(DartType type, String methodName, TSExpression tsTarget, {TSExpression orElse()}) {
+  TSExpression checkMethod(TypeManager typeManager, DartType type, String methodName, TSExpression tsTarget,
+      {TSExpression orElse()}) {
     LibraryElement from = type?.element?.library;
     Uri fromUri = from?.source?.uri;
 
@@ -42,11 +42,6 @@ class Overrides {
       return orElse();
     }
 
-    // TODO : Import the right library and replace the prefix in the overrides
-    //  - that's because we would like to use symbols exported from the lib containing the override
-    // for example : x.map -> x[mylib.map]
-    // where mylib is the import prefixe for the library where symbol "map" is exported.
-
     String module = classOverrides['to']['from'];
 
     String prefix = typeManager.namespaceFor(uri: "module:${module}", modulePath: module);
@@ -69,7 +64,7 @@ class Overrides {
     }
   }
 
-  String checkProperty(DartType type, String name) {
+  String checkProperty(TypeManager typeManager, DartType type, String name) {
     LibraryElement from = type?.element?.library;
     Uri fromUri = from?.source?.uri;
 
@@ -113,8 +108,6 @@ abstract class Context<T extends TSNode> {
   TSExpression get assigningValue;
 
   ClassContext get currentClass;
-
-  Overrides get overrides;
 
   Expression get cascadingExpression;
 
@@ -364,7 +357,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       PropertyInducingElement el = (node.staticElement as PropertyAccessorElement).variable;
 
       if (el.enclosingElement is ClassElement) {
-        name = _context.overrides.checkProperty((el.enclosingElement as ClassElement).type, node.name);
+        name = _context.typeManager.checkProperty((el.enclosingElement as ClassElement).type, node.name);
       }
 
       // check if current class has it
@@ -377,7 +370,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
       if (_context.currentClass != null &&
           findMethod(_context.currentClass._classDeclaration.element.type, node.name) == el) {
-        TSExpression expr = _context.overrides.checkMethod(
+        TSExpression expr = _context.typeManager.checkMethod(
             el.enclosingElement.type, node.name, new TSSimpleExpression('this'),
             orElse: () => new TSDotExpression(new TSSimpleExpression('this'), node.name));
 
@@ -453,7 +446,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
       String name = identifier.name;
 
-      name = _context.overrides.checkProperty((identifier.bestElement.enclosingElement as ClassElement).type, name);
+      name = _context.typeManager.checkProperty((identifier.bestElement.enclosingElement as ClassElement).type, name);
 
       return _mayWrapInAssignament(new TSDotExpression(expression, name));
     } else {
@@ -533,7 +526,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     TSExpression method;
     if (_context.isCascading) {
       target = _context.cascadingTarget;
-      method = _context.overrides.checkMethod(_context.cascadingExpression.bestType, node.methodName.name, target,
+      method = _context.typeManager.checkMethod(_context.cascadingExpression.bestType, node.methodName.name, target,
           orElse: () => new TSDotExpression(target, node.methodName.name));
     } else if (node.target != null) {
       if (node.target is SimpleIdentifier && (node.target as SimpleIdentifier).bestElement is PrefixElement) {
@@ -551,7 +544,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
         target = _context.processExpression(node.target);
 
         // Check for method substitution
-        method = _context.overrides.checkMethod(node.target.bestType, node.methodName.name, target,
+        method = _context.typeManager.checkMethod(node.target.bestType, node.methodName.name, target,
             orElse: () => new TSDotExpression(target, node.methodName.name));
       }
     } else {
@@ -722,8 +715,6 @@ abstract class ChildContext<A extends TSNode, P extends Context<A>, E extends TS
   Expression get cascadingExpression => parentContext.cascadingExpression;
 
   ClassContext get currentClass => parentContext.currentClass;
-
-  Overrides get overrides => parentContext.overrides;
 }
 
 /**
@@ -733,13 +724,9 @@ abstract class ChildContext<A extends TSNode, P extends Context<A>, E extends TS
 class LibraryContext extends TopLevelContext<TSLibrary> {
   LibraryElement _libraryElement;
   List<FileContext> _fileContexts;
-  Overrides _overrides;
 
-  Overrides get overrides => _overrides;
-
-  LibraryContext(this._libraryElement, this._overrides) {
-    typeManager = new TypeManager(_libraryElement);
-    _overrides.typeManager = typeManager;
+  LibraryContext(this._libraryElement, Overrides overrides) {
+    typeManager = new TypeManager(_libraryElement, overrides);
     _fileContexts = _libraryElement.units.map((cu) => cu.computeNode()).map((cu) => new FileContext(this, cu)).toList();
   }
 
@@ -880,7 +867,6 @@ class FormalParameterCollector extends GeneralizingAstVisitor {
     } else {
       defaults[node.identifier.name] = _context.processExpression(node.defaultValue);
     }
-
   }
 
   @override

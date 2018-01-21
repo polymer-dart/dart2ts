@@ -6,6 +6,7 @@ class TSImport extends TSNode {
   LibraryElement library;
 
   TSImport({this.prefix, this.path, this.library});
+
   @override
   void writeCode(IndentingPrinter printer) {
     printer.writeln('import * as ${prefix} from "${path}";');
@@ -25,8 +26,9 @@ class TSPath {
 
 class TypeManager {
   LibraryElement _current;
+  Overrides _overrides;
 
-  TypeManager(this._current);
+  TypeManager(this._current, this._overrides);
 
   Map<String, TSImport> _prefixes = {'#NOURI#': new TSImport(prefix: 'bare', path: 'dart_sdk/bare')};
 
@@ -41,6 +43,11 @@ class TypeManager {
   }
 
   String namespace(LibraryElement lib) => namespaceFor(lib: lib);
+
+  TSExpression checkMethod(DartType type, String methodName, TSExpression tsTarget, {TSExpression orElse()}) =>
+      _overrides.checkMethod(this, type, methodName, tsTarget);
+
+  String checkProperty(DartType type, String name) => _overrides.checkProperty(this, type, name);
 
   String namespaceFor({String uri, String modulePath, LibraryElement lib}) {
     if (lib != null && lib == _current) {
@@ -128,11 +135,9 @@ class TypeManager {
   static bool isNativeType(DartType t) =>
       nativeTypes().contains(t) || (t.element.library?.isDartCore ?? false) && (nativeClasses.contains(t.element.name));
 
-  static String _name(Element e) => (e is PropertyAccessorElement)?e.variable.name:e.name;
+  static String _name(Element e) => (e is PropertyAccessorElement) ? e.variable.name : e.name;
 
   String toTsName(Element element, {bool nopath: false}) {
-
-
     TSPath jspath = _collectJSPath(element); // note: we should check if var is top, but ... whatever.
     String name;
     if (nopath) {
