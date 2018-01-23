@@ -11,7 +11,7 @@ import 'package:build/build.dart';
 import 'package:build_runner/build_runner.dart';
 import 'package:dart2ts/src/utils.dart';
 import 'package:logging/logging.dart';
-import 'package:path/path.dart' as path;
+import 'package:path/path.dart' as _P;
 import 'package:source_gen/source_gen.dart';
 import 'package:analyzer/dart/element/visitor.dart';
 import 'package:resource/resource.dart' as res;
@@ -20,6 +20,8 @@ import 'package:yaml/yaml.dart';
 part 'package:dart2ts/src/parts/contexts.dart';
 part 'package:dart2ts/src/parts/ts_simple_ast.dart';
 part 'parts/type_manager.dart';
+
+final _P.Context path = new _P.Context(style:_P.Style.posix,current: '/');
 
 /**
  * Second version of the code generator.

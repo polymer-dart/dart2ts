@@ -115,7 +115,7 @@ class TSInstanceOf extends TSExpression {
 
   @override
   void writeCode(IndentingPrinter printer) {
-    printer.write('bare.dartInstanceOf(');
+    printer.write('bare.is(');
     printer.accept(_expr);
     printer.write(', ');
     printer.accept(_type);
@@ -766,9 +766,15 @@ class TSIfStatement extends TSStatement {
     printer.accept(_condition);
     printer.write(') ');
     printer.accept(_then);
+    if (_then.needsSeparator) {
+      printer.write(';');
+    }
     if (_else!=null) {
       printer.write('else ');
       printer.accept(_else);
+      if (_else.needsSeparator) {
+        printer.write(';');
+      }
     }
   }
 

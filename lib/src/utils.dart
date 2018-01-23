@@ -51,6 +51,8 @@ bool isAnonymous(DartObject o) => (isJsUri(o.type.element.librarySource.uri)) &&
 
 bool isModule(DartObject o) => (isDart2TsUri(o.type.element.librarySource.uri)) && (o.type.name == 'Module');
 
+bool isTargetLib(DartObject o) => (isDart2TsUri(o.type.element.librarySource.uri) && (o.type.name == 'TargetLib'));
+
 bool isBowerImport(DartObject o) =>
     o != null && (isPolymerElementUri(o.type.element.librarySource.uri)) && (o.type.name == 'BowerImport');
 

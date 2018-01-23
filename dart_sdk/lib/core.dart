@@ -1,5 +1,7 @@
+@TargetLib(package:'dart:core',path:'lib')
+library dart_sdk.core;
 
-
+import 'package:dart2ts/annotations.dart';
 
 /**
  * A span of time, such as 27 days, 4 hours, 12 minutes, and 3 seconds.

@@ -239,8 +239,6 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
     return new TSUnknownStatement(node);
   }
 
-
-
   @override
   TSStatement visitFunctionDeclarationStatement(FunctionDeclarationStatement node) {
     FunctionDeclarationContext functionDeclarationContext =
@@ -254,10 +252,9 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
         _context.processExpression(node.condition), node.thenStatement.accept(this), node.elseStatement?.accept(this));
   }
 
-
   @override
   TSStatement visitBlock(Block node) {
-    return new TSBody(statements:_context.processBlock(node));
+    return new TSBody(statements: _context.processBlock(node));
   }
 
   @override
@@ -304,19 +301,15 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     return new TSSimpleExpression(node.value ? 'true' : 'false');
   }
 
-
   @override
   TSExpression visitIsExpression(IsExpression node) {
-    return new TSInstanceOf(node.expression.accept(this),_context.typeManager.toTsType(node.type.type));
+    return new TSInstanceOf(node.expression.accept(this), _context.typeManager.toTsType(node.type.type));
   }
-
 
   @override
   TSExpression visitThrowExpression(ThrowExpression node) {
     return new TSThrow(node.expression.accept(this));
   }
-
-
 
   @override
   TSExpression visitAwaitExpression(AwaitExpression node) {
@@ -350,6 +343,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     TSExpression rightExpression = _context.processExpression(node.rightOperand);
 
     if (node.operator.type != TokenType.TILDE_SLASH &&
+        (node.operator.type != TokenType.STAR || node.leftOperand.bestType != currentContext.typeProvider.stringType) &&
         (TypeManager.isNativeType(node.leftOperand.bestType) || !node.operator.isUserDefinableOperator)) {
       return new TSBinaryExpression(leftExpression, node.operator.lexeme.toString(), rightExpression);
     }

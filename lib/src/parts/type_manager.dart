@@ -28,9 +28,11 @@ class TypeManager {
   LibraryElement _current;
   Overrides _overrides;
 
-  TypeManager(this._current, this._overrides);
+  TypeManager(this._current, this._overrides) {
+    _prefixes = {'#NOURI#': _getSdkPath('dart:bare')};
+  }
 
-  Map<String, TSImport> _prefixes = {'#NOURI#': new TSImport(prefix: 'bare', path: 'dart_sdk/bare')};
+  Map<String, TSImport> _prefixes;
 
   String _nextPrefix() => "lib${_prefixes.length}";
 
@@ -49,6 +51,25 @@ class TypeManager {
 
   String checkProperty(DartType type, String name) => _overrides.checkProperty(this, type, name);
 
+  TSImport _getSdkPath(String name,{LibraryElement lib}) {
+    name = name.substring(5);
+
+    String p = "dart_sdk/${name}";
+
+    // Check if we are in dart_sdk and need relative paths for dart: imports
+    DartObject anno = getAnnotation(_current.metadata, isTargetLib);
+    if (anno != null) {
+      String module = anno.getField('package').toStringValue();
+      String modPath = anno.getField('path').toStringValue();
+      if (module.startsWith('dart:')) {
+        String my_path = path.join('/', modPath);
+        p = path.relative(path.join('/', name), from: my_path);
+      }
+    }
+
+    return new TSImport(prefix: name, path: p, library: lib);
+  }
+
   String namespaceFor({String uri, String modulePath, LibraryElement lib}) {
     if (lib != null && lib == _current) {
       return null;
@@ -62,9 +83,7 @@ class TypeManager {
       if (lib.isInSdk) {
         // Replace with ts_sdk
 
-        String name = lib.name.substring(5);
-
-        return new TSImport(prefix: name, path: "dart_sdk/${name}", library: lib);
+        return _getSdkPath(lib.name,lib:lib);
       }
 
       // If same package produce a relative path
@@ -129,6 +148,8 @@ class TypeManager {
         x.doubleType,
         x.functionType,
       ]))(currentContext.typeProvider);
+
+
 
   static Set<String> nativeClasses = new Set.from(['List', 'Map', 'Iterable', 'Iterator']);
 

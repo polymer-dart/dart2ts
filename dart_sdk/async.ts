@@ -45,7 +45,7 @@ interface DartFuture<T> extends Promise<T> {
 let inited: boolean = false;
 
 
-export function initCollections() {
+export function initAsync() {
     if (inited) {
         return;
     }
