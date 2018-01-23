@@ -67,7 +67,7 @@ export function initCollections() {
                 return new Promise<any>((resolve, reject) => {
                     setTimeout(() => {
                         resolve();
-                    }, d.milliseconds + d.seconds * 1000);
+                    }, d.inMilliseconds);
                 });
             }
         }
@@ -86,7 +86,7 @@ export abstract class Future<X> extends Promise<X> {
 
     static delayed(d: core.Duration): Future<any> {
         return new _Future((resolve, reject) => {
-            setTimeout(() => resolve(null), d.seconds * 1000 + d.milliseconds);
+            setTimeout(() => resolve(null), d.inMilliseconds);
         });
     }
 }

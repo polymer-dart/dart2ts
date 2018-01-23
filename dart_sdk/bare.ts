@@ -3,10 +3,12 @@
 // Extend global Array
 import * as collection from './collection';
 import {initCollections as initAsync} from "./async";
+import {initNatives} from "./natives";
 
 
 collection.initCollections();
 initAsync();
+initNatives();
 
 export function invokeMethod(o: any, method: string, ...args: Array<any>): any {
     o = o || this;
@@ -279,10 +281,9 @@ export function writeProperty(obj: any, prop: string, val: any) {
 }
 
 
-export function invokeBinaryOperand<T>(op: string, left: T, right: T): T {
+export function invokeBinaryOperand<T>(op: string, left: T, right: any): T {
     return {
-        '+': function (a, b) {
-            return a + b;
-        }
+        '+': (a, b) => a + b,
+        '~/': (a, b) => Math.trunc(a / b)
     }[op](left, right);
 }

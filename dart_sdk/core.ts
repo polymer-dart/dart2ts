@@ -1,4 +1,5 @@
 export * from './lib/core';
+export * from './lib/exceptions';
 
 
 export function print(message: String): void {

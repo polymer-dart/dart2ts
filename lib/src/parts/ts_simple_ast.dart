@@ -93,7 +93,7 @@ class TSClass extends TSNode {
   }
 }
 
-abstract class TSType extends TSNode {}
+abstract class TSType extends TSExpression {}
 
 class TSSimpleType extends TSType {
   String _name;
@@ -103,6 +103,36 @@ class TSSimpleType extends TSType {
   @override
   void writeCode(IndentingPrinter printer) {
     printer.write(_name);
+  }
+}
+
+class TSInstanceOf extends TSExpression {
+  TSExpression _expr;
+  TSType _type;
+
+  TSInstanceOf(this._expr,this._type);
+
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write('bare.dartInstanceOf(');
+    printer.accept(_expr);
+    printer.write(', ');
+    printer.accept(_type);
+    printer.write(')');
+  }
+}
+
+class TSThrow extends TSExpression {
+  TSExpression _what;
+
+  TSThrow(this._what);
+
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write('throw ');
+    printer.accept(_what);
   }
 }
 
@@ -477,9 +507,13 @@ class TSUnknownStatement extends TSStatement {
   }
 }
 
-class TSBody extends TSNode {
+class TSBody extends TSStatement {
   bool withBrackets;
   Iterable<TSStatement> statements;
+
+
+  @override
+  bool get needsSeparator => false;
 
   TSBody({this.statements, this.withBrackets: true});
 
@@ -720,19 +754,49 @@ class TSNodes extends TSNode {
   }
 }
 
+class TSIfStatement extends TSStatement {
+  TSExpression _condition;
+  TSStatement _then;
+  TSStatement _else;
+
+  TSIfStatement(this._condition,this._then,this._else);
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write('if (');
+    printer.accept(_condition);
+    printer.write(') ');
+    printer.accept(_then);
+    if (_else!=null) {
+      printer.write('else ');
+      printer.accept(_else);
+    }
+  }
+
+  @override
+  bool get needsSeparator => false;
+
+
+}
+
 class TSVariableDeclarations extends TSStatement {
   Iterable<TSVariableDeclaration> _declarations;
   bool isStatic;
   bool isField;
   bool isTopLevel;
+  bool isConst;
 
-  TSVariableDeclarations(this._declarations, {this.isStatic: false, this.isField: false, this.isTopLevel: false});
+  TSVariableDeclarations(this._declarations, {this.isStatic: false, this.isField: false, this.isTopLevel: false,this.isConst:false});
 
   @override
   void writeCode(IndentingPrinter printer) {
     if (isStatic) {
       printer.write('static ');
     }
+
+    if (isConst) {
+      printer.write('const ');
+    }
+
     if (!isField) {
       printer.write('let ');
     }
@@ -754,7 +818,7 @@ class TSExpressionStatement extends TSStatement {
   }
 
   @override
-  bool get needsSeparator => _expression is! TSFunction;
+  bool get needsSeparator => _expression is! TSFunction && _expression is! TSBody;
 }
 
 class TSParameter extends TSNode {

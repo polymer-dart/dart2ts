@@ -239,11 +239,25 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
     return new TSUnknownStatement(node);
   }
 
+
+
   @override
   TSStatement visitFunctionDeclarationStatement(FunctionDeclarationStatement node) {
     FunctionDeclarationContext functionDeclarationContext =
         new FunctionDeclarationContext(_context, node.functionDeclaration, topLevel: false);
     return functionDeclarationContext.translate();
+  }
+
+  @override
+  TSStatement visitIfStatement(IfStatement node) {
+    return new TSIfStatement(
+        _context.processExpression(node.condition), node.thenStatement.accept(this), node.elseStatement?.accept(this));
+  }
+
+
+  @override
+  TSStatement visitBlock(Block node) {
+    return new TSBody(statements:_context.processBlock(node));
   }
 
   @override
@@ -290,6 +304,20 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     return new TSSimpleExpression(node.value ? 'true' : 'false');
   }
 
+
+  @override
+  TSExpression visitIsExpression(IsExpression node) {
+    return new TSInstanceOf(node.expression.accept(this),_context.typeManager.toTsType(node.type.type));
+  }
+
+
+  @override
+  TSExpression visitThrowExpression(ThrowExpression node) {
+    return new TSThrow(node.expression.accept(this));
+  }
+
+
+
   @override
   TSExpression visitAwaitExpression(AwaitExpression node) {
     return new TSAwaitExpression(node.expression.accept(this));
@@ -321,11 +349,12 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     TSExpression leftExpression = _context.processExpression(node.leftOperand);
     TSExpression rightExpression = _context.processExpression(node.rightOperand);
 
-    if (TypeManager.isNativeType(node.leftOperand.bestType) || !node.operator.isUserDefinableOperator) {
+    if (node.operator.type != TokenType.TILDE_SLASH &&
+        (TypeManager.isNativeType(node.leftOperand.bestType) || !node.operator.isUserDefinableOperator)) {
       return new TSBinaryExpression(leftExpression, node.operator.lexeme.toString(), rightExpression);
     }
 
-    if (node.leftOperand.bestType is InterfaceType) {
+    if (node.leftOperand.bestType is InterfaceType && !TypeManager.isNativeType(node.leftOperand.bestType)) {
       InterfaceType cls = node.leftOperand.bestType as InterfaceType;
       MethodElement method = findMethod(cls, node.operator.lexeme);
       assert(method != null, 'Operator ${node.operator} can be used only if defined in ${cls.name}');
@@ -392,6 +421,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
     String name = node.name;
 
+    DartType currentClassType = _context.currentClass?._classDeclaration?.element?.type;
     if (node.staticElement is PropertyAccessorElement) {
       PropertyInducingElement el = (node.staticElement as PropertyAccessorElement).variable;
 
@@ -402,16 +432,28 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       // check if current class has it
       if (_context.currentClass != null &&
           findField(_context.currentClass._classDeclaration.element, node.name) == el) {
-        return _mayWrapInAssignament(new TSDotExpression(new TSSimpleExpression('this'), name));
+        TSExpression tgt;
+        if (el.isStatic) {
+          tgt = _context.typeManager.toTsType(currentClassType);
+        } else {
+          tgt = new TSSimpleExpression('this');
+        }
+        return _mayWrapInAssignament(new TSDotExpression(tgt, name));
       }
     } else if (node.staticElement is MethodElement) {
       MethodElement el = node.staticElement;
 
-      if (_context.currentClass != null &&
-          findMethod(_context.currentClass._classDeclaration.element.type, node.name) == el) {
+      if (_context.currentClass != null && findMethod(currentClassType, node.name) == el) {
+        TSExpression tgt;
+        if (el.isStatic) {
+          tgt = _context.typeManager.toTsType(currentClassType);
+        } else {
+          tgt = new TSSimpleExpression('this');
+        }
+
         TSExpression expr = _context.typeManager.checkMethod(
             el.enclosingElement.type, node.name, new TSSimpleExpression('this'),
-            orElse: () => new TSDotExpression(new TSSimpleExpression('this'), node.name));
+            orElse: () => new TSDotExpression(tgt, node.name));
 
         return _mayWrapInAssignament(expr);
       }
@@ -1014,6 +1056,7 @@ class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
           _context.processExpression(v.initializer), _context.typeManager.toTsType(node.fields.type?.type)))),
       isField: true,
       isStatic: node.isStatic,
+      //isConst: node.fields.isConst || node.fields.isFinal,
     );
   }
 
@@ -1208,7 +1251,11 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
 
     if (_methodDeclaration.isOperator) {
       TokenType tk = TokenType.all.firstWhere((tt) => tt.lexeme == _methodDeclaration.name.name);
-      name = 'OPERATOR_${tk.name}';
+      if (_methodDeclaration.parameters.parameters.isEmpty) {
+        name = "OPERATOR_PREFIX_${tk.name}";
+      } else {
+        name = 'OPERATOR_${tk.name}';
+      }
       result.add(new TSVariableDeclarations([
         new TSVariableDeclaration(
             name, new TSSimpleExpression('Symbol("${_methodDeclaration.name}")'), new TSSimpleType('symbol'))
