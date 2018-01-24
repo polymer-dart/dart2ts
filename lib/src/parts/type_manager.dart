@@ -51,7 +51,7 @@ class TypeManager {
 
   String checkProperty(DartType type, String name) => _overrides.checkProperty(this, type, name);
 
-  TSImport _getSdkPath(String name,{LibraryElement lib}) {
+  TSImport _getSdkPath(String name, {LibraryElement lib}) {
     name = name.substring(5);
 
     String p = "dart_sdk/${name}";
@@ -83,7 +83,7 @@ class TypeManager {
       if (lib.isInSdk) {
         // Replace with ts_sdk
 
-        return _getSdkPath(lib.name,lib:lib);
+        return _getSdkPath(lib.name, lib: lib);
       }
 
       // If same package produce a relative path
@@ -149,8 +149,6 @@ class TypeManager {
         x.functionType,
       ]))(currentContext.typeProvider);
 
-
-
   static Set<String> nativeClasses = new Set.from(['List', 'Map', 'Iterable', 'Iterator']);
 
   static bool isNativeType(DartType t) =>
@@ -193,7 +191,7 @@ class TypeManager {
 
     // Look for @JS annotations
     if (type is TypeParameterType) {
-      return new TSSimpleType(type.element.name);
+      return new TSSimpleType(type.element.name,! TypeManager.isNativeType(type));
     }
 
     if (type is FunctionType) {
@@ -241,7 +239,7 @@ class TypeManager {
     }
 
     if (type.isDynamic) {
-      return new TSSimpleType("any");
+      return new TSSimpleType("any", true);
     }
 
     String p;
@@ -274,7 +272,7 @@ class TypeManager {
       if (!noTypeArgs && type is ParameterizedType && type.typeArguments.isNotEmpty) {
         return new TSGenericType("${p}${actualName}", type.typeArguments.map((t) => toTsType(t)));
       } else {
-        return new TSSimpleType("${p}${actualName}");
+        return new TSSimpleType("${p}${actualName}", !TypeManager.isNativeType(type));
       }
     });
   }

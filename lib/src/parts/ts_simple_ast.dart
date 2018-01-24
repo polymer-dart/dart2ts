@@ -64,8 +64,10 @@ class TSClass extends TSNode {
   TSType superClass;
   bool topLevel;
   bool isInterface;
+  Iterable<TSTypeExpr> implemnted;
+  String library;
 
-  TSClass({this.topLevel: true, this.isInterface: false});
+  TSClass({this.topLevel: true, this.isInterface: false, this.implemnted, this.library});
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -82,8 +84,21 @@ class TSClass extends TSNode {
       printer.write('extends ');
       printer.accept(superClass);
     }
+    if (implemnted != null && implemnted.isNotEmpty) {
+      printer.write('implements ');
+      printer.join(implemnted);
+    }
     printer.writeln('{');
     printer.indented((p) {
+      if (!isInterface) {
+        printer.accept(new TSFunction(
+            isGetter: true,
+            asMethod: true,
+            name: '\$library',
+            body: new TSBody(
+                statements: [new TSReturnStatement(new TSSimpleExpression('"${library}"'))], withBrackets: false)));
+        printer.writeln();
+      }
       members.forEach((m) {
         p.accept(m);
         p.writeln();
@@ -93,12 +108,18 @@ class TSClass extends TSNode {
   }
 }
 
-abstract class TSType extends TSExpression {}
+abstract class TSType extends TSNode {
+  bool _isObject;
+
+  bool get isObject => _isObject;
+
+  TSType(this._isObject);
+}
 
 class TSSimpleType extends TSType {
   String _name;
 
-  TSSimpleType(this._name);
+  TSSimpleType(this._name, bool isObject) : super(isObject);
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -106,12 +127,29 @@ class TSSimpleType extends TSType {
   }
 }
 
+class TSTypeExpr extends TSExpression {
+  TSType _type;
+  bool _asDeclaration;
+
+  TSTypeExpr(this._type, [this._asDeclaration = true]);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    if (_asDeclaration || _type.isObject) {
+      printer.accept(_type);
+    } else {
+      printer.write('"');
+      printer.accept(_type);
+      printer.write('"');
+    }
+  }
+}
+
 class TSInstanceOf extends TSExpression {
   TSExpression _expr;
-  TSType _type;
+  TSTypeExpr _type;
 
-  TSInstanceOf(this._expr,this._type);
-
+  TSInstanceOf(this._expr, this._type);
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -128,7 +166,6 @@ class TSThrow extends TSExpression {
 
   TSThrow(this._what);
 
-
   @override
   void writeCode(IndentingPrinter printer) {
     printer.write('throw ');
@@ -141,7 +178,7 @@ class TSFunctionType extends TSType {
   List<TSType> _typeArguments;
   List<TSType> _argumentsType;
 
-  TSFunctionType(this._returnType, this._argumentsType, [this._typeArguments]);
+  TSFunctionType(this._returnType, this._argumentsType, [this._typeArguments]) : super(true);
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -160,7 +197,7 @@ class TSFunctionType extends TSType {
 class TSInterfaceType extends TSType {
   Map<String, TSType> fields;
 
-  TSInterfaceType({this.fields}) {
+  TSInterfaceType({this.fields}) : super(true) {
     fields ??= {};
   }
 
@@ -178,7 +215,7 @@ class TSInterfaceType extends TSType {
 class TSGenericType extends TSSimpleType {
   Iterable<TSType> _typeArguments;
 
-  TSGenericType(String name, this._typeArguments) : super(name);
+  TSGenericType(String name, this._typeArguments) : super(name, true);
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -194,7 +231,7 @@ class TSGenericType extends TSSimpleType {
 class TSOptionalType extends TSType {
   TSType _type;
 
-  TSOptionalType(this._type);
+  TSOptionalType(this._type) : super(_type.isObject);
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -405,6 +442,19 @@ class TSFunction extends TSExpression implements TSStatement {
   bool get needsSeparator => false;
 }
 
+class TSPostfixOperandExpression extends TSExpression {
+  String _op;
+  TSExpression _expr;
+
+  TSPostfixOperandExpression(this._op, this._expr);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.accept(_expr);
+    printer.write(_op);
+  }
+}
+
 class TSPrefixOperandExpression extends TSExpression {
   String _op;
   TSExpression _expr;
@@ -510,7 +560,6 @@ class TSUnknownStatement extends TSStatement {
 class TSBody extends TSStatement {
   bool withBrackets;
   Iterable<TSStatement> statements;
-
 
   @override
   bool get needsSeparator => false;
@@ -754,12 +803,43 @@ class TSNodes extends TSNode {
   }
 }
 
+class TSForStatement extends TSStatement {
+  TSStatement _variables;
+  TSExpression _init;
+  TSExpression _condition;
+  List<TSExpression> _updaters;
+  TSStatement _body;
+
+  TSForStatement(this._variables, this._init, this._condition, this._updaters, this._body);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write('for(');
+    if (_variables != null) {
+      printer.accept(_variables);
+    }
+    if (_init != null) {
+      printer.accept(_init);
+    }
+    printer.write('; ');
+    printer.accept(_condition);
+    printer.write('; ');
+    printer.join(_updaters);
+    printer.write(')');
+    printer.accept(_body);
+  }
+
+  @override
+  bool get needsSeparator => _body.needsSeparator;
+}
+
 class TSIfStatement extends TSStatement {
   TSExpression _condition;
   TSStatement _then;
   TSStatement _else;
 
-  TSIfStatement(this._condition,this._then,this._else);
+  TSIfStatement(this._condition, this._then, this._else);
+
   @override
   void writeCode(IndentingPrinter printer) {
     printer.write('if (');
@@ -769,7 +849,7 @@ class TSIfStatement extends TSStatement {
     if (_then.needsSeparator) {
       printer.write(';');
     }
-    if (_else!=null) {
+    if (_else != null) {
       printer.write('else ');
       printer.accept(_else);
       if (_else.needsSeparator) {
@@ -780,8 +860,6 @@ class TSIfStatement extends TSStatement {
 
   @override
   bool get needsSeparator => false;
-
-
 }
 
 class TSVariableDeclarations extends TSStatement {
@@ -791,7 +869,8 @@ class TSVariableDeclarations extends TSStatement {
   bool isTopLevel;
   bool isConst;
 
-  TSVariableDeclarations(this._declarations, {this.isStatic: false, this.isField: false, this.isTopLevel: false,this.isConst:false});
+  TSVariableDeclarations(this._declarations,
+      {this.isStatic: false, this.isField: false, this.isTopLevel: false, this.isConst: false});
 
   @override
   void writeCode(IndentingPrinter printer) {

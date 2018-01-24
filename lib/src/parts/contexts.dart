@@ -128,7 +128,7 @@ class Overrides {
     if (!noTypeArgs && type is ParameterizedType && type.typeArguments.isNotEmpty) {
       return new TSGenericType("${p}${actualName}", type.typeArguments.map((t) => typeManager.toTsType(t)));
     } else {
-      return new TSSimpleType("${p}${actualName}");
+      return new TSSimpleType("${p}${actualName}", !TypeManager.isNativeType(type));
     }
   }
 }
@@ -240,6 +240,11 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
   }
 
   @override
+  TSStatement visitBreakStatement(BreakStatement node) {
+    return new TSExpressionStatement(new TSSimpleExpression('break'));
+  }
+
+  @override
   TSStatement visitFunctionDeclarationStatement(FunctionDeclarationStatement node) {
     FunctionDeclarationContext functionDeclarationContext =
         new FunctionDeclarationContext(_context, node.functionDeclaration, topLevel: false);
@@ -250,6 +255,19 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
   TSStatement visitIfStatement(IfStatement node) {
     return new TSIfStatement(
         _context.processExpression(node.condition), node.thenStatement.accept(this), node.elseStatement?.accept(this));
+  }
+
+  @override
+  TSStatement visitForStatement(ForStatement node) {
+    return new TSForStatement(
+        new TSVariableDeclarations(
+            new List.from(node.variables.variables.map((v) => new TSVariableDeclaration(v.name.name,
+                _context.processExpression(v.initializer), _context.typeManager.toTsType(node.variables.type?.type)))),
+            isField: false),
+        _context.processExpression(node.initialization),
+        _context.processExpression(node.condition),
+        node.updaters.map((e) => _context.processExpression(e)).toList(),
+        node.body.accept(this));
   }
 
   @override
@@ -293,7 +311,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitSimpleStringLiteral(SimpleStringLiteral node) {
-    return new TSSimpleExpression(node.toSource()); // Preserve the same quotes
+    return new TSSimpleExpression(node.toSource().replaceAll('\n', '\\n')); // Preserve the same quotes
   }
 
   @override
@@ -303,7 +321,8 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitIsExpression(IsExpression node) {
-    return new TSInstanceOf(node.expression.accept(this), _context.typeManager.toTsType(node.type.type));
+    return new TSInstanceOf(
+        node.expression.accept(this), new TSTypeExpr(_context.typeManager.toTsType(node.type.type), false));
   }
 
   @override
@@ -329,6 +348,11 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
   @override
   TSExpression visitPrefixExpression(PrefixExpression node) {
     return new TSPrefixOperandExpression(node.operator.lexeme, _context.processExpression(node.operand));
+  }
+
+  @override
+  TSExpression visitPostfixExpression(PostfixExpression node) {
+    return new TSPostfixOperandExpression(node.operator.lexeme, _context.processExpression(node.operand));
   }
 
   @override
@@ -428,7 +452,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
           findField(_context.currentClass._classDeclaration.element, node.name) == el) {
         TSExpression tgt;
         if (el.isStatic) {
-          tgt = _context.typeManager.toTsType(currentClassType);
+          tgt = new TSTypeExpr(_context.typeManager.toTsType(currentClassType), false);
         } else {
           tgt = new TSSimpleExpression('this');
         }
@@ -440,7 +464,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       if (_context.currentClass != null && findMethod(currentClassType, node.name) == el) {
         TSExpression tgt;
         if (el.isStatic) {
-          tgt = _context.typeManager.toTsType(currentClassType);
+          tgt = new TSTypeExpr(_context.typeManager.toTsType(currentClassType), false);
         } else {
           tgt = new TSSimpleExpression('this');
         }
@@ -688,7 +712,7 @@ class InterpolationElementVisitor extends GeneralizingAstVisitor<TSNode> {
 
   @override
   TSNode visitInterpolationString(InterpolationString node) {
-    return new TSSimpleExpression(node.value);
+    return new TSSimpleExpression(node.value.replaceAll('\n', '\\n'));
   }
 }
 
@@ -1000,12 +1024,17 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
 
   @override
   TSClass translate() {
-    _tsClass = new TSClass();
+    _tsClass = new TSClass(library: currentClass._classDeclaration.element.librarySource.uri.toString());
     ClassMemberVisitor visitor = new ClassMemberVisitor(this, _tsClass);
     _tsClass.name = _classDeclaration.name.name;
 
     if (_classDeclaration.extendsClause != null) {
       tsClass.superClass = typeManager.toTsType(_classDeclaration.extendsClause.superclass.type);
+    }
+
+    if (_classDeclaration.implementsClause != null) {
+      tsClass.implemnted =
+          _classDeclaration.implementsClause.interfaces.map((t) => new TSTypeExpr(typeManager.toTsType(t.type)));
     }
 
     _tsClass.members = new List.from(_classDeclaration.members.map((m) => m.accept(visitor)).where((m) => m != null));
@@ -1021,7 +1050,7 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
               asMethod: true,
               name: 'new',
               withParameterCollector: parameterCollector,
-              returnType: new TSSimpleType(_classDeclaration.name.name)),
+              returnType: new TSSimpleType(_classDeclaration.name.name, true)),
         ]);
     });
 
@@ -1103,7 +1132,7 @@ class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
   }
 
   TSNode _createNamedConstructor(ConstructorDeclaration node) {
-    TSType ctorType = new TSSimpleType('${_context._classDeclaration.name.name}_${node.name.name}');
+    TSType ctorType = new TSSimpleType('${_context._classDeclaration.name.name}_${node.name.name}', true);
 
     FormalParameterCollector parameterCollector = _context.collectParameters(node.parameters);
 
@@ -1138,7 +1167,7 @@ class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
           new TSExpressionStatement(new TSAssignamentExpression(
               new TSDotExpression(new TSSimpleExpression('ctor'), 'prototype'),
               new TSDotExpression(new TSSimpleExpression(_context._classDeclaration.name.name), 'prototype'))),
-          new TSReturnStatement(new TSAsExpression(new TSSimpleExpression('ctor'), new TSSimpleType('any'))),
+          new TSReturnStatement(new TSAsExpression(new TSSimpleExpression('ctor'), new TSSimpleType('any', false))),
         ], withBrackets: false))),
         []);
 
@@ -1252,7 +1281,7 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
       }
       result.add(new TSVariableDeclarations([
         new TSVariableDeclaration(
-            name, new TSSimpleExpression('Symbol("${_methodDeclaration.name}")'), new TSSimpleType('symbol'))
+            name, new TSSimpleExpression('Symbol("${_methodDeclaration.name}")'), new TSSimpleType('symbol', false))
       ], isField: true, isStatic: true));
       name = "[${parentContext._classDeclaration.name}.${name}]";
     }
