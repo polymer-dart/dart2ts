@@ -5,6 +5,7 @@ import {initCollections} from './collection';
 import {initAsync} from "./async";
 import {initNatives} from "./natives";
 
+
 /// Init
 initCollections();
 initAsync();
@@ -22,6 +23,22 @@ export class DartObject {
     [metadata](): any {
 
     }
+}
+
+const DartMetadataKey = Symbol.for('dart:metadata');
+
+export interface IDartMetadata {
+    library: string;
+}
+
+export function DartMetadata(m: IDartMetadata): ClassDecorator {
+    return (target) => Object.defineProperty(target, DartMetadataKey, {
+        get: () => m
+    });
+}
+
+export function getDartMetadata(t): IDartMetadata {
+    return t[DartMetadataKey];
 }
 
 

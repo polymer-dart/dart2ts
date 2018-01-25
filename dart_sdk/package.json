@@ -14,5 +14,8 @@
   "license": "ISC",
   "devDependencies": {
     "typescript": "^2.5.2"
+  },
+  "dependencies": {
+    "reflect-metadata": "^0.1.12"
   }
 }
