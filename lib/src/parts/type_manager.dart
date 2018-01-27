@@ -76,6 +76,10 @@ class TypeManager {
     }
     uri ??= lib.source.uri.toString();
 
+    if (uri == 'module:global') {
+      return null;
+    }
+
     return _prefixes.putIfAbsent(uri, () {
       if (lib == null) {
         return new TSImport(prefix: _nextPrefix(), path: modulePath);
@@ -152,7 +156,7 @@ class TypeManager {
   static Set<String> nativeClasses = new Set.from(['List', 'Map', 'Iterable', 'Iterator']);
 
   static bool isNativeType(DartType t) =>
-      nativeTypes().contains(t) || (t.element.library?.isDartCore ?? false) && (nativeClasses.contains(t.element.name));
+      nativeTypes().contains(t) || (t.element?.library?.isDartCore ?? false) && (nativeClasses.contains(t.element?.name));
 
   static String _name(Element e) => (e is PropertyAccessorElement) ? e.variable.name : e.name;
 

@@ -71,9 +71,14 @@ class TSClass extends TSNode {
 
   @override
   void writeCode(IndentingPrinter printer) {
+    if (library!=null&&!isInterface) {
+      printer.writeln('@bare.DartMetadata({library:\'${this.library}\'})');
+    }
+
     if (topLevel) {
       printer.write('export ');
     }
+
     if (isInterface) {
       printer.write('interface');
     } else {
@@ -90,15 +95,6 @@ class TSClass extends TSNode {
     }
     printer.writeln('{');
     printer.indented((p) {
-      if (!isInterface) {
-        printer.accept(new TSFunction(
-            isGetter: true,
-            asMethod: true,
-            name: '\$library',
-            body: new TSBody(
-                statements: [new TSReturnStatement(new TSSimpleExpression('"${library}"'))], withBrackets: false)));
-        printer.writeln();
-      }
       members.forEach((m) {
         p.accept(m);
         p.writeln();

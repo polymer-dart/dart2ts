@@ -2,6 +2,18 @@ import 'sample2.dart' as xy;
 import 'package:js/js.dart';
 import 'sample3.dart';
 import 'sample4.dart';
+import 'package:dart2ts/annotations.dart';
+
+
+@JS()
+class Metadata {
+  String library;
+}
+
+
+@JS('getDartMetadata')
+@Module('dart_sdk/bare')
+external Metadata getMetadata();
 
 void main(List<String> args) {
   printToBody("<h1>GOOD MOOOOOOOOOOOOOOOORNING DART2TS!!</h1>");
@@ -75,4 +87,6 @@ void main(List<String> args) {
   testFuture().then((_) {
     printToBody("Future works");
   });
+
+  printToBody('LIB: ${getMetadata(xy.MySampleClass1).library}');
 }
