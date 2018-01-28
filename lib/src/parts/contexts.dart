@@ -352,10 +352,12 @@ class TSCase extends TSStatement {
       printer.writeln(':');
     }
     printer.indented((p) {
-      p.accept(new TSBody(statements: this._statements,withBrackets: false));
+      p.accept(new TSBody(statements: this._statements, withBrackets: false));
     });
   }
 }
+
+enum OperatorType { BINARY, PREFIX, SUFFIX }
 
 class TSSwitchStatement extends TSStatement {
   TSExpression _expr;
@@ -436,12 +438,36 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitPrefixExpression(PrefixExpression node) {
-    return new TSPrefixOperandExpression(node.operator.lexeme, _context.processExpression(node.operand));
+    return handlePrefixSuffixExpression(node.operand, node.operator, OperatorType.PREFIX);
+  }
+
+  TSExpression handlePrefixSuffixExpression(Expression operand, Token operator, OperatorType opType) {
+    TSExpression expr = _context.processExpression(operand);
+
+    if (TypeManager.isNativeType(operand.bestType) || !operator.isUserDefinableOperator) {
+      if (opType == OperatorType.PREFIX)
+        return new TSPrefixOperandExpression(operator.lexeme, expr);
+      else
+        return new TSPostfixOperandExpression(operator.lexeme, expr);
+    }
+
+    if (operand.bestType is InterfaceType && !TypeManager.isNativeType(operand.bestType)) {
+      InterfaceType cls = operand.bestType as InterfaceType;
+      MethodElement method = findMethod(cls, operator.lexeme);
+      assert(method != null, 'Operator ${operator.lexeme} can be used only if defined in ${operand.bestType.name}');
+      return new TSInvoke(new TSDotExpression(expr, _operatorName(method, operator, opType)), []);
+    }
+
+    return new TSInvoke(new TSSimpleExpression('bare.invokeUnaryOperand'), [
+      new TSSimpleExpression('"${operator.lexeme}"'),
+      new TSSimpleExpression(opType == OperatorType.PREFIX ? 'bare.OperatorType.PREFIX' : 'bare.OperatorType.SUFFIX'),
+      expr
+    ]);
   }
 
   @override
   TSExpression visitPostfixExpression(PostfixExpression node) {
-    return new TSPostfixOperandExpression(node.operator.lexeme, _context.processExpression(node.operand));
+    return handlePrefixSuffixExpression(node.operand, node.operator, OperatorType.SUFFIX);
   }
 
   @override
@@ -465,19 +491,27 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       InterfaceType cls = node.leftOperand.bestType as InterfaceType;
       MethodElement method = findMethod(cls, node.operator.lexeme);
       assert(method != null, 'Operator ${node.operator} can be used only if defined in ${cls.name}');
-      return new TSInvoke(new TSDotExpression(leftExpression, _operatorName(method, node.operator)), [rightExpression]);
+      return new TSInvoke(
+          new TSDotExpression(leftExpression, _operatorName(method, node.operator, OperatorType.BINARY)),
+          [rightExpression]);
     }
 
     return new TSInvoke(new TSSimpleExpression('bare.invokeBinaryOperand'),
         [new TSSimpleExpression('"${node.operator.lexeme}"'), leftExpression, rightExpression]);
   }
 
-  String _operatorName(MethodElement method, Token op) {
+  String _operatorName(MethodElement method, Token op, OperatorType type) {
     String name;
-    if (method.parameters.isEmpty) {
-      name = "OPERATOR_PREFIX_${op.type.name}";
-    } else {
-      name = 'OPERATOR_${op.type.name}';
+    switch (type) {
+      case OperatorType.PREFIX:
+        name = "OPERATOR_PREFIX_${op.type.name}";
+        break;
+      case OperatorType.SUFFIX:
+        name = "OPERATOR_SUFFIX_${op.type.name}";
+        break;
+      case OperatorType.BINARY:
+        name = 'OPERATOR_${op.type.name}';
+        break;
     }
     return name;
   }
@@ -1379,12 +1413,6 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
         'type': new TSSimpleExpression('bare.OperatorType.BINARY'),
         'op': new TSSimpleExpression('"${tk.lexeme}"')
       })));
-      /*
-      result.add(new TSVariableDeclarations([
-        new TSVariableDeclaration(
-            name, new TSSimpleExpression('Symbol("${_methodDeclaration.name}")'), new TSSimpleType('symbol', false))
-      ], isField: true, isStatic: true));
-      name = "[${parentContext._classDeclaration.name}.${name}]";*/
     }
 
     result.add(new TSFunction(
