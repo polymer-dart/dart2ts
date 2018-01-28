@@ -66,7 +66,7 @@ The final name is defined concatanating both module path and namespace path info
 
 ```dart
 @JS('module#myjslib')
-libary mylib;
+library mylib;
 
 @JS('submod#Thing')
 class That {
@@ -80,7 +80,7 @@ or
 ```dart
 @JS('myjslib')
 @Module('module')
-libary mylib;
+library mylib;
 
 @JS('Thing')
 @Module('submod')

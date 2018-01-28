@@ -89,10 +89,27 @@ void main(List<String> args) {
 
   printToBody('LIB: ${getMetadata(xy.MySampleClass1).library}');
 
-  xy.AnotherClass a0 = new xy.AnotherClass('ciao');
-  xy.AnotherClass a1 = new xy.AnotherClass('ciao');
+  xy.AnotherClass a0 = new xy.AnotherClass('ciao')..count=5;
+  xy.AnotherClass a1 = new xy.AnotherClass('ciao')..count=10;
   printToBody('Uguali (static typed): ${a0 == a1}');
   printToBody('Uguali (dynamic typed): ${(a0 as dynamic) == (a1 as dynamic)}');
+
+
+  printToBody('SUM : ${(a0+a1).count}');
+  printToBody('MINUS : ${(a0-a1).count}');
+  printToBody('NEG : ${(-a1).count}');
+
+  var x0 = a0 as dynamic;
+  var x1 = a1 as dynamic;
+
+
+  printToBody('SUM : ${(x0+x1).count}');
+  printToBody('MINUS : ${(x0-x1).count}');
+  printToBody('NEG : ${(-x1).count}');
+
+
+  printToBody(('HERE : ${a0.testClosure()}'));
+
 
   Duration d1 = new Duration(hours: 10);
   Duration d2 = new Duration(hours: 1, minutes: 30);
@@ -100,6 +117,8 @@ void main(List<String> args) {
   Duration d3 = d1 + d2;
 
   printToBody("Duration in minutes : ${d3.inMinutes}, ${d3.toString()}");
+
+
 
   // Check for iterable
   Iterable<String> xx = ['a', 'b'].map((x) => "--${x}--").map((x) => "[${x}]");

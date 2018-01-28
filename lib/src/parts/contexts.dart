@@ -1410,7 +1410,9 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
         name = 'OPERATOR_${tk.name}';
       }
       annotations.add(new TSAnnotation(new TSInvoke(new TSSimpleExpression('bare.DartOperator'), [], {
-        'type': new TSSimpleExpression('bare.OperatorType.BINARY'),
+        'type': _methodDeclaration.parameters.parameters.isEmpty
+            ? new TSSimpleExpression('bare.OperatorType.PREFIX')
+            : new TSSimpleExpression('bare.OperatorType.BINARY'),
         'op': new TSSimpleExpression('"${tk.lexeme}"')
       })));
     }

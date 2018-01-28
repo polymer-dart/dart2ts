@@ -16,6 +16,7 @@ class AnotherClass {
 
   AnotherClass({String named, int num}) {
     print('parent :${named} , ${num}');
+    count = num;
     this._title = ''
   }
 
@@ -29,6 +30,25 @@ class AnotherClass {
     return this._title == other._title;
   }
 
+  AnotherClass operator +(AnotherClass other) {
+    return new AnotherClass(num: this.count + other.count);
+  }
+
+  AnotherClass operator -() {
+    return new AnotherClass(num: -this.count);
+  }
+
+  AnotherClass operator -(AnotherClass other) {
+    return new AnotherClass(num: this.count - other.count);
+  }
+
+  int testClosure() {
+    here() {
+      return this.count;
+    }
+
+    return here();
+  }
 }
 
 class MySampleClass1 extends AnotherClass {
