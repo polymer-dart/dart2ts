@@ -896,8 +896,75 @@ class TSNodes extends TSNode {
   }
 }
 
+class TSYieldStatement extends TSStatement {
+  TSExpression _espr;
+  bool many;
+
+  TSYieldStatement(this._espr, {this.many: false});
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    if (many) {
+      printer.write('yield* ');
+    } else {
+      printer.write('yield ');
+    }
+
+    printer.accept(_espr);
+  }
+}
+
+class TSCase extends TSStatement {
+  TSExpression _expr;
+  List<TSStatement> _statements;
+  bool _isDefault;
+
+  TSCase(this._expr, this._statements) {
+    _isDefault = false;
+  }
+
+  TSCase.defaultCase(this._statements) {
+    _isDefault = true;
+  }
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    if (_isDefault) {
+      printer.writeln('default:');
+    } else {
+      printer.write('case ');
+      printer.accept(_expr);
+      printer.writeln(':');
+    }
+    printer.indented((p) {
+      p.accept(new TSBody(statements: this._statements, withBrackets: false));
+    });
+  }
+}
+
+class TSSwitchStatement extends TSStatement {
+  TSExpression _expr;
+  List<TSStatement> _members;
+
+  TSSwitchStatement(this._expr, this._members);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write('switch (');
+    printer.accept(_expr);
+    printer.writeln(') {');
+    printer.indented((p) {
+      _members.forEach((m) => printer.accept(m));
+    });
+    printer.write('}');
+  }
+
+  @override
+  bool get needsSeparator => false;
+}
+
 class TSForStatement extends TSStatement {
-  TSStatement _variables;
+  TSNode _variables;
   TSExpression _init;
   TSExpression _condition;
   List<TSExpression> _updaters;

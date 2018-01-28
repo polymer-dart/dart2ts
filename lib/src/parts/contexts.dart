@@ -234,6 +234,12 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
     return new TSReturnStatement(_context.processExpression(node.expression));
   }
 
+
+  @override
+  TSStatement visitYieldStatement(YieldStatement node) {
+    return new TSYieldStatement(_context.processExpression(node.expression),many: node.star!=null);
+  }
+
   @override
   TSStatement visitStatement(Statement node) {
     return new TSUnknownStatement(node);
@@ -247,7 +253,7 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
   @override
   TSStatement visitFunctionDeclarationStatement(FunctionDeclarationStatement node) {
     FunctionDeclarationContext functionDeclarationContext =
-        new FunctionDeclarationContext(_context, node.functionDeclaration, topLevel: false);
+    new FunctionDeclarationContext(_context, node.functionDeclaration, topLevel: false);
     return functionDeclarationContext.translate();
   }
 
@@ -259,11 +265,19 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
 
   @override
   TSStatement visitForStatement(ForStatement node) {
+    TSNode initExpr;
+    if (node.variables != null) {
+      initExpr = new TSVariableDeclarations(
+          new List.from(node.variables.variables.map((v) =>
+          new TSVariableDeclaration(v.name.name,
+              _context.processExpression(v.initializer), _context.typeManager.toTsType(node.variables.type?.type)))),
+          isField: false);
+    } else {
+      initExpr = null;
+    }
+
     return new TSForStatement(
-        new TSVariableDeclarations(
-            new List.from(node.variables.variables.map((v) => new TSVariableDeclaration(v.name.name,
-                _context.processExpression(v.initializer), _context.typeManager.toTsType(node.variables.type?.type)))),
-            isField: false),
+        initExpr,
         _context.processExpression(node.initialization),
         _context.processExpression(node.condition),
         node.updaters.map((e) => _context.processExpression(e)).toList(),
@@ -322,63 +336,17 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
 
   @override
   TSStatement visitVariableDeclarationStatement(VariableDeclarationStatement node) {
-    return new TSVariableDeclarations(new List.from(node.variables.variables.map((v) => new TSVariableDeclaration(
+    return new TSVariableDeclarations(new List.from(node.variables.variables.map((v) =>
+    new TSVariableDeclaration(
         v.name.name,
         _context.processExpression(v.initializer),
         _context.typeManager.toTsType(node.variables.type?.type)))));
   }
 }
 
-class TSCase extends TSStatement {
-  TSExpression _expr;
-  List<TSStatement> _statements;
-  bool _isDefault;
 
-  TSCase(this._expr, this._statements) {
-    _isDefault = false;
-  }
-
-  TSCase.defaultCase(this._statements) {
-    _isDefault = true;
-  }
-
-  @override
-  void writeCode(IndentingPrinter printer) {
-    if (_isDefault) {
-      printer.writeln('default:');
-    } else {
-      printer.write('case ');
-      printer.accept(_expr);
-      printer.writeln(':');
-    }
-    printer.indented((p) {
-      p.accept(new TSBody(statements: this._statements, withBrackets: false));
-    });
-  }
-}
 
 enum OperatorType { BINARY, PREFIX, SUFFIX }
-
-class TSSwitchStatement extends TSStatement {
-  TSExpression _expr;
-  List<TSStatement> _members;
-
-  TSSwitchStatement(this._expr, this._members);
-
-  @override
-  void writeCode(IndentingPrinter printer) {
-    printer.write('switch (');
-    printer.accept(_expr);
-    printer.writeln(') {');
-    printer.indented((p) {
-      _members.forEach((m) => printer.accept(m));
-    });
-    printer.write('}');
-  }
-
-  @override
-  bool get needsSeparator => false;
-}
 
 class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
   Context _context;
@@ -429,6 +397,20 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
   @override
   TSExpression visitNullLiteral(NullLiteral node) {
     return new TSSimpleExpression('null');
+  }
+
+  @override
+  TSExpression visitMapLiteral(MapLiteral node) {
+    DartType dartMap = getType(currentContext, 'dart:core', 'Map');
+
+    dartMap = currentContext.typeSystem.instantiateType(dartMap, (node.bestType as ParameterizedType).typeArguments);
+
+    return new TSInvoke(new TSTypeExpr(_context.typeManager.toTsType(dartMap)), [
+      new TSList(node.entries.map((entry) {
+        return new TSList([_context.processExpression(entry.key), _context.processExpression(entry.value)]);
+      }).toList())
+    ])
+      ..asNew = true;
   }
 
   @override
@@ -636,7 +618,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
   @override
   TSExpression visitPropertyAccess(PropertyAccess node) {
     TSExpression target =
-        node.isCascaded ? _context.cascadingTarget : _context.exitAssignament().processExpression(node.target);
+    node.isCascaded ? _context.cascadingTarget : _context.exitAssignament().processExpression(node.target);
     return asFieldAccess(target, node.propertyName);
   }
 
@@ -716,16 +698,15 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
               new TSTypeRef(myType),
               new TSSimpleExpression(
                   node.constructorName?.name?.name != null ? '"${node.constructorName?.name?.name}"' : 'null'),
-            ])
-            ..addAll(collector.arguments),
+            ])..addAll(collector.arguments),
           collector.namedArguments)
         ..asNew = true;
     }
   }
 
-  TSExpression _newObjectWithConstructor(
-      ConstructorElement ctor, InstanceCreationExpression node, ArgumentListCollector collector) {
-    TSType myType = _context.typeManager.toTsType(ctor.enclosingElement.type);
+  TSExpression _newObjectWithConstructor(ConstructorElement ctor, InstanceCreationExpression node,
+      ArgumentListCollector collector) {
+    TSType myType = _context.typeManager.toTsType(node.bestType);
     if (ctor.isFactory) {
       // Invoke as normal static method
       return new TSInvoke(new TSStaticRef(myType, ctor.name), collector.arguments, collector.namedArguments);
@@ -735,7 +716,8 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
         ..asNew = true;
     } else {
       // Invoke normal constructor
-      return new TSInvoke(new TSTypeRef(myType), collector.arguments, collector.namedArguments)..asNew = true;
+      return new TSInvoke(new TSTypeRef(myType), collector.arguments, collector.namedArguments)
+        ..asNew = true;
     }
   }
 
@@ -789,8 +771,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
             ..addAll([
               target,
               new TSSimpleExpression('"${node.methodName.name}"'),
-            ])
-            ..addAll(collector.arguments),
+            ])..addAll(collector.arguments),
           collector.namedArguments)
         ..asNew = false;
     }
@@ -1017,7 +998,8 @@ class TopLevelVariableContext extends ChildContext<TSFile, Context<TSFile>, TSVa
   @override
   TSVariableDeclarations translate() {
     TSVariableDeclarations d = new TSVariableDeclarations(
-      new List.from(_vars.variables.variables.map((v) => new TSVariableDeclaration(
+      new List.from(_vars.variables.variables.map((v) =>
+      new TSVariableDeclaration(
           v.name.name, processExpression(v.initializer), typeManager.toTsType(_vars.variables.type?.type)))),
       isTopLevel: true,
       isField: true,
@@ -1203,7 +1185,8 @@ class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
   @override
   TSNode visitFieldDeclaration(FieldDeclaration node) {
     return new TSVariableDeclarations(
-      new List.from(node.fields.variables.map((v) => new TSVariableDeclaration(v.name.name,
+      new List.from(node.fields.variables.map((v) =>
+      new TSVariableDeclaration(v.name.name,
           _context.processExpression(v.initializer), _context.typeManager.toTsType(node.fields.type?.type)))),
       isField: true,
       isStatic: node.isStatic,
@@ -1274,29 +1257,29 @@ class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
     TSExpression init = new TSInvoke(
         new TSBracketExpression(new TSFunction(
             body: new TSBody(statements: [
-          new TSVariableDeclarations([
-            new TSVariableDeclaration(
-                'ctor',
-                new TSFunction(
-                    parameters: [new TSParameter(name: '...args')],
-                    body: new TSBody(withBrackets: false, statements: [
-                      new TSExpressionStatement(new TSInvoke(
-                          new TSDotExpression(
+              new TSVariableDeclarations([
+                new TSVariableDeclaration(
+                    'ctor',
+                    new TSFunction(
+                        parameters: [new TSParameter(name: '...args')],
+                        body: new TSBody(withBrackets: false, statements: [
+                          new TSExpressionStatement(new TSInvoke(
                               new TSDotExpression(
-                                  new TSStaticRef(
-                                      _context.typeManager.toTsType(_context._classDeclaration.element.type),
-                                      'prototype'),
-                                  metName),
-                              'apply'),
-                          [new TSSimpleExpression('this'), new TSSimpleExpression('args')]))
-                    ])),
-                null)
-          ]),
-          new TSExpressionStatement(new TSAssignamentExpression(
-              new TSDotExpression(new TSSimpleExpression('ctor'), 'prototype'),
-              new TSDotExpression(new TSSimpleExpression(_context._classDeclaration.name.name), 'prototype'))),
-          new TSReturnStatement(new TSAsExpression(new TSSimpleExpression('ctor'), new TSSimpleType('any', false))),
-        ], withBrackets: false))),
+                                  new TSDotExpression(
+                                      new TSStaticRef(
+                                          _context.typeManager.toTsType(_context._classDeclaration.element.type),
+                                          'prototype'),
+                                      metName),
+                                  'apply'),
+                              [new TSSimpleExpression('this'), new TSSimpleExpression('args')]))
+                        ])),
+                    null)
+              ]),
+              new TSExpressionStatement(new TSAssignamentExpression(
+                  new TSDotExpression(new TSSimpleExpression('ctor'), 'prototype'),
+                  new TSDotExpression(new TSSimpleExpression(_context._classDeclaration.name.name), 'prototype'))),
+              new TSReturnStatement(new TSAsExpression(new TSSimpleExpression('ctor'), new TSSimpleType('any', false))),
+            ], withBrackets: false))),
         []);
 
     List<TSNode> nodes = [

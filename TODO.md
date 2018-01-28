@@ -5,5 +5,13 @@
 -  object literals
 -  mixin
 -  abstract class
--  Promise<T> ? Why ? (see sample4.dart) 
+-  Promise<T> ? Why ? (see sample4.dart)
+-  toString
+-  extending overridden method
+-  operator inheritance
+-  consistently handle hashCode and equals 
+-  ~~repeatable iterables~~
+-  named and factory constructor for dynamic
+-  force async and async* return type
+-  implement `sync*` and `async*` wrapping to `DartIterator` and `DartStream`
  

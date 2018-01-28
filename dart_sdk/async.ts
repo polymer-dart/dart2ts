@@ -6,19 +6,19 @@ import {extendPrototype} from "./utils";
 
 
 declare global {
-
-
     interface PromiseConstructor {
         delayed<T>(d: Duration): Promise<T>;
+
+        wait(promises: Array<Promise<any>>): Promise<Array<any>>;
     }
 }
 
 
-interface DartStream<T> extends AsyncIterable<T> {
+export interface DartStream<T> extends AsyncIterable<T> {
     $map<U>(mapper: (t: T) => U): DartStream<U>;
 }
 
-function toStream<X>(source: AsyncIterable<X>): DartStream<X> {
+export function toStream<X>(source: AsyncIterable<X>): DartStream<X> {
 
     return new (class implements DartStream<X> {
 
@@ -28,17 +28,27 @@ function toStream<X>(source: AsyncIterable<X>): DartStream<X> {
 
         $map<U>(mapper: (t: X) => U): DartStream<U> {
             let it: AsyncIterable<X> = this;
-            return toStream((async function* () {
-                for await (let x of it) {
-                    yield mapper(x);
+            return toStream({
+                [Symbol.asyncIterator]: async function* () {
+                    for await (let x of it) {
+                        yield mapper(x);
+                    }
                 }
-            })());
+            });
         }
     });
 }
 
-interface DartFuture<T> extends Promise<T> {
-    readonly stream$: DartStream<T>;
+class DartFuture<T> extends Promise<T> {
+    get stream$(): DartStream<T> {
+        let p = this;
+        return toStream({
+            [Symbol.asyncIterator]: async function* () {
+                let res: T = await p;
+                yield res;
+            }
+        });
+    }
 }
 
 
@@ -51,15 +61,7 @@ export function initAsync() {
     }
 
 
-    extendPrototype(Promise, class<X> extends Promise<X> implements DartFuture<X> {
-        get stream$(): DartStream<X> {
-            let p = this;
-            return toStream((async function* () {
-                let res: X = await p;
-                yield res;
-            })());
-        }
-    });
+    extendPrototype(Promise, DartFuture);
 
     Object.defineProperty(Promise, 'delayed', {
         "get": function () {
@@ -73,36 +75,29 @@ export function initAsync() {
         }
     });
 
+    Object.defineProperty(Promise, 'wait', {
+        "get": function () {
+            return async function (promises: Array<Promise<any>>): Promise<Array<any>> {
+                return await Promise.all(promises);
+            }
+        }
+    });
+
 }
 
-
-export abstract class Future<X> extends Promise<X> {
-
-    static wait(x: Array<Future<any>>): Future<Array<any>> {
-        let c: Completer<Array<any>> = new Completer();
-        Promise.all(x).then((r) => c.complete(r));
-        return c.future;
-    }
-
-    static delayed(d: core.Duration): Future<any> {
-        return new _Future((resolve, reject) => {
-            setTimeout(() => resolve(null), d.inMilliseconds);
-        });
-    }
-}
 
 /**
  * A simple completer implementation based on
  * ES6 Promise
  */
 export class Completer<X> {
-    private _future: Future<X>;
+    private _future: Promise<X>;
     private _resolve: (x: X) => void;
     private _reject: (error: any) => void;
 
     isCompleted: boolean = false;
 
-    get future(): Future<X> {
+    get future(): Promise<X> {
         return this._future;
     }
 
@@ -116,27 +111,13 @@ export class Completer<X> {
     }
 
     constructor() {
-        this._future = new _Future<X>((resolve, reject) => {
+        this._future = new Promise<X>((resolve, reject) => {
             this._resolve = resolve;
             this._reject = reject;
         });
     }
 }
 
-/**
- * A Future implementation that extends Promise.
- */
-class _Future<X> extends Promise<X> implements Future<X> {
-    constructor(executor: (resolve: (x: X) => void
-        , reject: (error: any) => void) => void) {
-        super(executor);
-    }
-
-}
-
-export abstract class Stream<X> {
-
-}
 
 /**
  * An iterator
@@ -144,7 +125,7 @@ export abstract class Stream<X> {
 export class StreamController<X> {
     private _stream: _Stream<X>;
 
-    get stream(): Stream<X> {
+    get stream(): DartStream<X> {
         return this._stream;
     }
 
@@ -172,7 +153,10 @@ export interface StreamSubscription<X> {
 }
 
 
-class _Stream<X> implements Stream<X> {
+class _Stream<X> implements DartStream<X> {
+    $map<U>(mapper: (t: X) => U): DartStream<U> {
+        return undefined;
+    }
 
     private _closed: boolean = false;
 
@@ -180,7 +164,7 @@ class _Stream<X> implements Stream<X> {
      *  Implementing the iterable protocols allows
      * to easily implement "await for" constructs.
      */
-    get [Symbol.iterator]() {
+    get [Symbol.asyncIterator]() {
         return async function* () {
             while (!this._closed) {
                 let next: Promise<X> = new Promise((resolve, reject) => {
@@ -194,6 +178,7 @@ class _Stream<X> implements Stream<X> {
             }
         }
     }
+
 
     private _listeners: Array<(X) => any> = [];
 

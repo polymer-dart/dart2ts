@@ -17,29 +17,42 @@ export interface Comparable<T> {
     compareTo(t: T): number;
 }
 
+abstract class NumberExtension implements Number {
+    abstract toString(radix?: number): string ;
+
+    abstract toFixed(fractionDigits?: number): string;
+
+    abstract toExponential(fractionDigits?: number): string;
+
+    abstract toPrecision(precision?: number): string;
+
+    abstract valueOf(): number ;
+
+    abstract toLocaleString(locales?: string | string[], options?: Intl.NumberFormatOptions): string ;
+
+    compareTo(t: Number): number {
+        return Math.sign(t.valueOf() - (<any>this as Number).valueOf());
+    }
+
+    round(): number {
+        return Math.round(this.valueOf());
+    }
+
+
+    remainder(n: number): number {
+        return this.valueOf() % n;
+    }
+
+    get hashCode(): number {
+        return this.valueOf();
+    }
+
+    abs(): number {
+        return Math.abs(this.valueOf());
+    }
+
+}
+
 export function initNatives() {
-    extendPrototype(Number, class {
-
-        compareTo(t: Number): Number {
-            return Math.sign(t.valueOf() - (<any>this as Number).valueOf());
-        }
-
-        round(): number {
-            return Math.round((<any>this as Number).valueOf());
-        }
-
-
-        remainder(n: number): number {
-            return (<any>this as Number).valueOf() % n;
-        }
-
-        get hashCode(): number {
-            return (<any>this as Number).valueOf();
-        }
-
-        abs(): number {
-            return Math.abs((<any>this as Number).valueOf());
-        }
-
-    })
+    extendPrototype(Number, NumberExtension);
 }
