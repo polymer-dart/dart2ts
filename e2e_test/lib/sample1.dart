@@ -120,6 +120,19 @@ void main(List<String> args) {
     printToBody('(do) I = ${i}');
     i++;
   } while (i < 10);
+
+  // Switch;
+  String cond = 'ciao';
+  switch (cond) {
+    case 'pippo':
+      printToBody('It is PIPPO!');
+      break;
+    case 'ciao':
+      printToBody('It\'s CIAO!');
+      break;
+    default:
+      printToBody('It is FLANAGAN!');
+  }
 }
 
 testFuture2() async {
