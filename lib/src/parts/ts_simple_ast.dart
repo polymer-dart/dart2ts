@@ -577,10 +577,12 @@ class TSBody extends TSStatement {
   bool withBrackets;
   Iterable<TSStatement> statements;
 
+  bool newLine;
+
   @override
   bool get needsSeparator => false;
 
-  TSBody({this.statements, this.withBrackets: true});
+  TSBody({this.statements, this.withBrackets: true, this.newLine: true});
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -595,7 +597,10 @@ class TSBody extends TSStatement {
             p.writeln();
         });
       });
-      printer.writeln(('}'));
+      printer.write('}');
+      if (newLine) {
+        printer.writeln();
+      }
     } else {
       statements.forEach((s) {
         printer.accept(s);
@@ -656,6 +661,78 @@ class TSAwaitExpression extends TSExpression {
     printer.write("await ");
     printer.accept(_expr);
   }
+}
+
+class TSDeclaredIdentifier extends TSNode {
+  String _name;
+  TSType _type;
+
+  TSDeclaredIdentifier(this._name, this._type);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write('let ${_name}');
+    if (_type != null) {
+      printer.write(' : ');
+      printer.accept(_type);
+    }
+  }
+}
+
+class TSWhileStatement extends TSStatement {
+  TSExpression _cond;
+  TSStatement _body;
+
+  TSWhileStatement(this._cond, this._body);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write('while (');
+    printer.accept(_cond);
+    printer.write(')');
+    printer.accept(_body);
+  }
+
+  @override
+  bool get needsSeparator => _body.needsSeparator;
+}
+
+class TSDoWhileStatement extends TSStatement {
+  TSExpression _cond;
+  TSStatement _body;
+
+  TSDoWhileStatement(this._cond, this._body);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write('do');
+    printer.accept(_body);
+    printer.write(' while (');
+    printer.accept(_cond);
+    printer.write(')');
+  }
+}
+
+class TSForEachStatement extends TSStatement {
+  TSDeclaredIdentifier _ident;
+  TSExpression _iterable;
+  TSStatement _body;
+  bool isAsync;
+
+  TSForEachStatement(this._ident, this._iterable, this._body, {this.isAsync});
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write('for${isAsync ? ' await' : ''}(');
+    printer.accept(_ident);
+    printer.write(' of ');
+    printer.accept(_iterable);
+    printer.write(') ');
+    printer.accept(_body);
+  }
+
+  @override
+  bool get needsSeparator => _body.needsSeparator;
 }
 
 class TSInvoke extends TSExpression {

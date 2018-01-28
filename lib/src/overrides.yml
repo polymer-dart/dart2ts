@@ -25,5 +25,6 @@ overrides:
            first: "$first"
            last: "$last"
          methods:
+          map: "$map"
           where: "$where"
           join: "$join"

@@ -42,8 +42,10 @@ export interface DartList<T> extends DartIterable<T> {
 function toDartIterable<X>(x: Iterable<X>): DartIterable<X> {
     return new (class implements DartIterable<X> {
         $map<T>(f: (t: X) => T): DartIterable<T> {
+            let self = this;
+
             return toDartIterable<T>(function* () {
-                for (let t of this) {
+                for (let t of self) {
                     yield f(t);
                 }
             }());

@@ -271,8 +271,31 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
   }
 
   @override
+  TSStatement visitForEachStatement(ForEachStatement node) {
+    return new TSForEachStatement(toDeclaredIdentifier(node.loopVariable, loopVariable: true),
+        _context.processExpression(node.iterable), node.body.accept(this),
+        isAsync: node.awaitKeyword != null);
+  }
+
+  @override
+  TSStatement visitWhileStatement(WhileStatement node) {
+    return new TSWhileStatement(_context.processExpression(node.condition), node.body.accept(this));
+  }
+
+  @override
+  TSStatement visitDoStatement(DoStatement node) {
+    return new TSDoWhileStatement(_context.processExpression(node.condition), node.body.accept(this));
+  }
+
+  @override
+  TSDeclaredIdentifier toDeclaredIdentifier(DeclaredIdentifier node, {bool loopVariable: false}) {
+    return new TSDeclaredIdentifier(
+        node.identifier.name, loopVariable ? null : _context.typeManager.toTsType(node.type.type));
+  }
+
+  @override
   TSStatement visitBlock(Block node) {
-    return new TSBody(statements: _context.processBlock(node));
+    return new TSBody(statements: _context.processBlock(node),newLine: false);
   }
 
   @override
@@ -376,8 +399,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       InterfaceType cls = node.leftOperand.bestType as InterfaceType;
       MethodElement method = findMethod(cls, node.operator.lexeme);
       assert(method != null, 'Operator ${node.operator} can be used only if defined in ${cls.name}');
-      return new TSInvoke(
-          new TSDotExpression(leftExpression, _operatorName(method, node.operator)), [rightExpression]);
+      return new TSInvoke(new TSDotExpression(leftExpression, _operatorName(method, node.operator)), [rightExpression]);
     }
 
     return new TSInvoke(new TSSimpleExpression('bare.invokeBinaryOperand'),

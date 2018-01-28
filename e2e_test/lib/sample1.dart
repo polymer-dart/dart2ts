@@ -95,11 +95,31 @@ void main(List<String> args) {
   printToBody('Uguali (dynamic typed): ${(a0 as dynamic) == (a1 as dynamic)}');
 
   Duration d1 = new Duration(hours: 10);
-  Duration d2 = new Duration(hours: 1,minutes: 30);
+  Duration d2 = new Duration(hours: 1, minutes: 30);
 
   Duration d3 = d1 + d2;
 
   printToBody("Duration in minutes : ${d3.inMinutes}, ${d3.toString()}");
+
+  // Check for iterable
+  Iterable<String> xx = ['a', 'b'].map((x) => "--${x}--").map((x) => "[${x}]");
+  for (String x in xx) {
+    printToBody('We got ${x}');
+  }
+
+  // WHLE
+  int i = 0;
+  while (i < 10) {
+    printToBody('I = ${i}');
+    i++;
+  }
+
+  // DO
+  i = 0;
+  do {
+    printToBody('(do) I = ${i}');
+    i++;
+  } while (i < 10);
 }
 
 testFuture2() async {
