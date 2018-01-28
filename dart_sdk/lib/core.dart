@@ -1,4 +1,4 @@
-@TargetLib(package:'dart:core',path:'lib')
+@TargetLib(package: 'dart:core', path: 'lib')
 library dart_sdk.core;
 
 import 'package:dart2ts/annotations.dart';
@@ -56,18 +56,13 @@ class Duration implements Comparable<Duration> {
   static const int MINUTES_PER_HOUR = 60;
   static const int HOURS_PER_DAY = 24;
 
-  static const int MICROSECONDS_PER_SECOND =
-      MICROSECONDS_PER_MILLISECOND * MILLISECONDS_PER_SECOND;
-  static const int MICROSECONDS_PER_MINUTE =
-      MICROSECONDS_PER_SECOND * SECONDS_PER_MINUTE;
-  static const int MICROSECONDS_PER_HOUR =
-      MICROSECONDS_PER_MINUTE * MINUTES_PER_HOUR;
+  static const int MICROSECONDS_PER_SECOND = MICROSECONDS_PER_MILLISECOND * MILLISECONDS_PER_SECOND;
+  static const int MICROSECONDS_PER_MINUTE = MICROSECONDS_PER_SECOND * SECONDS_PER_MINUTE;
+  static const int MICROSECONDS_PER_HOUR = MICROSECONDS_PER_MINUTE * MINUTES_PER_HOUR;
   static const int MICROSECONDS_PER_DAY = MICROSECONDS_PER_HOUR * HOURS_PER_DAY;
 
-  static const int MILLISECONDS_PER_MINUTE =
-      MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE;
-  static const int MILLISECONDS_PER_HOUR =
-      MILLISECONDS_PER_MINUTE * MINUTES_PER_HOUR;
+  static const int MILLISECONDS_PER_MINUTE = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE;
+  static const int MILLISECONDS_PER_HOUR = MILLISECONDS_PER_MINUTE * MINUTES_PER_HOUR;
   static const int MILLISECONDS_PER_DAY = MILLISECONDS_PER_HOUR * HOURS_PER_DAY;
 
   static const int SECONDS_PER_HOUR = SECONDS_PER_MINUTE * MINUTES_PER_HOUR;
@@ -92,19 +87,13 @@ class Duration implements Comparable<Duration> {
    * All individual parts are allowed to be negative.
    * All arguments are 0 by default.
    */
-  const Duration(
-      {int days: 0,
-        int hours: 0,
-        int minutes: 0,
-        int seconds: 0,
-        int milliseconds: 0,
-        int microseconds: 0})
+  const Duration({int days: 0, int hours: 0, int minutes: 0, int seconds: 0, int milliseconds: 0, int microseconds: 0})
       : this._microseconds(MICROSECONDS_PER_DAY * days +
-      MICROSECONDS_PER_HOUR * hours +
-      MICROSECONDS_PER_MINUTE * minutes +
-      MICROSECONDS_PER_SECOND * seconds +
-      MICROSECONDS_PER_MILLISECOND * milliseconds +
-      microseconds);
+            MICROSECONDS_PER_HOUR * hours +
+            MICROSECONDS_PER_MINUTE * minutes +
+            MICROSECONDS_PER_SECOND * seconds +
+            MICROSECONDS_PER_MILLISECOND * milliseconds +
+            microseconds);
 
   // Fast path internal direct constructor to avoids the optional arguments and
   // [_microseconds] recomputation.
@@ -264,8 +253,7 @@ class Duration implements Comparable<Duration> {
     }
     String twoDigitMinutes = twoDigits(inMinutes.remainder(MINUTES_PER_HOUR));
     String twoDigitSeconds = twoDigits(inSeconds.remainder(SECONDS_PER_MINUTE));
-    String sixDigitUs =
-    sixDigits(inMicroseconds.remainder(MICROSECONDS_PER_SECOND));
+    String sixDigitUs = sixDigits(inMicroseconds.remainder(MICROSECONDS_PER_SECOND));
     return "$inHours:$twoDigitMinutes:$twoDigitSeconds.$sixDigitUs";
   }
 

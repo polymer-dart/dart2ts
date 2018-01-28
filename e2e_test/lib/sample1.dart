@@ -4,12 +4,10 @@ import 'sample3.dart';
 import 'sample4.dart';
 import 'package:dart2ts/annotations.dart';
 
-
 @JS()
 class Metadata {
   String library;
 }
-
 
 @JS('getDartMetadata')
 @Module('dart_sdk/bare')
@@ -86,7 +84,25 @@ void main(List<String> args) {
 
   testFuture().then((_) {
     printToBody("Future works");
+    testFuture2();
   });
 
   printToBody('LIB: ${getMetadata(xy.MySampleClass1).library}');
+
+  xy.AnotherClass a0 = new xy.AnotherClass('ciao');
+  xy.AnotherClass a1 = new xy.AnotherClass('ciao');
+  printToBody('Uguali (static typed): ${a0 == a1}');
+  printToBody('Uguali (dynamic typed): ${(a0 as dynamic) == (a1 as dynamic)}');
+
+  Duration d1 = new Duration(hours: 10);
+  Duration d2 = new Duration(hours: 1,minutes: 30);
+
+  Duration d3 = d1 + d2;
+
+  printToBody("Duration in minutes : ${d3.inMinutes}, ${d3.toString()}");
+}
+
+testFuture2() async {
+  await testFuture();
+  printToBody('Future works2');
 }

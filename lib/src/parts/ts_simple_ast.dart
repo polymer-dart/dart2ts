@@ -71,7 +71,7 @@ class TSClass extends TSNode {
 
   @override
   void writeCode(IndentingPrinter printer) {
-    if (library!=null&&!isInterface) {
+    if (library != null && !isInterface) {
       printer.writeln('@bare.DartMetadata({library:\'${this.library}\'})');
     }
 
@@ -278,6 +278,18 @@ class TSInterpolationExpression extends TSNode {
   }
 }
 
+class TSAnnotation extends TSNode {
+  TSInvoke _invoke;
+
+  TSAnnotation(this._invoke);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write('@');
+    printer.accept(_invoke);
+  }
+}
+
 class TSFunction extends TSExpression implements TSStatement {
   String name;
   bool topLevel;
@@ -295,6 +307,8 @@ class TSFunction extends TSExpression implements TSStatement {
   bool asDefaultConstructor = false;
   bool callSuper = false;
   bool isAsync;
+  bool isOperator;
+  List<TSAnnotation> annotations;
   List<TSStatement> initializers;
 
   TSFunction(
@@ -315,6 +329,7 @@ class TSFunction extends TSExpression implements TSStatement {
       this.isStatic: false,
       this.callSuper: false,
       this.initializers,
+      this.annotations: const [],
       FormalParameterCollector withParameterCollector}) {
     if (withParameterCollector != null) {
       parameters = new List.from(withParameterCollector.tsParameters);
@@ -330,6 +345,11 @@ class TSFunction extends TSExpression implements TSStatement {
 
   @override
   void writeCode(IndentingPrinter printer) {
+    annotations.forEach((anno) {
+      printer.accept(anno);
+      printer.writeln();
+    });
+
     if (topLevel && !isGetter && !isSetter) {
       printer.write('export ');
     }

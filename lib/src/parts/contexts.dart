@@ -377,15 +377,21 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       MethodElement method = findMethod(cls, node.operator.lexeme);
       assert(method != null, 'Operator ${node.operator} can be used only if defined in ${cls.name}');
       return new TSInvoke(
-          new TSSquareExpression(leftExpression, _operatorName(method, node.operator)), [rightExpression]);
+          new TSDotExpression(leftExpression, _operatorName(method, node.operator)), [rightExpression]);
     }
 
     return new TSInvoke(new TSSimpleExpression('bare.invokeBinaryOperand'),
         [new TSSimpleExpression('"${node.operator.lexeme}"'), leftExpression, rightExpression]);
   }
 
-  TSExpression _operatorName(MethodElement method, Token op) {
-    return new TSDotExpression(new TSSimpleExpression(method.enclosingElement.name), "OPERATOR_${op.type.name}");
+  String _operatorName(MethodElement method, Token op) {
+    String name;
+    if (method.parameters.isEmpty) {
+      name = "OPERATOR_PREFIX_${op.type.name}";
+    } else {
+      name = 'OPERATOR_${op.type.name}';
+    }
+    return name;
   }
 
   @override
@@ -1272,6 +1278,8 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
 
     String name = _methodDeclaration.name.name;
 
+    List<TSAnnotation> annotations = new List();
+
     if (_methodDeclaration.isOperator) {
       TokenType tk = TokenType.all.firstWhere((tt) => tt.lexeme == _methodDeclaration.name.name);
       if (_methodDeclaration.parameters.parameters.isEmpty) {
@@ -1279,11 +1287,16 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
       } else {
         name = 'OPERATOR_${tk.name}';
       }
+      annotations.add(new TSAnnotation(new TSInvoke(new TSSimpleExpression('bare.DartOperator'), [], {
+        'type': new TSSimpleExpression('bare.OperatorType.BINARY'),
+        'op': new TSSimpleExpression('"${tk.lexeme}"')
+      })));
+      /*
       result.add(new TSVariableDeclarations([
         new TSVariableDeclaration(
             name, new TSSimpleExpression('Symbol("${_methodDeclaration.name}")'), new TSSimpleType('symbol', false))
       ], isField: true, isStatic: true));
-      name = "[${parentContext._classDeclaration.name}.${name}]";
+      name = "[${parentContext._classDeclaration.name}.${name}]";*/
     }
 
     result.add(new TSFunction(
@@ -1295,6 +1308,7 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
       isGetter: _methodDeclaration.isGetter,
       isSetter: _methodDeclaration.isSetter,
       body: body,
+      annotations: annotations,
       withParameterCollector: parameterCollector,
     ));
 
