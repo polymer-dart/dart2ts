@@ -32,6 +32,9 @@ class TSLibrary extends TSNode {
           topLevelGetterAndSetters.add(d);
         } else {
           printer.accept(d);
+          if (d is TSStatement && d.needsSeparator) {
+            printer.write(';');
+          }
           printer.writeln();
         }
         if (d is TSFunction) {
@@ -504,7 +507,7 @@ class TSFunction extends TSExpression implements TSStatement {
   }
 
   @override
-  bool get needsSeparator => false;
+  bool get needsSeparator => true;
 }
 
 class TSPostfixOperandExpression extends TSExpression {
@@ -606,7 +609,13 @@ class TSFile extends TSNode {
   @override
   void writeCode(IndentingPrinter printer) {
     printer.writeln('/** from ${_cu.element.source.fullName} */');
-    printer.join(_declarations, delim: '', newLine: true);
+    _declarations.forEach((n) {
+      printer.accept(n);
+      if (n is TSStatement && n.needsSeparator) {
+        printer.write(';');
+      }
+      printer.writeln();
+    });
     printer.writeln();
   }
 }
