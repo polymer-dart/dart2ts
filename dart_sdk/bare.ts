@@ -5,7 +5,6 @@ import {initCollections} from './collection';
 import {initAsync} from "./async";
 import {initNatives} from "./natives";
 
-
 /// Init
 initCollections();
 initAsync();

@@ -39,6 +39,12 @@ export function toStream<X>(source: AsyncIterable<X>): DartStream<X> {
     });
 }
 
+export function stream<X>(generator: () => AsyncIterator<X>): DartStream<X> {
+    return toStream({
+        [Symbol.asyncIterator]: generator
+    });
+}
+
 class DartFuture<T> extends Promise<T> {
     get stream$(): DartStream<T> {
         let p = this;

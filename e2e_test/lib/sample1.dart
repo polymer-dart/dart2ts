@@ -107,6 +107,8 @@ void main(List<String> args) {
 
   printToBody(('HERE : ${a0.testClosure()}'));
 
+  a0.testMethodIterator().map((i)=>"-> ${i}").forEach((s)=>printToBody(s));
+
   Duration d1 = new Duration(hours: 10);
   Duration d2 = new Duration(hours: 1, minutes: 30);
 
@@ -153,6 +155,17 @@ void main(List<String> args) {
   }
 
   var litMap = <String, int>{'ciccio': 5, 'pluto': 10};
+
+  // Generator
+  for (String pippo in (() sync* {
+    yield 3;
+    yield 1;
+    yield 4;
+    yield 1;
+    yield 5;
+  })().map((n)=>"[${n}]")) {
+    printToBody("PI : ${pippo}");
+  }
 }
 
 testFuture2() async {

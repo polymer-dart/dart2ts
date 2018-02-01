@@ -13,7 +13,7 @@
   "author": "vittorio.ballestra@gmail.com",
   "license": "ISC",
   "devDependencies": {
-    "typescript": "^2.5.2"
+    "typescript": "^2.7.1"
   },
   "dependencies": {
     "reflect-metadata": "^0.1.12"

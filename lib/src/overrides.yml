@@ -5,14 +5,14 @@ overrides:
          to:
            class: Promise
            from: global
+      Stream:
+         to:
+           class: DartStream
+           from: 'dart:async'
+         methods:
+           map: $map
  "dart:core":
     classes:
-      Object:
-         to:
-           class: Object
-           from: global
-         methods:
-           toString: "[Symbol.toStringTag]"
       List:
          to:
            class: Array
@@ -30,7 +30,7 @@ overrides:
       Iterable:
          to:
            class: DartIterable
-           from: dart_sdk/collection
+           from: "module:dart_sdk/collection"
          properties:
            first: "$first"
            last: "$last"

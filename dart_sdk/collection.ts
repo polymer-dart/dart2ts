@@ -33,6 +33,8 @@ export interface DartIterable<T> extends Iterable<T> {
     $join(separator: string): string;
 
     $map<X>(f: (t: T) => X): DartIterable<X>;
+
+    forEach(f: (x:T)=> any):void;
 }
 
 export class DartList<T> extends Array<T> implements DartIterable<T> {
@@ -72,6 +74,12 @@ export class DartList<T> extends Array<T> implements DartIterable<T> {
     }
 }
 
+export function iter<X>(generator:()=>Iterator<X>) {
+    return toDartIterable({
+        [Symbol.iterator]:generator
+    });
+}
+
 function toDartIterable<X>(x: Iterable<X>): DartIterable<X> {
     return new (class implements DartIterable<X> {
         $map<T>(f: (t: X) => T): DartIterable<T> {
@@ -84,6 +92,12 @@ function toDartIterable<X>(x: Iterable<X>): DartIterable<X> {
                     }
                 }
             });
+        }
+
+        forEach(f: (x:X)=>any):void {
+            for (let _ of this) {
+                f(_);
+            }
         }
 
         $join(separator: string): string {

@@ -70,10 +70,16 @@ class TypeManager {
     return new TSImport(prefix: name, path: p, library: lib);
   }
 
+  Map<String, TSImport> _importedPaths = {};
+
   String namespaceFor({String uri, String modulePath, LibraryElement lib}) {
+    if (modulePath != null && _importedPaths.containsKey(modulePath)) {
+      return _importedPaths[modulePath].prefix;
+    }
     if (lib != null && lib == _current) {
       return null;
     }
+
     uri ??= lib.source.uri.toString();
 
     if (uri == 'module:global') {
@@ -82,7 +88,7 @@ class TypeManager {
 
     return _prefixes.putIfAbsent(uri, () {
       if (lib == null) {
-        return new TSImport(prefix: _nextPrefix(), path: modulePath);
+        return _importedPaths.putIfAbsent(modulePath, () => new TSImport(prefix: _nextPrefix(), path: modulePath));
       }
       if (lib.isInSdk) {
         // Replace with ts_sdk
@@ -103,11 +109,13 @@ class TypeManager {
         libPath = path.join("${id.package}", "${path.withoutExtension(id.path)}");
       }
 
-      // Fix import for libs in subfolders for windows
+      // Fix import for libs in subfolders for windows (this should not be necessary anymore as
+      // path is now unix path everywhere ... but can't test it so I leave the "fix"
       libPath = libPath.replaceAll(path.separator, "/");
 
       // Extract package name and path and produce a nodemodule path
-      return new TSImport(prefix: _nextPrefix(), path: libPath, library: lib);
+      return _importedPaths.putIfAbsent(
+          libPath, () => new TSImport(prefix: _nextPrefix(), path: libPath, library: lib));
     }).prefix;
   }
 
@@ -156,7 +164,8 @@ class TypeManager {
   static Set<String> nativeClasses = new Set.from(['List', 'Map', 'Iterable', 'Iterator']);
 
   static bool isNativeType(DartType t) =>
-      nativeTypes().contains(t) || (t.element?.library?.isDartCore ?? false) && (nativeClasses.contains(t.element?.name));
+      nativeTypes().contains(t) ||
+      (t.element?.library?.isDartCore ?? false) && (nativeClasses.contains(t.element?.name));
 
   static String _name(Element e) => (e is PropertyAccessorElement) ? e.variable.name : e.name;
 
@@ -195,7 +204,7 @@ class TypeManager {
 
     // Look for @JS annotations
     if (type is TypeParameterType) {
-      return new TSSimpleType(type.element.name,! TypeManager.isNativeType(type));
+      return new TSSimpleType(type.element.name, !TypeManager.isNativeType(type));
     }
 
     if (type is FunctionType) {

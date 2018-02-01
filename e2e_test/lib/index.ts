@@ -1,3 +1,5 @@
 import {main} from 'sample1';
+import {My} from "./test3";
 
-main(['ciao','ciao','bambina']);
+new My().executeMe();
+main(['ciao', 'ciao', 'bambina']);

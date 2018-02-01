@@ -126,11 +126,22 @@ class TSSimpleType extends TSType {
 class TSTypeExpr extends TSExpression {
   TSType _type;
   bool _asDeclaration;
+  bool _noTypeParams = false;
 
   TSTypeExpr(this._type, [this._asDeclaration = true]);
 
+  TSTypeExpr.noTypeParams(this._type) {
+    _noTypeParams = true;
+  }
+
   @override
   void writeCode(IndentingPrinter printer) {
+    if (_noTypeParams) {
+      if (_type is TSSimpleType) {
+        printer.write((_type as TSSimpleType)._name);
+        return;
+      }
+    }
     if (_asDeclaration || _type.isObject) {
       printer.accept(_type);
     } else {
@@ -308,13 +319,18 @@ class TSFunction extends TSExpression implements TSStatement {
   bool callSuper = false;
   bool isAsync;
   bool isOperator;
+  bool isGenerator;
   List<TSAnnotation> annotations;
   List<TSStatement> initializers;
+  bool isExpression;
+  TypeManager tm;
+  String prefix;
 
-  TSFunction(
+  TSFunction(this.tm,
       {this.name,
       this.topLevel: false,
       this.isAsync: false,
+      this.isGenerator: false,
       this.returnType,
       this.typeParameters,
       this.parameters,
@@ -329,8 +345,16 @@ class TSFunction extends TSExpression implements TSStatement {
       this.isStatic: false,
       this.callSuper: false,
       this.initializers,
+      this.isExpression: false,
       this.annotations: const [],
       FormalParameterCollector withParameterCollector}) {
+    if (isGenerator) {
+      if (isAsync) {
+        prefix = tm.namespace(getLibrary(currentContext, 'dart:async'));
+      } else {
+        prefix = tm.namespaceFor(uri:'module:dart_sdk/collection',modulePath: 'dart_sdk/collection');
+      }
+    }
     if (withParameterCollector != null) {
       parameters = new List.from(withParameterCollector.tsParameters);
       namedParameters = withParameterCollector.namedType?.fields;
@@ -353,38 +377,47 @@ class TSFunction extends TSExpression implements TSStatement {
     if (topLevel && !isGetter && !isSetter) {
       printer.write('export ');
     }
+    if (!isExpression) {
+      if (asDefaultConstructor) {
+        printer.writeln('constructor(...args)');
+        printer.write('constructor(');
+        printer.join(parameters);
+        printer.writeln(') {');
+        printer.indented((p) {
+          if (callSuper) {
+            p.writeln('super(bare.init);');
+          }
+          // Call bare init
+          p.write('arguments[0] != bare.init && this[bare.init](');
+          p.joinConsumers(parameters.map((par) => (p) {
+                p.write(par.name);
+              }));
+          p.writeln(');');
+        });
+        printer.writeln('}');
 
-    if (asDefaultConstructor) {
-      printer.writeln('constructor(...args)');
-      printer.write('constructor(');
-      printer.join(parameters);
-      printer.writeln(') {');
-      printer.indented((p) {
-        if (callSuper) {
-          p.writeln('super(bare.init);');
+        printer.write(('[bare.init]'));
+      } else {
+        if (isStatic) printer.write('static ');
+        if (isAsync) {
+          printer.write("async ");
         }
-        // Call bare init
-        p.write('arguments[0] != bare.init && this[bare.init](');
-        p.joinConsumers(parameters.map((par) => (p) {
-              p.write(par.name);
-            }));
-        p.writeln(');');
-      });
-      printer.writeln('}');
-
-      printer.write(('[bare.init]'));
-    } else {
-      if (isStatic) printer.write('static ');
-      if (isAsync) {
-        printer.write("async ");
+        if (!asMethod && !isGetter && !isSetter) printer.write('function ');
+        if (isGetter) printer.write('get ');
+        if (isSetter) printer.write('set ');
       }
-      if (!asMethod && !isGetter && !isSetter) printer.write('function ');
-      if (isGetter) printer.write('get ');
-      if (isSetter) printer.write('set ');
-    }
 
-    if (name != null) {
-      printer.write(name);
+      if (name != null) {
+        printer.write(name);
+      }
+    } else {
+      if (name != null) {
+        printer.write('var ${name} = ');
+      }
+
+      if (isAsync && !isGenerator) {
+        printer.write('async ');
+      }
     }
 
     if (typeParameters != null) {
@@ -400,6 +433,18 @@ class TSFunction extends TSExpression implements TSStatement {
     if (returnType != null) {
       printer.write(" : ");
       printer.accept(returnType);
+    }
+
+    if (isExpression) {
+      printer.write(' => ');
+    }
+
+    if (isGenerator) {
+      if (isAsync) {
+        printer.write('${prefix}.stream(()=>(async function*() ');
+      } else {
+        printer.write('${prefix}.iter(()=>(function*() ');
+      }
     }
 
     if (body != null) {
@@ -451,6 +496,10 @@ class TSFunction extends TSExpression implements TSStatement {
         printer.accept(body);
       });
       printer.write("}");
+    }
+
+    if (isGenerator) {
+      printer.write(').call(this))');
     }
   }
 
@@ -635,7 +684,7 @@ class TSStaticRef extends TSExpression {
 
   @override
   void writeCode(IndentingPrinter printer) {
-    printer.accept(_type);
+    printer.accept(new TSTypeExpr.noTypeParams(_type));
     printer.write('.${_name}');
   }
 }
@@ -879,7 +928,7 @@ class TSVariableDeclaration extends TSNode {
     }
   }
 
-  bool get needsSeparator => _initializer is! TSFunction;
+// bool get needsSeparator => _initializer is! TSFunction;
 }
 
 class TSNodes extends TSNode {
