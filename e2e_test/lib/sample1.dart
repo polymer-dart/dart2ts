@@ -10,7 +10,7 @@ class Metadata {
 }
 
 @JS('getDartMetadata')
-@Module('dart_sdk/bare')
+@Module('dart_sdk/decorations')
 external Metadata getMetadata();
 
 void main(List<String> args) {
