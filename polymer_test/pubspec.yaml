@@ -1,0 +1,7 @@
+name: polymer_test
+description: sample_project to be translated
+version: 0.0.1
+dependencies:
+ js: any
+ dart2ts:
+  path: ..

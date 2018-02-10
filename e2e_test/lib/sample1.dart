@@ -15,7 +15,10 @@ class Metadata {
 external Metadata getMetadata();
 
 @TS(stringInterpolation: true)
-HTMLDivElement testInterpolate(String arg, {List<String> literals, List values}) {
+HTMLDivElement testInterpolate(String _, {List<String> literals, List values}) {
+  if (_!=null) {
+    throw "String interpolation called directly";
+  }
   HTMLDivElement div = document.createElement('div');
   int i;
   for (i = 0; i < literals.length; i++) {
