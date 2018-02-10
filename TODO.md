@@ -16,3 +16,7 @@
 -  ~~implement `sync*` and `async*` wrapping to `DartIterator` and `DartStream`.~~
 -  decoration for `.ts`  native
 -  generate type descriptor when required
+     - refactory with normale class
+     - generate descriptor for get set
+     - generate descr for constructor
+-  fix get set top level generation (and check normal too)      

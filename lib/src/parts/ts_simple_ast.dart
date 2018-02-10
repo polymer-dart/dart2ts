@@ -15,6 +15,8 @@ class TSLibrary extends TSNode {
 
   Iterable<TSImport> imports;
 
+  TSGlobalContext globalContext;
+
   TSLibrary(this._name) {}
 
   @override
@@ -23,6 +25,10 @@ class TSLibrary extends TSNode {
 
     imports.forEach((i) => printer.accept(i));
     printer.writeln();
+
+    if (globalContext != null) {
+      printer.accept(globalContext);
+    }
 
     List<String> exported = [];
     List<TSNode> topLevelGetterAndSetters = [];
@@ -61,16 +67,56 @@ class TSLibrary extends TSNode {
   }
 }
 
+abstract class TSDeclareContext extends TSNode {
+  List<TSNode> _children = [];
+
+  Map<String, TSDeclareContext> _subContexts = {};
+
+  void addChild(TSNode n) {
+    _children.add(n);
+  }
+
+  TSDeclareContext resolveSubcontext(String name) => _subContexts.putIfAbsent(name, () => new TSNamespaceContext(name));
+
+  void writeChildren(IndentingPrinter printer) {
+    _subContexts.values.forEach((s) => printer.accept(s));
+    _children.forEach((n) => printer.accept(n));
+  }
+}
+
+class TSGlobalContext extends TSDeclareContext {
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.writeln('declare global {');
+    printer.indented(writeChildren);
+    printer.writeln('}');
+  }
+}
+
+class TSNamespaceContext extends TSDeclareContext {
+  String _name;
+
+  TSNamespaceContext(this._name);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.writeln('namespace ${_name} {');
+    printer.indented(writeChildren);
+    printer.writeln('}');
+  }
+}
+
 class TSClass extends TSNode {
   String name;
-  Iterable<TSNode> members;
+  List<TSNode> members=[];
   TSType superClass;
   bool topLevel;
   bool isInterface;
   Iterable<TSTypeExpr> implemnted;
   String library;
+  bool declared;
 
-  TSClass({this.topLevel: true, this.isInterface: false, this.implemnted, this.library});
+  TSClass({this.topLevel: true, this.isInterface: false, this.implemnted, this.library, this.declared: false});
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -97,12 +143,13 @@ class TSClass extends TSNode {
       printer.join(implemnted);
     }
     printer.writeln('{');
-    printer.indented((p) {
-      members.forEach((m) {
-        p.accept(m);
-        p.writeln();
+    if (members != null)
+      printer.indented((p) {
+        members.forEach((m) {
+          p.accept(m);
+          p.writeln();
+        });
       });
-    });
     printer.writeln('}');
   }
 }
@@ -355,7 +402,7 @@ class TSFunction extends TSExpression implements TSStatement {
       if (isAsync) {
         prefix = tm.namespace(getLibrary(currentContext, 'dart:async'));
       } else {
-        prefix = tm.namespaceFor(uri:'module:dart_sdk/collection',modulePath: 'dart_sdk/collection');
+        prefix = tm.namespaceFor(uri: 'module:dart_sdk/collection', modulePath: 'dart_sdk/collection');
       }
     }
     if (withParameterCollector != null) {

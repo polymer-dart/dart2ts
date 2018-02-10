@@ -2,6 +2,7 @@ import 'sample2.dart' as xy;
 import 'package:js/js.dart';
 import 'sample3.dart';
 import 'sample4.dart';
+import 'sample5.dart';
 import 'package:dart2ts/annotations.dart';
 
 @JS()
@@ -14,6 +15,9 @@ class Metadata {
 external Metadata getMetadata();
 
 void main(List<String> args) {
+  NativeClass nativeClass = new NativeClass();
+  printToBody(nativeClass.doSomething());
+
   printToBody("<h1>GOOD MOOOOOOOOOOOOOOOORNING DART2TS!!</h1>");
   xy.sayHello('Hello Dart2TS');
 
@@ -107,7 +111,7 @@ void main(List<String> args) {
 
   printToBody(('HERE : ${a0.testClosure()}'));
 
-  a0.testMethodIterator().map((i)=>"-> ${i}").forEach((s)=>printToBody(s));
+  a0.testMethodIterator().map((i) => "-> ${i}").forEach((s) => printToBody(s));
 
   Duration d1 = new Duration(hours: 10);
   Duration d2 = new Duration(hours: 1, minutes: 30);
@@ -163,7 +167,8 @@ void main(List<String> args) {
     yield 4;
     yield 1;
     yield 5;
-  })().map((n)=>"[${n}]")) {
+  })()
+      .map((n) => "[${n}]")) {
     printToBody("PI : ${pippo}");
   }
 }

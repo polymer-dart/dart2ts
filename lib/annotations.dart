@@ -12,8 +12,8 @@ class TargetLib {
 }
 
 class TS {
-  final bool generateTypelib;
+  final bool generate;
   final String typelib;
 
-  const TS({this.generateTypelib: false, this.typelib});
+  const TS({this.generate: false, this.typelib});
 }

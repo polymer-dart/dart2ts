@@ -53,6 +53,8 @@ bool isModule(DartObject o) => (isDart2TsUri(o.type.element.librarySource.uri)) 
 
 bool isTargetLib(DartObject o) => (isDart2TsUri(o.type.element.librarySource.uri) && (o.type.name == 'TargetLib'));
 
+bool isTS(DartObject o) => (isDart2TsUri(o.type.element.librarySource.uri) && (o.type.name == 'TS'));
+
 bool isBowerImport(DartObject o) =>
     o != null && (isPolymerElementUri(o.type.element.librarySource.uri)) && (o.type.name == 'BowerImport');
 

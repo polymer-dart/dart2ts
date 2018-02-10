@@ -12,9 +12,8 @@ import 'package:build_runner/build_runner.dart';
 import 'package:dart2ts/src/utils.dart';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as _P;
-import 'package:source_gen/source_gen.dart';
-import 'package:analyzer/dart/element/visitor.dart';
 import 'package:resource/resource.dart' as res;
+import 'package:source_gen/source_gen.dart';
 import 'package:yaml/yaml.dart';
 
 part 'package:dart2ts/src/parts/contexts.dart';

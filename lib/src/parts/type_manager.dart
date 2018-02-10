@@ -124,26 +124,28 @@ class TypeManager {
   TSPath _collectJSPath(Element start) {
     var collector = (Element e, TSPath p, var c) {
       DartObject anno = getAnnotation(e.metadata, isJS);
-      if (anno == null) return;
 
       if (e is! LibraryElement) {
         c(e.enclosingElement, p, c);
       }
+
+      if (anno == null) return;
+
 
       // Collect if metadata
       String name = anno.getField('name')?.toStringValue();
       if (name != null && name.isNotEmpty) {
         Match m = NAME_PATTERN.matchAsPrefix(name);
         String module = getAnnotation(e.metadata, isModule)?.getField('path')?.toStringValue();
-        if (m != null && (m[2] != null || module != null)) {
+        if ((m != null && m[2] != null) || module != null) {
           p.modulePathElements.add(module ?? m[2]);
-          if ((m[3] ?? '').isNotEmpty) p.namespacePathElements.add(m[3]);
+          if ((m[3] ?? '').isNotEmpty) p.namespacePathElements.addAll(m[3].split('.'));
         } else {
-          p.namespacePathElements.add(name);
+          p.namespacePathElements.addAll(name.split('.'));
         }
       } else if (e == start) {
         // Add name if it's the first
-        p.namespacePathElements.add(e.name);
+        p.namespacePathElements.addAll(e.name.split('.'));
       }
     };
 
@@ -238,7 +240,7 @@ class TypeManager {
       if (moduleUri != null) {
         prefix = namespaceFor(uri: path.moduleUri, modulePath: path.modulePath) + '.';
       } else {
-        prefix = "";
+        prefix='';
       }
 
       Iterable<TSType> typeArgs;
@@ -248,6 +250,8 @@ class TypeManager {
         typeArgs = null;
       }
 
+      // ensure lib is imported
+      namespace(type.element.library);
       return new TSGenericType("${prefix}${path.name}", typeArgs);
     }
 

@@ -15,13 +15,13 @@ class Overrides {
     return new Overrides(loadYaml(str));
   }
 
-  String resolvePrefix(TypeManager m,String module,[String origPrefix=null]) {
-    if (module=='global') {
+  String resolvePrefix(TypeManager m, String module, [String origPrefix = null]) {
+    if (module == 'global') {
       return "";
-    } else if (module!=null) {
+    } else if (module != null) {
       if (module.startsWith('module:')) {
-        return m.namespaceFor(uri:module,modulePath:module.substring(7));
-      } else if (module.startsWith('dart:')||module.startsWith('package:')) {
+        return m.namespaceFor(uri: module, modulePath: module.substring(7));
+      } else if (module.startsWith('dart:') || module.startsWith('package:')) {
         return m.namespace(getLibrary(currentContext, module));
       }
     } else {
@@ -58,7 +58,7 @@ class Overrides {
 
     String module = classOverrides['to']['from'];
 
-    String prefix = resolvePrefix(typeManager,module);
+    String prefix = resolvePrefix(typeManager, module);
 
     // Square or dot ?
 
@@ -129,9 +129,9 @@ class Overrides {
 
     String module = classOverrides['to']['from'];
 
-    String p = resolvePrefix(typeManager, module,origPrefix);
-    if (p!=null&&p.isNotEmpty) {
-      p="${p}.";
+    String p = resolvePrefix(typeManager, module, origPrefix);
+    if (p != null && p.isNotEmpty) {
+      p = "${p}.";
     }
 
     String actualName = classOverrides['to']['class'];
@@ -940,39 +940,57 @@ abstract class ChildContext<A extends TSNode, P extends Context<A>, E extends TS
 class LibraryContext extends TopLevelContext<TSLibrary> {
   LibraryElement _libraryElement;
   List<FileContext> _fileContexts;
+  Overrides _overrides;
 
-  LibraryContext(this._libraryElement, Overrides overrides) {
-    typeManager = new TypeManager(_libraryElement, overrides);
-    _fileContexts = _libraryElement.units.map((cu) => cu.computeNode()).map((cu) => new FileContext(this, cu)).toList();
-  }
+  LibraryContext(this._libraryElement, this._overrides) {}
 
   TSLibrary translate() {
+    typeManager = new TypeManager(_libraryElement, _overrides);
+    _fileContexts = _libraryElement.units.map((cu) => cu.computeNode()).map((cu) => new FileContext(this, cu)).toList();
+
     TSLibrary tsLibrary = new TSLibrary(_libraryElement.source.uri.toString());
     tsLibrary._children.addAll(_fileContexts.map((fc) => fc.translate()));
 
     tsLibrary.imports = new List.from(typeManager.allImports);
+    tsLibrary.globalContext = _globalContext;
     return tsLibrary;
+  }
+
+  TSGlobalContext _globalContext;
+
+  TSDeclareContext resolveDeclarationContext(List<String> namespace) {
+    if (_globalContext == null) {
+      _globalContext = new TSGlobalContext();
+    }
+
+    return namespace.fold(_globalContext, (prev, name) => prev.resolveSubcontext(name));
   }
 }
 
 class FileContext extends ChildContext<TSLibrary, LibraryContext, TSFile> {
   CompilationUnit _compilationUnit;
   List<Context> _topLevelContexts;
+  List<TSNode> globals;
 
   FileContext(LibraryContext parent, this._compilationUnit) : super(parent) {
-    TopLevelDeclarationVisitor visitor = new TopLevelDeclarationVisitor(this);
-    _topLevelContexts = new List();
-    _topLevelContexts.addAll(_compilationUnit.declarations.map((f) => f.accept(visitor)).where((x) => x != null));
+    globals = [];
   }
 
   List<TSNode> tsDeclarations;
 
   TSFile translate() {
+    TopLevelDeclarationVisitor visitor = new TopLevelDeclarationVisitor(this);
+    _topLevelContexts = new List();
+    _topLevelContexts.addAll(_compilationUnit.declarations.map((f) => f.accept(visitor)).where((x) => x != null));
+
     tsDeclarations = new List<TSNode>();
     List<TSNode> declarations = new List.from(_topLevelContexts.map((tlc) => tlc.translate()));
     tsDeclarations.addAll(declarations);
     return new TSFile(_compilationUnit, tsDeclarations);
   }
+
+  TSDeclareContext resolveDeclarationContext(List<String> namespace) =>
+      parentContext.resolveDeclarationContext(namespace);
 }
 
 class TopLevelDeclarationVisitor extends GeneralizingAstVisitor<Context> {
@@ -982,13 +1000,29 @@ class TopLevelDeclarationVisitor extends GeneralizingAstVisitor<Context> {
 
   @override
   Context visitFunctionDeclaration(FunctionDeclaration node) {
-    if (getAnnotation(node.element.metadata, isJS) != null) return null;
+    if (getAnnotation(node.element.metadata, isJS) != null) {
+      if (shouldGenerate(node.element.metadata)) {
+        // TODO : return declar
+      }
+      return null;
+    }
     return new FunctionDeclarationContext(_fileContext, node);
+  }
+
+  bool shouldGenerate(List<ElementAnnotation> metadata) {
+    DartObject m = getAnnotation(metadata, isTS);
+
+    return m != null && (m.getField('generate')?.toBoolValue() ?? false);
   }
 
   @override
   Context visitClassDeclaration(ClassDeclaration node) {
-    if (getAnnotation(node.element.metadata, isJS) != null) return null;
+    if (getAnnotation(node.element.metadata, isJS) != null) {
+      if (shouldGenerate(node.element.metadata)) {
+        return new ClassDeclarationContext(_fileContext, node);
+      }
+      return null;
+    }
     return new ClassContext(_fileContext, node);
   }
 
@@ -1039,7 +1073,8 @@ class FunctionExpressionContext extends ChildContext<TSNode, Context<TSNode>, TS
     // body
     TSBody body = processBody(_functionExpression.body, withBrackets: false);
 
-    return new TSFunction(typeManager,
+    return new TSFunction(
+      typeManager,
       isAsync: _functionExpression.body.isAsynchronous,
       isGenerator: _functionExpression.body.star != null,
       topLevel: topLevel,
@@ -1130,6 +1165,110 @@ class FunctionDeclarationContext extends ChildContext<TSNode, Context, TSFunctio
   }
 }
 
+class ClassDeclarationContext extends ChildContext<TSFile, FileContext, TSNode> {
+  ClassDeclaration _classDeclaration;
+  TSClass declared;
+
+  ClassDeclarationContext(FileContext parentContext, this._classDeclaration) : super(parentContext);
+
+  @override
+  TSNode translate() {
+    // Add a class declaration to file context
+
+    declared = new TSClass(library: _classDeclaration.element.librarySource.uri.toString(), declared: true);
+    declared.name = _classDeclaration.name.name;
+
+    _classDeclaration.accept(new CollectDeclVisitor(this));
+
+    List<String> namespace = new List.from(() sync* {
+      DartObject libJS = getAnnotation(parentContext.parentContext._libraryElement.metadata, isJS);
+      if (libJS != null) {
+        String main = libJS.getField('name').toStringValue();
+        if (main != null && main.isNotEmpty) {
+          yield* main.split('.');
+        }
+      }
+
+      libJS = getAnnotation(_classDeclaration.element.metadata, isJS);
+      if (libJS != null) {
+        String main = libJS.getField('name').toStringValue();
+        if (main != null && main.isNotEmpty) {
+          yield* (main.split('.')..removeLast());
+        }
+      }
+    }());
+
+    TSDeclareContext ctx = parentContext.resolveDeclarationContext(namespace);
+    ctx.addChild(declared);
+
+    return new TSSimpleExpression("// Declaration for ${_classDeclaration.name}");
+  }
+}
+
+class CollectDeclVisitor extends GeneralizingAstVisitor<TSNode> {
+  ClassDeclarationContext _context;
+  CollectDeclVisitor(this._context);
+
+  @override
+  TSNode visitMethodDeclaration(MethodDeclaration node) {
+    List<TSTypeParameter> typeParameters;
+    List<TSNode> result = [];
+
+    if (node.typeParameters != null) {
+      typeParameters = new List.from(node.typeParameters.typeParameters
+          .map((t) => new TSTypeParameter(t.name.name, _context.typeManager.toTsType(t.bound?.type))));
+    } else {
+      typeParameters = null;
+    }
+
+    // arguments
+    FormalParameterCollector parameterCollector = new FormalParameterCollector(_context);
+    (node.parameters?.parameters ?? []).forEach((p) {
+      p.accept(parameterCollector);
+    });
+
+    // body
+
+    String name = node.name.name;
+
+    List<TSAnnotation> annotations = new List();
+
+    if (node.isOperator) {
+      TokenType tk = TokenType.all.firstWhere((tt) => tt.lexeme == node.name.name);
+      if (node.parameters.parameters.isEmpty) {
+        name = "OPERATOR_PREFIX_${tk.name}";
+      } else {
+        name = 'OPERATOR_${tk.name}';
+      }
+      annotations.add(new TSAnnotation(new TSInvoke(new TSSimpleExpression('bare.DartOperator'), [], {
+        'type': node.parameters.parameters.isEmpty
+            ? new TSSimpleExpression('bare.OperatorType.PREFIX')
+            : new TSSimpleExpression('bare.OperatorType.BINARY'),
+        'op': new TSSimpleExpression('"${tk.lexeme}"')
+      })));
+    }
+
+    result.add(new TSFunction(
+      _context.typeManager,
+      name: name,
+      isAsync: node.body.isAsynchronous,
+      topLevel: false,
+      typeParameters: typeParameters,
+      asMethod: true,
+      isGetter: node.isGetter,
+      isSetter: node.isSetter,
+      annotations: annotations,
+      withParameterCollector: parameterCollector,
+    ));
+
+    _context.declared.members.add(result.last);
+
+    return new TSNodes(result);
+  }
+
+
+}
+
 class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
   ClassDeclaration _classDeclaration;
 
@@ -1214,7 +1353,8 @@ class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
       InitializerCollector initializerCollector = new InitializerCollector(_context);
       List<TSStatement> initializers = initializerCollector.processInitializers(node.initializers);
 
-      return new TSFunction(_context.typeManager,
+      return new TSFunction(
+        _context.typeManager,
         name: (node.name?.name?.length ?? 0) > 0 ? node.name.name : 'create',
         asMethod: true,
         isStatic: true,
@@ -1239,7 +1379,8 @@ class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
       InitializerCollector initializerCollector = new InitializerCollector(_context);
       List<TSStatement> initializers = initializerCollector.processInitializers(node.initializers);
 
-      return new TSFunction(_context.typeManager,
+      return new TSFunction(
+        _context.typeManager,
         asMethod: true,
         initializers: initializers,
         asDefaultConstructor: true,
@@ -1265,34 +1406,35 @@ class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
     TSExpression init = new TSInvoke(
         new TSBracketExpression(new TSFunction(_context.typeManager,
             body: new TSBody(statements: [
-          new TSVariableDeclarations([
-            new TSVariableDeclaration(
-                'ctor',
-                new TSFunction(_context.typeManager,
-                    parameters: [new TSParameter(name: '...args')],
-                    body: new TSBody(withBrackets: false, statements: [
-                      new TSExpressionStatement(new TSInvoke(
-                          new TSDotExpression(
+              new TSVariableDeclarations([
+                new TSVariableDeclaration(
+                    'ctor',
+                    new TSFunction(_context.typeManager,
+                        parameters: [new TSParameter(name: '...args')],
+                        body: new TSBody(withBrackets: false, statements: [
+                          new TSExpressionStatement(new TSInvoke(
                               new TSDotExpression(
-                                  new TSStaticRef(
-                                      _context.typeManager.toTsType(_context._classDeclaration.element.type),
-                                      'prototype'),
-                                  metName),
-                              'apply'),
-                          [new TSSimpleExpression('this'), new TSSimpleExpression('args')]))
-                    ])),
-                null)
-          ]),
-          new TSExpressionStatement(new TSAssignamentExpression(
-              new TSDotExpression(new TSSimpleExpression('ctor'), 'prototype'),
-              new TSDotExpression(new TSSimpleExpression(_context._classDeclaration.name.name), 'prototype'))),
-          new TSReturnStatement(new TSAsExpression(new TSSimpleExpression('ctor'), new TSSimpleType('any', false))),
-        ], withBrackets: false))),
+                                  new TSDotExpression(
+                                      new TSStaticRef(
+                                          _context.typeManager.toTsType(_context._classDeclaration.element.type),
+                                          'prototype'),
+                                      metName),
+                                  'apply'),
+                              [new TSSimpleExpression('this'), new TSSimpleExpression('args')]))
+                        ])),
+                    null)
+              ]),
+              new TSExpressionStatement(new TSAssignamentExpression(
+                  new TSDotExpression(new TSSimpleExpression('ctor'), 'prototype'),
+                  new TSDotExpression(new TSSimpleExpression(_context._classDeclaration.name.name), 'prototype'))),
+              new TSReturnStatement(new TSAsExpression(new TSSimpleExpression('ctor'), new TSSimpleType('any', false))),
+            ], withBrackets: false))),
         []);
 
     List<TSNode> nodes = [
       // actual constructor
-      new TSFunction(_context.typeManager,
+      new TSFunction(
+        _context.typeManager,
         name: metName,
         withParameterCollector: parameterCollector,
         body: body,
@@ -1408,7 +1550,8 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
       })));
     }
 
-    result.add(new TSFunction(typeManager,
+    result.add(new TSFunction(
+      typeManager,
       name: name,
       isAsync: _methodDeclaration.body.isAsynchronous,
       topLevel: topLevel,

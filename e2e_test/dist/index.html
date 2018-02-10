@@ -9,6 +9,18 @@
     </style>
 </head>
 <body>
+<script>
+    var NativeNamespace = NativeNamespace || {};
+    NativeNamespace.NativeClass = class {
+        constructor() {
+
+        }
+
+        doSomething() {
+            return "This is a native method";
+        }
+    };
+</script>
 <script src='bundle.js'>
 </script>
 </body>
