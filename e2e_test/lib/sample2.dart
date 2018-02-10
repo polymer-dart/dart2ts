@@ -50,10 +50,11 @@ class AnotherClass {
     return here();
   }
 
-  Iterable<int> testMethodIterator() => (() sync* {
-    yield count++;
-    yield count++;
-  })();
+  Iterable<int> testMethodIterator() =>
+      (() sync* {
+        yield count++;
+        yield count++;
+      })();
 }
 
 class MySampleClass1 extends AnotherClass {

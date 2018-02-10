@@ -1450,7 +1450,7 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
   @override
   TSNode translate() {
     // Props
-    if (_declarationMode && _methodDeclaration.isGetter || _methodDeclaration.isSetter) {
+    if (_declarationMode && (_methodDeclaration.isGetter || _methodDeclaration.isSetter)) {
       // Actually add a readonly or normal prop
 
       PropertyAccessorElement prop = _methodDeclaration.element as PropertyAccessorElement;
@@ -1513,7 +1513,7 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
     result.add(new TSFunction(
       typeManager,
       name: name,
-      returnType: typeManager.toTsType(_methodDeclaration.returnType.type),
+      returnType: typeManager.toTsType(_methodDeclaration.returnType?.type),
       isAsync: _methodDeclaration.body.isAsynchronous,
       topLevel: topLevel,
       typeParameters: typeParameters,

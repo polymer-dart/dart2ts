@@ -117,7 +117,13 @@ class TSClass extends TSNode {
   bool declared;
   List<TSType> typeParameters;
 
-  TSClass({this.topLevel: true, this.isInterface: false, this.implemented, this.library, this.declared: false,this.typeParameters});
+  TSClass(
+      {this.topLevel: true,
+      this.isInterface: false,
+      this.implemented,
+      this.library,
+      this.declared: false,
+      this.typeParameters});
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -136,8 +142,7 @@ class TSClass extends TSNode {
     }
     printer.write(' ${name}');
 
-
-    if (typeParameters!=null&&typeParameters.isNotEmpty) {
+    if (typeParameters != null && typeParameters.isNotEmpty) {
       printer.write('<');
       printer.join(typeParameters);
       printer.write('> ');
@@ -363,6 +368,26 @@ class TSAnnotation extends TSNode {
   }
 }
 
+/**
+ * TSFunction
+ *
+ * This is one of the most complex case. A function can be a top level function,
+ * a function declared inside a method, a function expression, a method, a property accessor.
+ * They can be generator and async or both.
+ * For many of this combination there's a different style.
+ *
+ * Dart scope for `this` is different from that of JS when using the `function` keyword, and is the same of
+ * the "arrow function" expression. Thus we're using "arrow function" expression style everywhere we can to
+ * preserve the same semantic.
+ *
+ * This cannot be done for generator (sync and async). Also we need, for those special cases to wrap the js generator
+ * to a proper wrapper object (`DartIterable`, `DartStream`). So we need to use a more complex strategy in order to:
+ *  - preserve the `this` scope
+ *  - wrap the result
+ *
+ * The result is an ugly method full of if/then/else that probably will need to be rewritten.
+ */
+
 class TSFunction extends TSExpression implements TSStatement {
   String name;
   bool topLevel;
@@ -443,7 +468,11 @@ class TSFunction extends TSExpression implements TSStatement {
     if (topLevel && !isGetter && !isSetter) {
       printer.write('export ');
     }
-    if (!isExpression) {
+    // If not expression or is a topleve getter and setter (that should be treated as normal get set of module)
+
+    bool treatAsExpression = isExpression && (!topLevel || (!isGetter && !isSetter));
+
+    if (!treatAsExpression) {
       if (asDefaultConstructor) {
         printer.writeln('constructor(...args)');
         printer.write('constructor(');
@@ -496,20 +525,35 @@ class TSFunction extends TSExpression implements TSStatement {
     if (parameters != null) printer.join(parameters);
     printer.write(')');
 
-    if (returnType != null) {
+    if (returnType != null && !isSetter) {
       printer.write(" : ");
       printer.accept(returnType);
     }
 
-    if (isExpression) {
+    if (treatAsExpression) {
       printer.write(' => ');
     }
 
     if (isGenerator) {
-      if (isAsync) {
-        printer.write('${prefix}.stream(()=>(async function*() ');
+      TSType t;
+      if (returnType != null && returnType is TSGenericType) {
+        t = (returnType as TSGenericType)._typeArguments.first;
       } else {
-        printer.write('${prefix}.iter(()=>(function*() ');
+        t = new TSSimpleType('any', false);
+      }
+      if (isAsync) {
+        printer.write('${prefix}.stream');
+
+        printer.write('<');
+        printer.accept(t);
+        printer.write('>');
+        printer.write('(()=>(async function*() ');
+      } else {
+        printer.write('${prefix}.iter');
+        printer.write('<');
+        printer.accept(t);
+        printer.write('>');
+        printer.write('(()=>(function*() ');
       }
     }
 
@@ -1153,7 +1197,12 @@ class TSVariableDeclarations extends TSStatement {
   bool declared;
 
   TSVariableDeclarations(this._declarations,
-      {this.isStatic: false, this.isField: false, this.isTopLevel: false, this.isConst: false,this.readonly:false,this.declared:false});
+      {this.isStatic: false,
+      this.isField: false,
+      this.isTopLevel: false,
+      this.isConst: false,
+      this.readonly: false,
+      this.declared: false});
 
   @override
   void writeCode(IndentingPrinter printer) {
