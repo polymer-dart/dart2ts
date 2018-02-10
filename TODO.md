@@ -30,3 +30,8 @@
       used to add "@TS(generate:true)" to all the `polymer_element` wrappers.   
 -  use destructuring for named args
 -  method as generators
+-  support for string interpolation
+-  support for far args mapping (@varargs)
+     - in external calls just use "..." operator when calling : 
+         -  `pippo([a,b,c])` => `pippo(...[a,b,c])`
+     

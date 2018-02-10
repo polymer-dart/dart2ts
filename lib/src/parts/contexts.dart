@@ -730,6 +730,16 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitMethodInvocation(MethodInvocation node) {
+    // Handle special case for string interpolators
+
+    DartObject tsMeta = getAnnotation(node.methodName?.bestElement?.metadata, isTS);
+    bool interpolate = tsMeta?.getField('stringInterpolation')?.toBoolValue() ?? false;
+    if (interpolate) {
+      TSStringInterpolation interpolation = node.argumentList.arguments.first.accept(this) as TSStringInterpolation;
+      interpolation.tag = "\$${node.methodName.name}";
+      return interpolation;
+    }
+
     // Same as with constructor
     /**
      * If we know the constructor just callit
@@ -979,11 +989,11 @@ class FileContext extends ChildContext<TSLibrary, LibraryContext, TSFile> {
   List<TSNode> tsDeclarations;
 
   TSFile translate() {
+    tsDeclarations = new List<TSNode>();
     TopLevelDeclarationVisitor visitor = new TopLevelDeclarationVisitor(this);
     _topLevelContexts = new List();
     _topLevelContexts.addAll(_compilationUnit.declarations.map((f) => f.accept(visitor)).where((x) => x != null));
 
-    tsDeclarations = new List<TSNode>();
     List<TSNode> declarations = new List.from(_topLevelContexts.map((tlc) => tlc.translate()).where((x) => x != null));
     tsDeclarations.addAll(declarations);
     return new TSFile(_compilationUnit, tsDeclarations);
@@ -1006,6 +1016,14 @@ class TopLevelDeclarationVisitor extends GeneralizingAstVisitor<Context> {
       }
       return null;
     }
+
+    // Generate interpolator
+    DartObject xx = getAnnotation(node.element.metadata, isTS);
+    if (xx?.getField('stringInterpolation')?.toBoolValue() ?? false) {
+      _fileContext.tsDeclarations.add(new TSSimpleExpression(
+          'function \$${node.name.name}(lits,...vals) { return ${node.name}(null,{literals:lits,values:vals});}'));
+    }
+
     return new FunctionDeclarationContext(_fileContext, node);
   }
 

@@ -332,11 +332,15 @@ class TSTypeParameter extends TSNode {
 
 class TSStringInterpolation extends TSExpression {
   List<TSNode> _elements;
+  String tag;
 
   TSStringInterpolation(this._elements);
 
   @override
   void writeCode(IndentingPrinter printer) {
+    if (tag != null) {
+      printer.write(tag);
+    }
     printer.write('`');
     printer.join(_elements, delim: '');
     printer.write('`');

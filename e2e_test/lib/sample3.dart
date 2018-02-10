@@ -6,7 +6,8 @@ external void alert(String);
 @JS()
 class Document {
   Element get body;
-  HTMLDivElement createElement(String div);
+
+  Element createElement(String div);
 }
 
 @JS()
@@ -14,13 +15,16 @@ external Document get document;
 
 @JS()
 class Element {
+  String innerHTML;
+
   void appendChild(Element e);
 }
 
 @JS()
-class HTMLDivElement extends Element {
-  String innerHTML;
-}
+class HTMLDivElement extends Element {}
+
+@JS()
+class HTMLSpanElement extends Element {}
 
 void printToBody(String message) {
   print(message);

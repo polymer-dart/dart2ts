@@ -14,6 +14,7 @@ class TargetLib {
 class TS {
   final bool generate;
   final String typelib;
+  final bool stringInterpolation;
 
-  const TS({this.generate: false, this.typelib});
+  const TS({this.generate: false, this.typelib,this.stringInterpolation:false});
 }

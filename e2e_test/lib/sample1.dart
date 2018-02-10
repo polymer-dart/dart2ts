@@ -14,7 +14,32 @@ class Metadata {
 @Module('dart_sdk/decorations')
 external Metadata getMetadata();
 
+@TS(stringInterpolation: true)
+HTMLDivElement testInterpolate(String arg, {List<String> literals, List values}) {
+  HTMLDivElement div = document.createElement('div');
+  int i;
+  for (i = 0; i < literals.length; i++) {
+    String prefix = literals[i];
+    div.appendChild(document.createElement('span')..innerHTML = prefix);
+    if (i < values.length) {
+      var obj = values[i];
+      if (obj is Element) {
+        div.appendChild(obj);
+      } else {
+        div.appendChild(document.createElement('span')..innerHTML = ("${obj}"));
+      }
+    }
+  }
+  return div;
+}
+
 void main(List<String> args) {
+  pippo(String x) => testInterpolate("[${x}]");
+  document.body.appendChild(testInterpolate("Ciao ${args[0]} e ${args[1]}. E ora : ${pippo(args[2])}"));
+
+  // Should become :
+  // testInterpolate(literals:['Ciao ',' e '],values:[args[0],args[1]])
+
   NativeClass<String> nativeClass = new NativeClass<String>();
   printToBody(nativeClass.doSomething('Mario'));
   printToBody(nativeClass.readOnlyString);
@@ -27,7 +52,7 @@ void main(List<String> args) {
 
   printToBody("<b>DOC!</b> : ${document.body}");
 
-  HTMLDivElement e = document.createElement('div')..innerHTML = 'ciao ciao dart 2ts!!';
+  HTMLDivElement e = (document.createElement('div')..innerHTML = 'ciao ciao dart 2ts!!') as HTMLDivElement;
   document.body.appendChild(e);
 
   ciao(String x) {
