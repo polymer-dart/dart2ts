@@ -984,7 +984,7 @@ class FileContext extends ChildContext<TSLibrary, LibraryContext, TSFile> {
     _topLevelContexts.addAll(_compilationUnit.declarations.map((f) => f.accept(visitor)).where((x) => x != null));
 
     tsDeclarations = new List<TSNode>();
-    List<TSNode> declarations = new List.from(_topLevelContexts.map((tlc) => tlc.translate()));
+    List<TSNode> declarations = new List.from(_topLevelContexts.map((tlc) => tlc.translate()).where((x) => x != null));
     tsDeclarations.addAll(declarations);
     return new TSFile(_compilationUnit, tsDeclarations);
   }
@@ -1019,11 +1019,11 @@ class TopLevelDeclarationVisitor extends GeneralizingAstVisitor<Context> {
   Context visitClassDeclaration(ClassDeclaration node) {
     if (getAnnotation(node.element.metadata, isJS) != null) {
       if (shouldGenerate(node.element.metadata)) {
-        return new ClassDeclarationContext(_fileContext, node);
+        return new ClassContext(_fileContext, node, true);
       }
       return null;
     }
-    return new ClassContext(_fileContext, node);
+    return new ClassContext(_fileContext, node, false);
   }
 
   @override
@@ -1165,21 +1165,69 @@ class FunctionDeclarationContext extends ChildContext<TSNode, Context, TSFunctio
   }
 }
 
-class ClassDeclarationContext extends ChildContext<TSFile, FileContext, TSNode> {
-  ClassDeclaration _classDeclaration;
-  TSClass declared;
+class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
+  final ClassDeclaration _classDeclaration;
 
-  ClassDeclarationContext(FileContext parentContext, this._classDeclaration) : super(parentContext);
+  ClassContext get currentClass => this;
+
+  final bool _declarationMode;
+
+  ClassContext(Context parent, this._classDeclaration, this._declarationMode) : super(parent);
+
+  TSClass _tsClass;
+
+  TSClass get tsClass => _tsClass;
 
   @override
-  TSNode translate() {
-    // Add a class declaration to file context
+  TSClass translate() {
+    _tsClass = new TSClass(library: currentClass._classDeclaration.element.librarySource.uri.toString());
+    ClassMemberVisitor visitor = new ClassMemberVisitor(this, _tsClass, _declarationMode);
+    _tsClass.name = _classDeclaration.name.name;
 
-    declared = new TSClass(library: _classDeclaration.element.librarySource.uri.toString(), declared: true);
-    declared.name = _classDeclaration.name.name;
+    if (_classDeclaration.extendsClause != null) {
+      tsClass.superClass = typeManager.toTsType(_classDeclaration.extendsClause.superclass.type);
+    }
 
-    _classDeclaration.accept(new CollectDeclVisitor(this));
+    if (_classDeclaration.implementsClause != null) {
+      tsClass.implemented =
+          _classDeclaration.implementsClause.interfaces.map((t) => new TSTypeExpr(typeManager.toTsType(t.type)));
+    }
 
+    if (_classDeclaration.typeParameters != null) {
+      tsClass.typeParameters = new List.from(_classDeclaration.typeParameters.typeParameters
+          .map((tp) => new TSTypeParameter(tp.name.name, typeManager.toTsType(tp.bound?.type))));
+    }
+
+    _tsClass.members = new List();
+    List<TSNode> _members =
+        new List.from(_classDeclaration.members.map((m) => m.accept(visitor)).where((m) => m != null));
+    _tsClass.members.addAll(_members);
+
+    // Create constructor interfaces
+    visitor.namedConstructors.values.forEach((ConstructorDeclaration decl) {
+      FormalParameterCollector parameterCollector = collectParameters(decl.parameters);
+
+      parentContext.tsDeclarations.add(new TSClass(isInterface: true)
+        ..name = '${_classDeclaration.name.name}_${decl.name.name}'
+        ..members = [
+          new TSFunction(typeManager,
+              asMethod: true,
+              name: 'new',
+              withParameterCollector: parameterCollector,
+              returnType: new TSSimpleType(_classDeclaration.name.name, true)),
+        ]);
+    });
+
+    if (_declarationMode) {
+      _registerGlobal(_tsClass);
+    } else {
+      parentContext.tsDeclarations.add(_tsClass);
+    }
+
+    return null;
+  }
+
+  void _registerGlobal(TSClass declared) {
     List<String> namespace = new List.from(() sync* {
       DartObject libJS = getAnnotation(parentContext.parentContext._libraryElement.metadata, isJS);
       if (libJS != null) {
@@ -1200,133 +1248,21 @@ class ClassDeclarationContext extends ChildContext<TSFile, FileContext, TSNode> 
 
     TSDeclareContext ctx = parentContext.resolveDeclarationContext(namespace);
     ctx.addChild(declared);
-
-    return new TSSimpleExpression("// Declaration for ${_classDeclaration.name}");
-  }
-}
-
-class CollectDeclVisitor extends GeneralizingAstVisitor<TSNode> {
-  ClassDeclarationContext _context;
-  CollectDeclVisitor(this._context);
-
-  @override
-  TSNode visitMethodDeclaration(MethodDeclaration node) {
-    List<TSTypeParameter> typeParameters;
-    List<TSNode> result = [];
-
-    if (node.typeParameters != null) {
-      typeParameters = new List.from(node.typeParameters.typeParameters
-          .map((t) => new TSTypeParameter(t.name.name, _context.typeManager.toTsType(t.bound?.type))));
-    } else {
-      typeParameters = null;
-    }
-
-    // arguments
-    FormalParameterCollector parameterCollector = new FormalParameterCollector(_context);
-    (node.parameters?.parameters ?? []).forEach((p) {
-      p.accept(parameterCollector);
-    });
-
-    // body
-
-    String name = node.name.name;
-
-    List<TSAnnotation> annotations = new List();
-
-    if (node.isOperator) {
-      TokenType tk = TokenType.all.firstWhere((tt) => tt.lexeme == node.name.name);
-      if (node.parameters.parameters.isEmpty) {
-        name = "OPERATOR_PREFIX_${tk.name}";
-      } else {
-        name = 'OPERATOR_${tk.name}';
-      }
-      annotations.add(new TSAnnotation(new TSInvoke(new TSSimpleExpression('bare.DartOperator'), [], {
-        'type': node.parameters.parameters.isEmpty
-            ? new TSSimpleExpression('bare.OperatorType.PREFIX')
-            : new TSSimpleExpression('bare.OperatorType.BINARY'),
-        'op': new TSSimpleExpression('"${tk.lexeme}"')
-      })));
-    }
-
-    result.add(new TSFunction(
-      _context.typeManager,
-      name: name,
-      isAsync: node.body.isAsynchronous,
-      topLevel: false,
-      typeParameters: typeParameters,
-      asMethod: true,
-      isGetter: node.isGetter,
-      isSetter: node.isSetter,
-      annotations: annotations,
-      withParameterCollector: parameterCollector,
-    ));
-
-    _context.declared.members.add(result.last);
-
-    return new TSNodes(result);
-  }
-
-
-}
-
-class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
-  ClassDeclaration _classDeclaration;
-
-  ClassContext get currentClass => this;
-
-  ClassContext(Context parent, this._classDeclaration) : super(parent);
-
-  TSClass _tsClass;
-
-  TSClass get tsClass => _tsClass;
-
-  @override
-  TSClass translate() {
-    _tsClass = new TSClass(library: currentClass._classDeclaration.element.librarySource.uri.toString());
-    ClassMemberVisitor visitor = new ClassMemberVisitor(this, _tsClass);
-    _tsClass.name = _classDeclaration.name.name;
-
-    if (_classDeclaration.extendsClause != null) {
-      tsClass.superClass = typeManager.toTsType(_classDeclaration.extendsClause.superclass.type);
-    }
-
-    if (_classDeclaration.implementsClause != null) {
-      tsClass.implemnted =
-          _classDeclaration.implementsClause.interfaces.map((t) => new TSTypeExpr(typeManager.toTsType(t.type)));
-    }
-
-    _tsClass.members = new List.from(_classDeclaration.members.map((m) => m.accept(visitor)).where((m) => m != null));
-
-    // Create constructor interfaces
-    visitor.namedConstructors.values.forEach((ConstructorDeclaration decl) {
-      FormalParameterCollector parameterCollector = collectParameters(decl.parameters);
-
-      parentContext.tsDeclarations.add(new TSClass(isInterface: true)
-        ..name = '${_classDeclaration.name.name}_${decl.name.name}'
-        ..members = [
-          new TSFunction(typeManager,
-              asMethod: true,
-              name: 'new',
-              withParameterCollector: parameterCollector,
-              returnType: new TSSimpleType(_classDeclaration.name.name, true)),
-        ]);
-    });
-
-    return _tsClass;
   }
 }
 
 class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
-  ClassContext _context;
-  TSClass tsClass;
+  final ClassContext _context;
+  final TSClass tsClass;
+  final bool _declarationMode;
 
-  ClassMemberVisitor(this._context, this.tsClass);
+  ClassMemberVisitor(this._context, this.tsClass, this._declarationMode);
 
   Map<String, ConstructorDeclaration> namedConstructors = {};
 
   @override
   TSNode visitMethodDeclaration(MethodDeclaration node) {
-    MethodContext methodContext = new MethodContext(_context, node);
+    MethodContext methodContext = new MethodContext(_context, node, _declarationMode);
     return methodContext.translate();
   }
 
@@ -1506,12 +1442,32 @@ class InitializerCollector extends GeneralizingAstVisitor<TSStatement> {
 }
 
 class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
-  MethodDeclaration _methodDeclaration;
+  final MethodDeclaration _methodDeclaration;
+  final bool _declarationMode;
 
-  MethodContext(ClassContext parent, this._methodDeclaration) : super(parent);
+  MethodContext(ClassContext parent, this._methodDeclaration, this._declarationMode) : super(parent);
 
   @override
   TSNode translate() {
+    // Props
+    if (_declarationMode && _methodDeclaration.isGetter || _methodDeclaration.isSetter) {
+      // Actually add a readonly or normal prop
+
+      PropertyAccessorElement prop = _methodDeclaration.element as PropertyAccessorElement;
+
+      bool readonly = prop.variable.setter == null;
+
+      // Ignore setters for rw props (otherwise it will be added twice)
+      if (_methodDeclaration.isSetter) {
+        return null;
+      }
+
+      parentContext._tsClass.members.add(new TSVariableDeclarations(
+          [new TSVariableDeclaration(prop.variable.name, null, typeManager.toTsType(prop.variable.type))],
+          isField: true, readonly: readonly, declared: _declarationMode));
+      return null;
+    }
+
     List<TSTypeParameter> typeParameters;
     List<TSNode> result = [];
 
@@ -1529,8 +1485,12 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
     });
 
     // body
-    TSBody body = processBody(_methodDeclaration.body, withBrackets: false, withReturn: !_methodDeclaration.isSetter);
-
+    TSBody body;
+    if (_declarationMode) {
+      body = null;
+    } else {
+      body = processBody(_methodDeclaration.body, withBrackets: false, withReturn: !_methodDeclaration.isSetter);
+    }
     String name = _methodDeclaration.name.name;
 
     List<TSAnnotation> annotations = new List();
@@ -1553,6 +1513,7 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
     result.add(new TSFunction(
       typeManager,
       name: name,
+      returnType: typeManager.toTsType(_methodDeclaration.returnType.type),
       isAsync: _methodDeclaration.body.isAsynchronous,
       topLevel: topLevel,
       typeParameters: typeParameters,
@@ -1562,6 +1523,7 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
       body: body,
       annotations: annotations,
       withParameterCollector: parameterCollector,
+      declared: _declarationMode,
     ));
 
     return new TSNodes(result);

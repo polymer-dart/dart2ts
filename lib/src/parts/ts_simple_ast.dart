@@ -108,15 +108,16 @@ class TSNamespaceContext extends TSDeclareContext {
 
 class TSClass extends TSNode {
   String name;
-  List<TSNode> members=[];
+  List<TSNode> members = [];
   TSType superClass;
   bool topLevel;
   bool isInterface;
-  Iterable<TSTypeExpr> implemnted;
+  Iterable<TSTypeExpr> implemented;
   String library;
   bool declared;
+  List<TSType> typeParameters;
 
-  TSClass({this.topLevel: true, this.isInterface: false, this.implemnted, this.library, this.declared: false});
+  TSClass({this.topLevel: true, this.isInterface: false, this.implemented, this.library, this.declared: false,this.typeParameters});
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -133,20 +134,31 @@ class TSClass extends TSNode {
     } else {
       printer.write('class');
     }
-    printer.write(' ${name} ');
+    printer.write(' ${name}');
+
+
+    if (typeParameters!=null&&typeParameters.isNotEmpty) {
+      printer.write('<');
+      printer.join(typeParameters);
+      printer.write('> ');
+    }
+
     if (superClass != null) {
-      printer.write('extends ');
+      printer.write(' extends ');
       printer.accept(superClass);
     }
-    if (implemnted != null && implemnted.isNotEmpty) {
-      printer.write('implements ');
-      printer.join(implemnted);
+    if (implemented != null && implemented.isNotEmpty) {
+      printer.write(' implements ');
+      printer.join(implemented);
     }
-    printer.writeln('{');
+    printer.writeln(' {');
     if (members != null)
       printer.indented((p) {
         members.forEach((m) {
           p.accept(m);
+          if (declared) {
+            p.write(';');
+          }
           p.writeln();
         });
       });
@@ -375,29 +387,33 @@ class TSFunction extends TSExpression implements TSStatement {
   bool isExpression;
   TypeManager tm;
   String prefix;
+  bool declared;
 
-  TSFunction(this.tm,
-      {this.name,
-      this.topLevel: false,
-      this.isAsync: false,
-      this.isGenerator: false,
-      this.returnType,
-      this.typeParameters,
-      this.parameters,
-      this.namedParameters,
-      this.defaults,
-      this.namedDefaults,
-      this.body,
-      this.asMethod: false,
-      this.isGetter: false,
-      this.asDefaultConstructor: false,
-      this.isSetter: false,
-      this.isStatic: false,
-      this.callSuper: false,
-      this.initializers,
-      this.isExpression: false,
-      this.annotations: const [],
-      FormalParameterCollector withParameterCollector}) {
+  TSFunction(
+    this.tm, {
+    this.name,
+    this.topLevel: false,
+    this.isAsync: false,
+    this.isGenerator: false,
+    this.returnType,
+    this.typeParameters,
+    this.parameters,
+    this.namedParameters,
+    this.defaults,
+    this.namedDefaults,
+    this.body,
+    this.asMethod: false,
+    this.isGetter: false,
+    this.asDefaultConstructor: false,
+    this.isSetter: false,
+    this.isStatic: false,
+    this.callSuper: false,
+    this.initializers,
+    this.isExpression: false,
+    this.annotations: const [],
+    FormalParameterCollector withParameterCollector,
+    this.declared: false,
+  }) {
     if (isGenerator) {
       if (isAsync) {
         prefix = tm.namespace(getLibrary(currentContext, 'dart:async'));
@@ -1133,14 +1149,20 @@ class TSVariableDeclarations extends TSStatement {
   bool isField;
   bool isTopLevel;
   bool isConst;
+  bool readonly;
+  bool declared;
 
   TSVariableDeclarations(this._declarations,
-      {this.isStatic: false, this.isField: false, this.isTopLevel: false, this.isConst: false});
+      {this.isStatic: false, this.isField: false, this.isTopLevel: false, this.isConst: false,this.readonly:false,this.declared:false});
 
   @override
   void writeCode(IndentingPrinter printer) {
     if (isStatic) {
       printer.write('static ');
+    }
+
+    if (readonly) {
+      printer.write('readonly ');
     }
 
     if (isConst) {

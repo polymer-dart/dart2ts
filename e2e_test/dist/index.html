@@ -3,7 +3,7 @@
     <title>Sample</title>
     <style>
         div {
-            padding:0.5em;
+            padding: 0.5em;
             border-bottom: 1px solid black;
         }
     </style>
@@ -16,8 +16,16 @@
 
         }
 
-        doSomething() {
-            return "This is a native method";
+        doSomething(nm) {
+            return `This is a native method, ${nm}`;
+        }
+
+        get readOnlyString() {
+            return "READONLY";
+        }
+
+        create() {
+            return `create ${this.normal}`;
         }
     };
 </script>

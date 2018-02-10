@@ -15,8 +15,12 @@ class Metadata {
 external Metadata getMetadata();
 
 void main(List<String> args) {
-  NativeClass nativeClass = new NativeClass();
-  printToBody(nativeClass.doSomething());
+  NativeClass<String> nativeClass = new NativeClass<String>();
+  printToBody(nativeClass.doSomething('Mario'));
+  printToBody(nativeClass.readOnlyString);
+  nativeClass.normal = "HI";
+  printToBody(nativeClass.normal);
+  printToBody(nativeClass.create());
 
   printToBody("<h1>GOOD MOOOOOOOOOOOOOOOORNING DART2TS!!</h1>");
   xy.sayHello('Hello Dart2TS');

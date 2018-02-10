@@ -19,4 +19,5 @@
      - refactory with normale class
      - generate descriptor for get set
      - generate descr for constructor
--  fix get set top level generation (and check normal too)      
+-  fix get set top level generation (and check normal too)   
+-  add support for external typelib import   
