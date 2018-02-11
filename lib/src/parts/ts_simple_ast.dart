@@ -17,6 +17,8 @@ class TSLibrary extends TSNode {
 
   TSGlobalContext globalContext;
 
+  Set<String> exports = new Set();
+
   TSLibrary(this._name) {}
 
   @override
@@ -25,6 +27,9 @@ class TSLibrary extends TSNode {
 
     imports.forEach((i) => printer.accept(i));
     printer.writeln();
+    exports.forEach((i) {
+      printer.writeln('export * from "${i}";');
+    });
 
     if (globalContext != null) {
       printer.accept(globalContext);
@@ -64,6 +69,10 @@ class TSLibrary extends TSNode {
 
   void addChild(TSFile child) {
     _children.add(child);
+  }
+
+  void addExport(String export) {
+    exports.add(export);
   }
 }
 
@@ -133,6 +142,10 @@ class TSClass extends TSNode {
 
     if (topLevel) {
       printer.write('export ');
+    }
+
+    if (declared) {
+      printer.write('declare ');
     }
 
     if (isInterface) {
@@ -372,6 +385,18 @@ class TSAnnotation extends TSNode {
   }
 }
 
+class TSSpread extends TSExpression {
+  TSExpression _expr;
+
+  TSSpread(this._expr);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write('...');
+    printer.accept(_expr);
+  }
+}
+
 /**
  * TSFunction
  *
@@ -408,6 +433,7 @@ class TSFunction extends TSExpression implements TSStatement {
   bool isStatic = false;
   bool asDefaultConstructor = false;
   bool callSuper = false;
+  bool nativeSuper = false;
   bool isAsync;
   bool isOperator;
   bool isGenerator;
@@ -437,6 +463,7 @@ class TSFunction extends TSExpression implements TSStatement {
     this.isSetter: false,
     this.isStatic: false,
     this.callSuper: false,
+    this.nativeSuper: false,
     this.initializers,
     this.isExpression: false,
     this.annotations: const [],
@@ -471,6 +498,9 @@ class TSFunction extends TSExpression implements TSStatement {
 
     if (topLevel && !isGetter && !isSetter) {
       printer.write('export ');
+      if (declared) {
+        printer.write('declare ');
+      }
     }
     // If not expression or is a topleve getter and setter (that should be treated as normal get set of module)
 
@@ -484,7 +514,11 @@ class TSFunction extends TSExpression implements TSStatement {
         printer.writeln(') {');
         printer.indented((p) {
           if (callSuper) {
-            p.writeln('super(bare.init);');
+            if (nativeSuper) {
+              p.writeln('super();');
+            } else {
+              p.writeln('super(bare.init);');
+            }
           }
           // Call bare init
           p.write('arguments[0] != bare.init && this[bare.init](');
@@ -511,7 +545,24 @@ class TSFunction extends TSExpression implements TSStatement {
       }
     } else {
       if (name != null) {
-        printer.write('var ${name} = ');
+        printer.write('var ${name} : ');
+
+        printer.write('(');
+        if (parameters != null) printer.join(parameters);
+        printer.write(')');
+
+        if (returnType != null && !isSetter) {
+          printer.write(" => ");
+          printer.accept(returnType);
+        }
+
+        if (!declared) {
+          printer.write(' = ');
+        }
+      }
+
+      if (declared) {
+        return;
       }
 
       if (isAsync && !isGenerator) {
@@ -1250,12 +1301,16 @@ class TSParameter extends TSNode {
   String name;
   TSType type;
   bool optional;
+  bool varargs;
 
-  TSParameter({this.name, this.type, this.optional = false});
+  TSParameter({this.name, this.type, this.optional = false, this.varargs: false});
 
   @override
   void writeCode(IndentingPrinter printer) {
     assert(name != null, "Parameters should have a name");
+    if (varargs) {
+      printer.write('...');
+    }
     printer.write(name);
     if (optional) {
       printer.write('?');

@@ -27,6 +27,7 @@ class TSPath {
 class TypeManager {
   LibraryElement _current;
   Overrides _overrides;
+  Set<String> exports = new Set();
 
   TypeManager(this._current, this._overrides) {
     _prefixes = {'#NOURI#': _getSdkPath('dart:bare')};
@@ -131,14 +132,12 @@ class TypeManager {
 
       if (anno == null) return;
 
-
       // Collect if metadata
       String name = anno.getField('name')?.toStringValue();
       if (name != null && name.isNotEmpty) {
         Match m = NAME_PATTERN.matchAsPrefix(name);
-        String module = getAnnotation(e.metadata, isModule)?.getField('path')?.toStringValue();
-        if ((m != null && m[2] != null) || module != null) {
-          p.modulePathElements.add(module ?? m[2]);
+        if ((m != null && m[2] != null)) {
+          p.modulePathElements.add(m[2]);
           if ((m[3] ?? '').isNotEmpty) p.namespacePathElements.addAll(m[3].split('.'));
         } else {
           p.namespacePathElements.addAll(name.split('.'));
@@ -146,6 +145,16 @@ class TypeManager {
       } else if (e == start) {
         // Add name if it's the first
         p.namespacePathElements.addAll(e.name.split('.'));
+      }
+
+      // Process module path
+      var moduleAnnotation = getAnnotation(e.metadata, isModule);
+      String module = moduleAnnotation?.getField('path')?.toStringValue();
+      if (module != null) {
+        p.modulePathElements.add(module);
+        if (moduleAnnotation.getField('export')?.toBoolValue() ?? false) {
+          exports.add(module);
+        }
       }
     };
 
@@ -235,12 +244,18 @@ class TypeManager {
       TSPath path = _collectJSPath(type.element);
       // Lookup for prefix
       String moduleUri = path.moduleUri;
-
+      // ensure lib is always imported
+      String libPrefix = namespace(type.element.library);
       String prefix;
       if (moduleUri != null) {
         prefix = namespaceFor(uri: path.moduleUri, modulePath: path.modulePath) + '.';
+      } else if ((getAnnotation(type.element.metadata, isTS)?.getField('export')?.toStringValue() ?? "").isNotEmpty) {
+        // use lib prefix for this type if the class is exported from another module
+
+        // TODO  we could actually only export this class instead of the whole library ... but this is ok for now.
+        prefix = "${libPrefix}.";
       } else {
-        prefix='';
+        prefix = '';
       }
 
       Iterable<TSType> typeArgs;
@@ -250,8 +265,6 @@ class TypeManager {
         typeArgs = null;
       }
 
-      // ensure lib is imported
-      namespace(type.element.library);
       return new TSGenericType("${prefix}${path.name}", typeArgs);
     }
 

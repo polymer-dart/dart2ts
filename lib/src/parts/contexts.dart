@@ -531,7 +531,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitFunctionExpressionInvocation(FunctionExpressionInvocation node) {
-    ArgumentListCollector collector = new ArgumentListCollector(_context);
+    ArgumentListCollector collector = new ArgumentListCollector(_context,node.bestElement);
     collector.processArgumentList(node.argumentList);
     TSExpression target = new TSBracketExpression(_context.processExpression(node.function));
 
@@ -689,7 +689,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
      * If we know the constructor just callit
      * otherwise use the helper function
      */
-    ArgumentListCollector collector = new ArgumentListCollector(_context);
+    ArgumentListCollector collector = new ArgumentListCollector(_context,null);
     node.argumentList.accept(collector);
     ConstructorElement elem = node.constructorName.staticElement;
     if (elem != null) {
@@ -735,9 +735,15 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     DartObject tsMeta = getAnnotation(node.methodName?.bestElement?.metadata, isTS);
     bool interpolate = tsMeta?.getField('stringInterpolation')?.toBoolValue() ?? false;
     if (interpolate) {
-      TSStringInterpolation interpolation = node.argumentList.arguments.first.accept(this) as TSStringInterpolation;
-      interpolation.tag = "\$${node.methodName.name}";
-      return interpolation;
+      TSNode arg = node.argumentList.arguments.single.accept(this);
+      TSStringInterpolation stringInterpolation;
+      if (arg is TSStringInterpolation) {
+        stringInterpolation = arg;
+      } else if (arg is TSSimpleExpression) {
+        stringInterpolation = new TSStringInterpolation([arg]);
+      }
+      stringInterpolation.tag = "\$${node.methodName.name}";
+      return stringInterpolation;
     }
 
     // Same as with constructor
@@ -745,7 +751,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
      * If we know the constructor just callit
      * otherwise use the helper function
      */
-    ArgumentListCollector collector = new ArgumentListCollector(_context);
+    ArgumentListCollector collector = new ArgumentListCollector(_context, node.methodName.bestElement);
     node.argumentList.accept(collector);
     ExecutableElement elem = node.methodName.staticElement;
     TSExpression target;
@@ -761,7 +767,9 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
         String name = node.methodName.name;
 
-        if (node.methodName.bestElement is PropertyAccessorElement) {
+        // use "module." for top level module getter (if they aren't external)
+        if (node.methodName.bestElement is PropertyAccessorElement &&
+            getAnnotation(node.methodName.bestElement.metadata, isJS) == null) {
           name = "module.${name}";
         }
 
@@ -798,8 +806,10 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
 class ArgumentListCollector extends GeneralizingAstVisitor {
   Context _context;
+  ExecutableElement _method;
+  ParameterElement _currentParam;
 
-  ArgumentListCollector(this._context);
+  ArgumentListCollector(this._context, this._method);
 
   List<TSExpression> arguments = [];
   Map<String, TSExpression> namedArguments;
@@ -810,7 +820,15 @@ class ArgumentListCollector extends GeneralizingAstVisitor {
 
   @override
   visitArgumentList(ArgumentList node) {
+    // Normal args
+    Iterator<ParameterElement> pars = _method?.parameters?.iterator;
+
     node.arguments.forEach((n) {
+      bool hasNext = pars?.moveNext() ?? false;
+      _currentParam = pars?.current;
+      if (!hasNext) {
+        pars = null;
+      }
       n.accept(this);
     });
   }
@@ -823,7 +841,11 @@ class ArgumentListCollector extends GeneralizingAstVisitor {
 
   @override
   visitExpression(Expression node) {
-    arguments.add(_context.processExpression(node));
+    TSExpression expr = _context.processExpression(node);
+    if (getAnnotation(_currentParam?.metadata, isVarargs) != null) {
+      expr = new TSSpread(expr);
+    }
+    arguments.add(expr);
   }
 }
 
@@ -951,18 +973,22 @@ class LibraryContext extends TopLevelContext<TSLibrary> {
   LibraryElement _libraryElement;
   List<FileContext> _fileContexts;
   Overrides _overrides;
+  TSLibrary tsLibrary;
 
   LibraryContext(this._libraryElement, this._overrides) {}
 
   TSLibrary translate() {
     typeManager = new TypeManager(_libraryElement, _overrides);
+    tsLibrary = new TSLibrary(_libraryElement.source.uri.toString());
+
     _fileContexts = _libraryElement.units.map((cu) => cu.computeNode()).map((cu) => new FileContext(this, cu)).toList();
 
-    TSLibrary tsLibrary = new TSLibrary(_libraryElement.source.uri.toString());
     tsLibrary._children.addAll(_fileContexts.map((fc) => fc.translate()));
 
     tsLibrary.imports = new List.from(typeManager.allImports);
     tsLibrary.globalContext = _globalContext;
+
+    tsLibrary.exports.addAll(typeManager.exports);
     return tsLibrary;
   }
 
@@ -974,6 +1000,10 @@ class LibraryContext extends TopLevelContext<TSLibrary> {
     }
 
     return namespace.fold(_globalContext, (prev, name) => prev.resolveSubcontext(name));
+  }
+
+  void addExport(String export) {
+    tsLibrary.addExport(export);
   }
 }
 
@@ -1012,7 +1042,7 @@ class TopLevelDeclarationVisitor extends GeneralizingAstVisitor<Context> {
   Context visitFunctionDeclaration(FunctionDeclaration node) {
     if (getAnnotation(node.element.metadata, isJS) != null) {
       if (shouldGenerate(node.element.metadata)) {
-        // TODO : return declar
+        return new FunctionDeclarationContext(_fileContext, node, declare: true);
       }
       return null;
     }
@@ -1036,6 +1066,11 @@ class TopLevelDeclarationVisitor extends GeneralizingAstVisitor<Context> {
   @override
   Context visitClassDeclaration(ClassDeclaration node) {
     if (getAnnotation(node.element.metadata, isJS) != null) {
+      String export = getAnnotation(node.element.metadata, isTS)?.getField('export')?.toStringValue();
+      if (export != null) {
+        _fileContext.parentContext.addExport(export);
+      }
+
       if (shouldGenerate(node.element.metadata)) {
         return new ClassContext(_fileContext, node, true);
       }
@@ -1151,6 +1186,7 @@ class FormalParameterCollector extends GeneralizingAstVisitor {
     } else {
       parameters.add(new TSParameter(
           name: node.identifier.name,
+          varargs: getAnnotation(node.element.metadata, isVarargs) != null,
           type: _context.typeManager.toTsType(node.element.type),
           optional: node.kind.isOptional));
     }
@@ -1160,10 +1196,12 @@ class FormalParameterCollector extends GeneralizingAstVisitor {
 class FunctionDeclarationContext extends ChildContext<TSNode, Context, TSFunction> {
   FunctionDeclaration _functionDeclaration;
   bool topLevel;
+  bool declare;
 
   TSType returnType;
 
-  FunctionDeclarationContext(Context parentContext, this._functionDeclaration, {this.topLevel = true})
+  FunctionDeclarationContext(Context parentContext, this._functionDeclaration,
+      {this.topLevel = true, this.declare: false})
       : super(parentContext);
 
   @override
@@ -1176,6 +1214,7 @@ class FunctionDeclarationContext extends ChildContext<TSNode, Context, TSFunctio
 
     return processFunctionExpression(_functionDeclaration.functionExpression)
       ..name = _functionDeclaration.name.name
+      ..declared = declare
       ..topLevel = topLevel
       ..isGetter = _functionDeclaration.isGetter
       ..isSetter = _functionDeclaration.isSetter
@@ -1236,9 +1275,13 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
         ]);
     });
 
-    if (_declarationMode) {
+    // If exported add as a normal declaration
+    String export = getAnnotation(_classDeclaration.element.metadata, isTS)?.getField('export')?.toStringValue();
+
+    if (_declarationMode && export == null) {
       _registerGlobal(_tsClass);
     } else {
+      _tsClass.declared = _declarationMode;
       parentContext.tsDeclarations.add(_tsClass);
     }
 
@@ -1339,6 +1382,7 @@ class ClassMemberVisitor extends GeneralizingAstVisitor<TSNode> {
         initializers: initializers,
         asDefaultConstructor: true,
         callSuper: (_context._classDeclaration.element.type).superclass != currentContext.typeProvider.objectType,
+        nativeSuper: getAnnotation(_context._classDeclaration.element.type.superclass.element.metadata, isJS) != null,
         withParameterCollector: collector,
         body: body,
       );
@@ -1429,7 +1473,7 @@ class InitializerCollector extends GeneralizingAstVisitor<TSStatement> {
       target = new TSSimpleExpression('super._${node.constructorName.name}');
     }
 
-    ArgumentListCollector argumentListCollector = new ArgumentListCollector(_context)
+    ArgumentListCollector argumentListCollector = new ArgumentListCollector(_context,node.constructorName.bestElement)
       ..processArgumentList(node.argumentList);
 
     return new TSExpressionStatement(
@@ -1445,7 +1489,7 @@ class InitializerCollector extends GeneralizingAstVisitor<TSStatement> {
       target = new TSSimpleExpression('this._${node.constructorName.name}');
     }
 
-    ArgumentListCollector argumentListCollector = new ArgumentListCollector(_context)
+    ArgumentListCollector argumentListCollector = new ArgumentListCollector(_context,node.constructorName.bestElement)
       ..processArgumentList(node.argumentList);
 
     return new TSExpressionStatement(
@@ -1536,6 +1580,7 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
       topLevel: topLevel,
       typeParameters: typeParameters,
       asMethod: true,
+      isStatic: _methodDeclaration.isStatic,
       isGetter: _methodDeclaration.isGetter,
       isSetter: _methodDeclaration.isSetter,
       body: body,

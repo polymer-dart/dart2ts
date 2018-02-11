@@ -1,12 +1,14 @@
 @JS()
-@Module('node_modules/@polymer/polymer/polymer-element')
 library polymer;
 
+import 'mini_html.dart';
 import 'package:js/js.dart';
 import 'package:dart2ts/annotations.dart';
 
 @JS()
-@TS(generate: true)
-class Element {
+@TS(generate: true, export: '../node_modules/@polymer/polymer/polymer-element')
+class Element {}
 
-}
+@JS()
+@TS(generate: true)
+external HTMLTemplateElement html(List<String> literals, @varargs List values);
