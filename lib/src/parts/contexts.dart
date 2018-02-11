@@ -747,7 +747,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       } else if (arg is TSStringLiteral) {
         stringInterpolation = new TSStringInterpolation([new TSSimpleExpression(arg.stringValue)]);
       }
-      stringInterpolation.tag = "\$${node.methodName.name}";
+      stringInterpolation.tag = _context.typeManager.toTsName(node.methodName.bestElement);
       return stringInterpolation;
     }
 
@@ -1052,13 +1052,6 @@ class TopLevelDeclarationVisitor extends GeneralizingAstVisitor<Context> {
       return null;
     }
 
-    // Generate interpolator
-    DartObject xx = getAnnotation(node.element.metadata, isTS);
-    if (xx?.getField('stringInterpolation')?.toBoolValue() ?? false) {
-      _fileContext.tsDeclarations.add(new TSSimpleExpression(
-          'function \$${node.name.name}(lits,...vals) { return ${node.name}(null,{literals:lits,values:vals});}'));
-    }
-
     return new FunctionDeclarationContext(_fileContext, node);
   }
 
@@ -1223,6 +1216,9 @@ class FunctionDeclarationContext extends ChildContext<TSNode, Context, TSFunctio
       ..topLevel = topLevel
       ..isGetter = _functionDeclaration.isGetter
       ..isSetter = _functionDeclaration.isSetter
+      ..isInterpolator =
+          getAnnotation(_functionDeclaration.element.metadata, isTS)?.getField('stringInterpolation')?.toBoolValue() ??
+              false
       ..returnType = parentContext.typeManager.toTsType(_functionDeclaration?.returnType?.type);
   }
 }

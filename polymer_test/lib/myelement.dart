@@ -1,16 +1,11 @@
+import 'html_template.dart';
 import 'mini_html.dart';
-import 'package:dart2ts/annotations.dart';
 import 'polymer.dart' as polymer;
-
-@TS(stringInterpolation: true)
-HTMLTemplateElement HTML(String template, {List<String> literals, List values}) {
-  return polymer.html(literals, values);
-}
 
 class MyElement extends polymer.Element {
   String name;
 
-  static get template => HTML("""
+  static get template => html("""
 <div>
  This is my [[name]] app.
 </div>

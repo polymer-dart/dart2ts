@@ -12,3 +12,4 @@ class Element {}
 @JS()
 @TS(generate: true)
 external HTMLTemplateElement html(List<String> literals, @varargs List values);
+

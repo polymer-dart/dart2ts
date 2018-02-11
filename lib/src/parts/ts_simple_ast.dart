@@ -401,10 +401,11 @@ class TSStringLiteral extends TSExpression {
   String stringValue;
   bool isSingleQuoted;
 
-  TSStringLiteral(this.stringValue,this.isSingleQuoted);
+  TSStringLiteral(this.stringValue, this.isSingleQuoted);
+
   @override
   void writeCode(IndentingPrinter printer) {
-    String q = isSingleQuoted?"'":'"';
+    String q = isSingleQuoted ? "'" : '"';
     printer.write(q);
     printer.write(stringValue);
     printer.write(q);
@@ -448,6 +449,7 @@ class TSFunction extends TSExpression implements TSStatement {
   bool asDefaultConstructor = false;
   bool callSuper = false;
   bool nativeSuper = false;
+  bool isInterpolator = false;
   bool isAsync;
   bool isOperator;
   bool isGenerator;
@@ -505,12 +507,28 @@ class TSFunction extends TSExpression implements TSStatement {
 
   @override
   void writeCode(IndentingPrinter printer) {
+    // Generate interpolator
+
+    if (isInterpolator) {
+      printer.writeln('export var ${name} = (lits,...vals) => {');
+      printer.indented((p) {
+        _writeCodeNoInterpolator(p);
+        printer.writeln(';');
+        printer.writeln("return ${name}(null,{literals:lits,values:vals});");
+      });
+      printer.write('}');
+    } else {
+      _writeCodeNoInterpolator(printer);
+    }
+  }
+
+  void _writeCodeNoInterpolator(IndentingPrinter printer) {
     annotations.forEach((anno) {
       printer.accept(anno);
       printer.writeln();
     });
 
-    if (topLevel && !isGetter && !isSetter) {
+    if (topLevel && !isGetter && !isSetter &&!isInterpolator) {
       printer.write('export ');
       if (declared) {
         printer.write('declare ');
