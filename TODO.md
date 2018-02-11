@@ -28,10 +28,10 @@
     - an "overrides.yml" files in the top level will be merged with the default
       this can be used to add annotation to external types. For example this can be
       used to add "@TS(generate:true)" to all the `polymer_element` wrappers.   
--  use destructuring for named args
+-  ~~use destructuring for named args~~ (this cannot be done because of optional not allowed for destructured arg)
 -  method as generators
--  support for string interpolation
--  support for far args mapping (@varargs)
-     - in external calls just use "..." operator when calling : 
+-  ~~support for string interpolation~~
+-  ~~support for far args mapping (@varargs)~~
+     - ~~in external calls just use "..." operator when calling :~~ 
          -  `pippo([a,b,c])` => `pippo(...[a,b,c])`
      

@@ -6,6 +6,11 @@ class CustomElementRegistry {
 }
 
 @JS()
+class HTMLElement {
+
+}
+
+@JS()
 external CustomElementRegistry get customElements;
 
 @JS()
