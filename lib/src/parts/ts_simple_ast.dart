@@ -397,6 +397,20 @@ class TSSpread extends TSExpression {
   }
 }
 
+class TSStringLiteral extends TSExpression {
+  String stringValue;
+  bool isSingleQuoted;
+
+  TSStringLiteral(this.stringValue,this.isSingleQuoted);
+  @override
+  void writeCode(IndentingPrinter printer) {
+    String q = isSingleQuoted?"'":'"';
+    printer.write(q);
+    printer.write(stringValue);
+    printer.write(q);
+  }
+}
+
 /**
  * TSFunction
  *

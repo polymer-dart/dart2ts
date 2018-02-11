@@ -11,11 +11,13 @@ class MyElement extends polymer.Element {
   String name;
 
   static get template => HTML("""
-<div>This is my [[name]] app.</div>
+<div>
+ This is my [[name]] app.
+</div>
 """);
 
   MyElement() {
-    name = "Pino";
+    name = "Pino" " Daniele " "Lives!";
   }
 }
 

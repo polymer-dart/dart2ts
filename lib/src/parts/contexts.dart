@@ -376,7 +376,12 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitSimpleStringLiteral(SimpleStringLiteral node) {
-    return new TSSimpleExpression(node.toSource().replaceAll('\n', '\\n')); // Preserve the same quotes
+    return new TSStringLiteral(node.stringValue.replaceAll('\n', '\\n'), node.isSingleQuoted);
+  }
+
+  @override
+  TSExpression visitAdjacentStrings(AdjacentStrings node) {
+    return node.strings.map((x) => x.accept(this)).reduce((a, b) => new TSBinaryExpression(a, '+', b));
   }
 
   @override
@@ -531,7 +536,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitFunctionExpressionInvocation(FunctionExpressionInvocation node) {
-    ArgumentListCollector collector = new ArgumentListCollector(_context,node.bestElement);
+    ArgumentListCollector collector = new ArgumentListCollector(_context, node.bestElement);
     collector.processArgumentList(node.argumentList);
     TSExpression target = new TSBracketExpression(_context.processExpression(node.function));
 
@@ -689,7 +694,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
      * If we know the constructor just callit
      * otherwise use the helper function
      */
-    ArgumentListCollector collector = new ArgumentListCollector(_context,null);
+    ArgumentListCollector collector = new ArgumentListCollector(_context, null);
     node.argumentList.accept(collector);
     ConstructorElement elem = node.constructorName.staticElement;
     if (elem != null) {
@@ -739,8 +744,8 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       TSStringInterpolation stringInterpolation;
       if (arg is TSStringInterpolation) {
         stringInterpolation = arg;
-      } else if (arg is TSSimpleExpression) {
-        stringInterpolation = new TSStringInterpolation([arg]);
+      } else if (arg is TSStringLiteral) {
+        stringInterpolation = new TSStringInterpolation([new TSSimpleExpression(arg.stringValue)]);
       }
       stringInterpolation.tag = "\$${node.methodName.name}";
       return stringInterpolation;
@@ -1473,7 +1478,7 @@ class InitializerCollector extends GeneralizingAstVisitor<TSStatement> {
       target = new TSSimpleExpression('super._${node.constructorName.name}');
     }
 
-    ArgumentListCollector argumentListCollector = new ArgumentListCollector(_context,node.constructorName.bestElement)
+    ArgumentListCollector argumentListCollector = new ArgumentListCollector(_context, node.constructorName.bestElement)
       ..processArgumentList(node.argumentList);
 
     return new TSExpressionStatement(
@@ -1489,7 +1494,7 @@ class InitializerCollector extends GeneralizingAstVisitor<TSStatement> {
       target = new TSSimpleExpression('this._${node.constructorName.name}');
     }
 
-    ArgumentListCollector argumentListCollector = new ArgumentListCollector(_context,node.constructorName.bestElement)
+    ArgumentListCollector argumentListCollector = new ArgumentListCollector(_context, node.constructorName.bestElement)
       ..processArgumentList(node.argumentList);
 
     return new TSExpressionStatement(
