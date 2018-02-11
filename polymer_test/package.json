@@ -1,16 +1,18 @@
 {
   "name": "polymer_test",
-  "flat" : true,
+  "flat": true,
   "version": "1.0.0",
   "description": "a test for it",
   "main": "lib/index.html",
   "scripts": {
     "build": "webpack --config webpack.config.js",
+    "tsbuild" : "tsc",
     "serve": "webpack-dev-server --config webpack.config.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@polymer/polymer": "^3.0.0-pre.9",
     "dart_sdk": "file:../dart_sdk/",
     "reflect-metadata": "^0.1.12"
   },
