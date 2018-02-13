@@ -27,7 +27,7 @@ class MyElement extends polymer.Element {
 
   void changeName(ev,detail) {
     print('Clicked : ${ev}, ${detail}');
-    name='Super app'
+    name='Super app';
   }
 }
 
