@@ -159,7 +159,7 @@ bool hasAnyFirstLevelAnnotation(Iterable<CompilationUnit> cus, bool matches(Dart
 DartObject getAnnotation(
         Iterable<ElementAnnotation> metadata, //
         bool matches(DartObject x)) =>
-    metadata.map((an) => an.computeConstantValue()).where(notNull).firstWhere(matches, orElse: () => null);
+    (metadata ?? []).map((an) => an.computeConstantValue()).where(notNull).firstWhere(matches, orElse: () => null);
 
 ElementAnnotation getElementAnnotation(
         Iterable<ElementAnnotation> metadata, //

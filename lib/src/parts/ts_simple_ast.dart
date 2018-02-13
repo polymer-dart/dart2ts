@@ -406,8 +406,9 @@ class TSStringLiteral extends TSExpression {
   @override
   void writeCode(IndentingPrinter printer) {
     String q = isSingleQuoted ? "'" : '"';
+    String v = isSingleQuoted ? stringValue.replaceAll('\'', '\\') : stringValue.replaceAll('"', '\\"');
     printer.write(q);
-    printer.write(stringValue);
+    printer.write(v);
     printer.write(q);
   }
 }
@@ -528,7 +529,7 @@ class TSFunction extends TSExpression implements TSStatement {
       printer.writeln();
     });
 
-    if (topLevel && !isGetter && !isSetter &&!isInterpolator) {
+    if (topLevel && !isGetter && !isSetter && !isInterpolator) {
       printer.write('export ');
       if (declared) {
         printer.write('declare ');
@@ -579,13 +580,21 @@ class TSFunction extends TSExpression implements TSStatement {
       if (name != null) {
         printer.write('var ${name} : ');
 
+        if (typeParameters != null) {
+          printer.write('<');
+          printer.join(typeParameters);
+          printer.write('>');
+        }
+
         printer.write('(');
         if (parameters != null) printer.join(parameters);
         printer.write(')');
 
-        if (returnType != null && !isSetter) {
-          printer.write(" => ");
+        printer.write(" => ");
+        if (returnType != null) {
           printer.accept(returnType);
+        } else {
+          printer.write('any');
         }
 
         if (!declared) {

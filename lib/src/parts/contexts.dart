@@ -376,7 +376,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitSimpleStringLiteral(SimpleStringLiteral node) {
-    return new TSStringLiteral(node.stringValue.replaceAll('\n', '\\n'), node.isSingleQuoted);
+    return new TSStringLiteral(node.value.replaceAll('\n', '\\n'), node.isSingleQuoted);
   }
 
   @override
@@ -1474,7 +1474,7 @@ class InitializerCollector extends GeneralizingAstVisitor<TSStatement> {
       target = new TSSimpleExpression('super._${node.constructorName.name}');
     }
 
-    ArgumentListCollector argumentListCollector = new ArgumentListCollector(_context, node.constructorName.bestElement)
+    ArgumentListCollector argumentListCollector = new ArgumentListCollector(_context, node.staticElement)
       ..processArgumentList(node.argumentList);
 
     return new TSExpressionStatement(
@@ -1490,7 +1490,7 @@ class InitializerCollector extends GeneralizingAstVisitor<TSStatement> {
       target = new TSSimpleExpression('this._${node.constructorName.name}');
     }
 
-    ArgumentListCollector argumentListCollector = new ArgumentListCollector(_context, node.constructorName.bestElement)
+    ArgumentListCollector argumentListCollector = new ArgumentListCollector(_context, node.staticElement)
       ..processArgumentList(node.argumentList);
 
     return new TSExpressionStatement(
