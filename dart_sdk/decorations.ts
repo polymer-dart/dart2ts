@@ -14,15 +14,15 @@ export function DartMetadata(m: IDartMetadata): ClassDecorator {
     }
 }
 
-export function OverrideMethod(newName: string | symbol): MethodDecorator {
+export function OverrideMethod(newName: string | symbol,oldName?: string): MethodDecorator {
     return (target, name, descriptor) => {
-        getDartMetadata(target.constructor).methodOverrides.set(newName, name);
+        getDartMetadata(target.constructor).methodOverrides.set(newName, oldName || name);
     };
 }
 
-export function OverrideProperty(newName: string | symbol): PropertyDecorator {
+export function OverrideProperty(newName: string | symbol,oldName?: string): PropertyDecorator {
     return (target, name) => {
-        getDartMetadata(target.constructor).propertyOverrides.set(newName, name);
+        getDartMetadata(target.constructor).propertyOverrides.set(newName, oldName || name);
     };
 }
 

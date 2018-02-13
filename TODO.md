@@ -9,7 +9,7 @@
 -  ~~toString~~
 -  extending an overridden ( => replaced by `overrides.yml`) method : example extending `map` method of a list should actually extend `$map`
 -  operator inheritance
--  consistently handle hashCode and equals : this is hard .. 
+-  consistently handle hashCode and equals : this is hard ..
 -  ~~repeatable iterables~~
 -  named and factory constructor for dynamic : call something similar to `invokeMethod`
 -  ~~force async and async* return type~~
@@ -20,10 +20,11 @@
      - ~~refactory with normale class~~
      - ~~generate descriptor for get set~~
      - generate descr for constructor
+         - use of named constructor to enable different signatures
 -  ~~fix get set top level generation (and check normal too)~~   
 -  add support for external typelib import
 -  add extra annotation in `overrides.yml`: annotation can be added to external dart
-   code using the `overrides.yml` file 
+   code using the `overrides.yml` file
 -  using `overrides.yml` read from base dir
     - an "overrides.yml" files in the top level will be merged with the default
       this can be used to add annotation to external types. For example this can be
@@ -32,6 +33,7 @@
 -  method as generators
 -  ~~support for string interpolation~~
 -  ~~support for far args mapping (@varargs)~~
-     - ~~in external calls just use "..." operator when calling :~~ 
+     - ~~in external calls just use "..." operator when calling :~~
          -  `pippo([a,b,c])` => `pippo(...[a,b,c])`
-     
+-  exporting only the definition tagged with `@TS(export='')` instead of the whole lib
+-  export and import the definition (in order to be used also locally)

@@ -1,4 +1,4 @@
-html_template.js
-mini_html.js
-myelement.js
-polymer.js
+html_template.ts
+mini_html.ts
+myelement.ts
+polymer.ts

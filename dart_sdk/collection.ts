@@ -1,5 +1,6 @@
 import {Duration} from "./lib/core";
 import {extendPrototype} from "./utils";
+import {DartMetadata,IDartMetadata,OverrideMethod,OverrideProperty} from "./decorations";
 
 
 export namespace Symbols {
@@ -37,32 +38,38 @@ export interface DartIterable<T> extends Iterable<T> {
     forEach(f: (x:T)=> any):void;
 }
 
-
+@DartMetadata({library:'dart:core'})
 export class DartList<T> extends Array<T> implements DartIterable<T> {
+    @OverrideMethod('$join','join')
     $join(separator: string): string {
         return this.join(separator);
     }
 
+    @OverrideProperty('$first','first')
     get $first(): T {
         return this[0];
     }
-
+    @OverrideProperty('$last','last')
     get $last(): T {
         return this[this.length - 1];
     }
 
+    @OverrideMethod('$sublist','sublist')
     $sublist(from: number, to: number): Array<T> {
         return this.slice(from, to);
     }
 
+    @OverrideMethod('$add','add')
     $add(e: T): void {
         this.push(e);
     }
 
+    @OverrideMethod('$remove','remove')
     $remove(e: T): void {
         this.splice(this.indexOf(e), 1);
     }
 
+    @OverrideMethod('$map','map')
     $map<X>(f: (t: T) => X): DartIterable<X> {
         let self = this;
         return toDartIterable<X>({
@@ -82,7 +89,9 @@ export function iter<X>(generator:()=>Iterator<X>) {
 }
 
 function toDartIterable<X>(x: Iterable<X>): DartIterable<X> {
-    return new (class implements DartIterable<X> {
+    @DartMetadata({library:'dart:core'})
+    class _ implements DartIterable<X> {
+        @OverrideMethod('$map','map')
         $map<T>(f: (t: X) => T): DartIterable<T> {
             let self = this;
 
@@ -101,10 +110,12 @@ function toDartIterable<X>(x: Iterable<X>): DartIterable<X> {
             }
         }
 
+        @OverrideMethod('$join','join')
         $join(separator: string): string {
             return Array.from(this).join(separator);
         }
 
+        @OverrideProperty('$first','first')
         get $first(): X {
             let first: X;
             for (let x of this) {
@@ -114,6 +125,7 @@ function toDartIterable<X>(x: Iterable<X>): DartIterable<X> {
             return first;
         }
 
+        @OverrideProperty('$last','last')
         get $last(): X {
             let last: X;
             for (let x of this) {
@@ -125,7 +137,9 @@ function toDartIterable<X>(x: Iterable<X>): DartIterable<X> {
         [Symbol.iterator](): Iterator<X> {
             return x[Symbol.iterator]();
         }
-    });
+    };
+
+    return new _();
 }
 
 export class DartMap<K, V>
