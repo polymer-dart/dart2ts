@@ -94,7 +94,9 @@ class Dart2TsBuilder extends _BaseBuilder {
     runWithContext(library.context, () {
       LibraryContext libraryContext = new LibraryContext(library, overrides);
 
-      libraryContext.translate().writeCode(printer);
+      libraryContext
+        ..translate()
+            ..tsLibrary.writeCode(printer);
     });
     await buildStep.writeAsString(destId, printer.buffer);
   }

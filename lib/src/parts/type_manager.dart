@@ -234,9 +234,9 @@ class TypeManager {
         }
       }();
 
-      Iterable<TSType> typeArguments = type.typeArguments?.map((t) => toTsType(t));
+      Iterable<TSType> typeArguments = new List.from(type.typeArguments?.map((t) => toTsType(t)));
 
-      return new TSFunctionType(toTsType(type.returnType), args, typeArguments);
+      return new TSFunctionType(toTsType(type.returnType), new List.from(args), typeArguments);
     }
 
     if (getAnnotation(type?.element?.metadata ?? [], isJS) != null) {
