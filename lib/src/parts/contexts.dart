@@ -1030,11 +1030,11 @@ class FileContext extends ChildContext<TSLibrary, LibraryContext, TSFile> {
     globals = [];
   }
 
-  List<TSNode> tsDeclarations;
+  List<TSNode> _tsDeclarations;
 
   void translate() {
-    tsDeclarations = new List<TSNode>();
-    TSFile tsFile = new TSFile(_compilationUnit, tsDeclarations);
+    _tsDeclarations = new List<TSNode>();
+    TSFile tsFile = new TSFile(_compilationUnit, _tsDeclarations);
 
     TopLevelDeclarationVisitor visitor = new TopLevelDeclarationVisitor(this);
     _topLevelContexts = new List();
@@ -1044,6 +1044,8 @@ class FileContext extends ChildContext<TSLibrary, LibraryContext, TSFile> {
 
     parentContext.tsLibrary._children.add(tsFile);
   }
+
+  void addDeclaration(TSNode n) => _tsDeclarations.add(n);
 
   TSDeclareContext resolveDeclarationContext(List<String> namespace) =>
       parentContext.resolveDeclarationContext(namespace);
@@ -1103,7 +1105,7 @@ class TopLevelFunctionContext extends FunctionDeclarationContext {
 
   void translate() {
     super.translate();
-    (parentContext as FileContext).tsDeclarations.add(tsFunction);
+    (parentContext as FileContext).addDeclaration(tsFunction);
   }
 }
 
@@ -1123,7 +1125,7 @@ class TopLevelVariableContext extends ChildContext<TSFile, FileContext, TSVariab
       isField: true,
     );
 
-    parentContext.tsDeclarations.add(tsVariableDeclarations);
+    parentContext.addDeclaration(tsVariableDeclarations);
   }
 }
 
@@ -1301,7 +1303,7 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
     visitor.namedConstructors.values.forEach((ConstructorDeclaration decl) {
       FormalParameterCollector parameterCollector = collectParameters(decl.parameters);
 
-      parentContext.tsDeclarations.add(new TSClass(isInterface: true)
+      parentContext.addDeclaration(new TSClass(isInterface: true)
         ..name = '${_classDeclaration.name.name}_${decl.name.name}'
         ..members = [
           new TSFunction(typeManager,
@@ -1319,7 +1321,7 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
       _registerGlobal(_tsClass);
     } else {
       _tsClass.declared = _declarationMode;
-      parentContext.tsDeclarations.add(_tsClass);
+      parentContext.addDeclaration(_tsClass);
     }
   }
 
