@@ -758,7 +758,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
      */
     ArgumentListCollector collector = new ArgumentListCollector(_context, node.methodName.bestElement);
     node.argumentList.accept(collector);
-    ExecutableElement elem = node.methodName.staticElement;
+    Element elem = node.methodName.staticElement;
     TSExpression target;
     TSExpression method;
     if (_context.isCascading) {
@@ -811,10 +811,20 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
 class ArgumentListCollector extends GeneralizingAstVisitor {
   Context _context;
-  ExecutableElement _method;
+  //ExecutableElement _method;
+  Iterable<ParameterElement> _parameters;
   ParameterElement _currentParam;
 
-  ArgumentListCollector(this._context, this._method);
+  ArgumentListCollector(this._context,Element meth) {
+    if (meth is ExecutableElement) {
+      _parameters = meth.parameters;
+    } else if (meth is VariableElement) {
+      DartType t = meth.type;
+      if (t is FunctionType) {
+        _parameters = t.parameters;
+      }
+    }
+  }
 
   List<TSExpression> arguments = [];
   Map<String, TSExpression> namedArguments;
@@ -826,7 +836,7 @@ class ArgumentListCollector extends GeneralizingAstVisitor {
   @override
   visitArgumentList(ArgumentList node) {
     // Normal args
-    Iterator<ParameterElement> pars = _method?.parameters?.iterator;
+    Iterator<ParameterElement> pars = _parameters?.iterator;
 
     node.arguments.forEach((n) {
       bool hasNext = pars?.moveNext() ?? false;

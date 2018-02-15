@@ -460,6 +460,7 @@ class TSFunction extends TSExpression implements TSStatement {
   TypeManager tm;
   String prefix;
   bool declared;
+  TSType namedParameterType;
 
   TSFunction(
     this.tm, {
@@ -500,6 +501,7 @@ class TSFunction extends TSExpression implements TSStatement {
       defaults = withParameterCollector.defaults;
       namedDefaults = withParameterCollector.namedDefaults;
       initializers ??= [];
+      namedParameterType = withParameterCollector.namedType;
       initializers.addAll(withParameterCollector.fields?.map((f) => new TSExpressionStatement(
           new TSAssignamentExpression(
               new TSDotExpression(new TSSimpleExpression('this'), f), new TSSimpleExpression(f)))));
@@ -655,7 +657,7 @@ class TSFunction extends TSExpression implements TSStatement {
 
     if (body != null) {
       printer.writeln(' {');
-      printer.indented((printer) {
+      printer.indented((IndentingPrinter printer) {
         //printer.writeln('/* init */');
 
         // Init all values
@@ -666,8 +668,17 @@ class TSFunction extends TSExpression implements TSStatement {
           printer.writeln(";");
         });
 
+        // Explode named args
+
+        if (namedParameters?.isNotEmpty ?? false) {
+          printer.write('let {');
+          printer.joinConsumers(namedParameters.keys.map((k)=> (p) => p.write(k)));
+          printer.write('} = ');
+        }
+
+
         if (namedDefaults?.isNotEmpty ?? false) {
-          printer.writeln('${NAMED_ARGUMENTS} = Object.assign({');
+          printer.writeln('Object.assign({');
 
           printer.indented((printer) {
             printer.joinConsumers(
@@ -678,17 +689,17 @@ class TSFunction extends TSExpression implements TSStatement {
                 newLine: true);
           });
 
-          printer.writeln('}, ${NAMED_ARGUMENTS} || {});');
+          printer.write('}, ${NAMED_ARGUMENTS} || {})');
         } else if (namedParameters?.isNotEmpty ?? false) {
-          printer.writeln('${NAMED_ARGUMENTS} = ${NAMED_ARGUMENTS} || {};');
+          printer.write('${NAMED_ARGUMENTS} || {}');
         }
 
-        // Explode named args
-        namedParameters?.keys?.forEach((k) {
-          printer.write('let ${k} : ');
-          printer.accept(namedParameters[k]);
-          printer.writeln(' = ${NAMED_ARGUMENTS}.${k};');
-        });
+        if (namedParameters?.isNotEmpty ?? false) {
+          printer.write(' as ');
+          printer.accept(namedParameterType);
+          printer.writeln(';');
+        }
+
 
         // Initializers
         if (initializers != null) {
