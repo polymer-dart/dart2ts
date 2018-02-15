@@ -161,7 +161,7 @@ abstract class Context<T extends TSNode> {
 
   Expression get cascadingExpression;
 
-  bool translate();
+  void translate();
 
   E processExpression<E extends TSExpression>(Expression expression) {
     if (expression == null) {
@@ -891,7 +891,7 @@ class AssigningContext<A extends TSNode, B extends Context<A>> extends ChildCont
   AssigningContext(B parent, this._value) : super(parent);
 
   @override
-  bool translate() => parentContext.translate();
+  void translate() => parentContext.translate();
 
   exitAssignament() => parentContext.exitAssignament();
 }
@@ -903,7 +903,7 @@ class CascadingContext<A extends TSNode, B extends Context<A>> extends ChildCont
   CascadingContext(B parent, this._cascadingTarget, this._target) : super(parent);
 
   @override
-  bool translate() => parentContext.translate();
+  void translate() => parentContext.translate();
 
   @override
   bool get isCascading => true;
@@ -994,7 +994,7 @@ class LibraryContext extends TopLevelContext<TSLibrary> {
 
   LibraryContext(this._libraryElement, this._overrides) {}
 
-  bool translate() {
+  void translate() {
     typeManager = new TypeManager(_libraryElement, _overrides);
     tsLibrary = new TSLibrary(_libraryElement.source.uri.toString());
 
@@ -1004,7 +1004,6 @@ class LibraryContext extends TopLevelContext<TSLibrary> {
     tsLibrary.globalContext = _globalContext;
 
     tsLibrary.exports.addAll(typeManager.exports);
-    return true;
   }
 
   TSGlobalContext _globalContext;
@@ -1033,7 +1032,7 @@ class FileContext extends ChildContext<TSLibrary, LibraryContext, TSFile> {
 
   List<TSNode> tsDeclarations;
 
-  bool translate() {
+  void translate() {
     tsDeclarations = new List<TSNode>();
     TSFile tsFile = new TSFile(_compilationUnit, tsDeclarations);
 
@@ -1044,7 +1043,6 @@ class FileContext extends ChildContext<TSLibrary, LibraryContext, TSFile> {
     _topLevelContexts.forEach((c) => c.translate());
 
     parentContext.tsLibrary._children.add(tsFile);
-    return true;
   }
 
   TSDeclareContext resolveDeclarationContext(List<String> namespace) =>
@@ -1103,7 +1101,7 @@ class TopLevelFunctionContext extends FunctionDeclarationContext {
   TopLevelFunctionContext.declare(Context<TSNode> parentContext, FunctionDeclaration functionDeclaration)
       : super(parentContext, functionDeclaration, declare: true);
 
-  bool translate() {
+  void translate() {
     super.translate();
     (parentContext as FileContext).tsDeclarations.add(tsFunction);
   }
@@ -1117,7 +1115,7 @@ class TopLevelVariableContext extends ChildContext<TSFile, FileContext, TSVariab
   TSVariableDeclarations tsVariableDeclarations;
 
   @override
-  bool translate() {
+  void translate() {
     tsVariableDeclarations = new TSVariableDeclarations(
       new List.from(_vars.variables.variables.map((v) => new TSVariableDeclaration(
           v.name.name, processExpression(v.initializer), typeManager.toTsType(_vars.variables.type?.type)))),
@@ -1126,7 +1124,6 @@ class TopLevelVariableContext extends ChildContext<TSFile, FileContext, TSVariab
     );
 
     parentContext.tsDeclarations.add(tsVariableDeclarations);
-    return true;
   }
 }
 
@@ -1137,7 +1134,7 @@ class FunctionExpressionContext extends ChildContext<TSNode, Context<TSNode>, TS
 
   TSFunction tsFunction;
 
-  bool translate() {
+  void translate() {
     List<TSTypeParameter> typeParameters;
 
     if (_functionExpression.typeParameters != null) {
@@ -1166,7 +1163,6 @@ class FunctionExpressionContext extends ChildContext<TSNode, Context<TSNode>, TS
       body: body,
       isExpression: true,
     );
-    return true;
   }
 }
 
@@ -1238,7 +1234,7 @@ class FunctionDeclarationContext extends ChildContext<TSNode, Context, TSFunctio
   TSFunction tsFunction;
 
   @override
-  bool translate() {
+  void translate() {
     String name = _functionDeclaration.name.name;
 
     if (_functionDeclaration.element is PropertyAccessorElement) {
@@ -1255,8 +1251,6 @@ class FunctionDeclarationContext extends ChildContext<TSNode, Context, TSFunctio
           getAnnotation(_functionDeclaration.element.metadata, isTS)?.getField('stringInterpolation')?.toBoolValue() ??
               false
       ..returnType = parentContext.typeManager.toTsType(_functionDeclaration?.returnType?.type);
-
-    return true;
   }
 }
 
@@ -1276,7 +1270,7 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
   List<TSNode> _members;
 
   @override
-  bool translate() {
+  void translate() {
     _tsClass = new TSClass(library: currentClass._classDeclaration.element.librarySource.uri.toString());
     ClassMemberVisitor visitor = new ClassMemberVisitor(this, _tsClass, _declarationMode);
     _tsClass.name = _classDeclaration.name.name;
@@ -1327,10 +1321,6 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
       _tsClass.declared = _declarationMode;
       parentContext.tsDeclarations.add(_tsClass);
     }
-
-    //parentContext.tsDeclarations.add(_tsClass);
-
-    return true;
   }
 
   void _registerGlobal(TSClass declared) {
@@ -1555,7 +1545,7 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
   MethodContext(ClassContext parent, this._methodDeclaration, this._declarationMode) : super(parent);
 
   @override
-  bool translate() {
+  void translate() {
     // Props
     if (_declarationMode && (_methodDeclaration.isGetter || _methodDeclaration.isSetter)) {
       // Actually add a readonly or normal prop
@@ -1633,7 +1623,5 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
       withParameterCollector: parameterCollector,
       declared: _declarationMode,
     ));
-
-    return true;
   }
 }
