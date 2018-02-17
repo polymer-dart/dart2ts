@@ -1,11 +1,11 @@
 // Some triks borrowed from dart_sdk
 
 // Extend global Array
-import {initCollections} from './collection';
-import {initAsync} from "./async";
-import {initNatives} from "./natives";
-import {getDartMetadata, getOperatorKey, IDartMetadata, OperatorType} from "./decorations";
-export {OperatorType,DartMetadata,OverrideMethod,OverrideProperty,DartOperator} from "./decorations";
+import {initCollections} from './collection.js';
+import {initAsync} from "./async.js";
+import {initNatives} from "./natives.js";
+import {getDartMetadata, getOperatorKey, IDartMetadata, OperatorType} from "./decorations.js";
+export {OperatorType,DartMetadata,OverrideMethod,OverrideProperty,DartOperator} from "./decorations.js";
 
 /// Init
 initCollections();

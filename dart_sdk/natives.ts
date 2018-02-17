@@ -1,4 +1,4 @@
-import {extendPrototype} from "./utils";
+import {extendPrototype} from "./utils.js";
 
 declare global {
 

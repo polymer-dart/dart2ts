@@ -1,5 +1,5 @@
-export {Duration,Duration__microseconds} from './lib/core';
-export {Exception,FormatException,_Exception,IntegerDivisionByZeroException} from './lib/exceptions';
+export {Duration,Duration__microseconds} from './lib/core.js';
+export {Exception,FormatException,_Exception,IntegerDivisionByZeroException} from './lib/exceptions.js';
 
 
 export function print(message: String): void {

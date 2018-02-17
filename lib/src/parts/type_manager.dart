@@ -29,7 +29,17 @@ class TypeManager {
   Overrides _overrides;
   Set<String> exports = new Set();
 
-  TypeManager(this._current, this._overrides) {
+  String modulePrefix;
+  String moduleSuffix;
+
+  String resolvePath(String pp) {
+    if (!pp.startsWith('./')) {
+      pp = path.normalize(path.join(modulePrefix, pp));
+    }
+    return "${pp}${moduleSuffix}";
+  }
+
+  TypeManager(this._current, this._overrides, {this.moduleSuffix = '../node_modules/', this.modulePrefix = '.js'}) {
     _prefixes = {'#NOURI#': _getSdkPath('dart:bare')};
   }
 
@@ -68,7 +78,7 @@ class TypeManager {
       }
     }
 
-    return new TSImport(prefix: name, path: p, library: lib);
+    return new TSImport(prefix: name, path: resolvePath(p), library: lib);
   }
 
   Map<String, TSImport> _importedPaths = {};
@@ -89,7 +99,8 @@ class TypeManager {
 
     return _prefixes.putIfAbsent(uri, () {
       if (lib == null) {
-        return _importedPaths.putIfAbsent(modulePath, () => new TSImport(prefix: _nextPrefix(), path: modulePath));
+        return _importedPaths.putIfAbsent(
+            modulePath, () => new TSImport(prefix: _nextPrefix(), path: resolvePath(modulePath)));
       }
       if (lib.isInSdk) {
         // Replace with ts_sdk
@@ -116,7 +127,7 @@ class TypeManager {
 
       // Extract package name and path and produce a nodemodule path
       return _importedPaths.putIfAbsent(
-          libPath, () => new TSImport(prefix: _nextPrefix(), path: libPath, library: lib));
+          libPath, () => new TSImport(prefix: _nextPrefix(), path: resolvePath(libPath), library: lib));
     }).prefix;
   }
 

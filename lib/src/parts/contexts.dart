@@ -981,6 +981,13 @@ abstract class ChildContext<A extends TSNode, P extends Context<A>, E extends TS
   ClassContext get currentClass => parentContext.currentClass;
 }
 
+class Config {
+  String modulePrefix;
+  String moduleSuffix;
+
+  Config({this.modulePrefix = '../node_modules/', this.moduleSuffix = '.js'});
+}
+
 /**
  * Generation Context
  */
@@ -991,11 +998,13 @@ class LibraryContext extends TopLevelContext<TSLibrary> {
   //List<FileContext> _fileContexts;
   Overrides _overrides;
   TSLibrary tsLibrary;
+  Config _config;
 
-  LibraryContext(this._libraryElement, this._overrides) {}
+  LibraryContext(this._libraryElement, this._overrides, this._config) {}
 
   void translate() {
-    typeManager = new TypeManager(_libraryElement, _overrides);
+    typeManager = new TypeManager(_libraryElement, _overrides,
+        modulePrefix: _config.modulePrefix, moduleSuffix: _config.moduleSuffix);
     tsLibrary = new TSLibrary(_libraryElement.source.uri.toString());
 
     _libraryElement.units.forEach((cu) => new FileContext(this, cu.computeNode()).translate());
@@ -1083,7 +1092,7 @@ class TopLevelDeclarationVisitor extends GeneralizingAstVisitor<Context> {
     if (getAnnotation(node.element.metadata, isJS) != null) {
       String export = getAnnotation(node.element.metadata, isTS)?.getField('export')?.toStringValue();
       if (export != null) {
-        _fileContext.parentContext.addExport(export);
+        _fileContext.parentContext.addExport(_fileContext.typeManager.resolvePath(export));
       }
 
       if (shouldGenerate(node.element.metadata)) {

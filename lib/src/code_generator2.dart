@@ -40,6 +40,8 @@ class Dart2TsBuildCommand extends Command<bool> {
   Dart2TsBuildCommand() {
     this.argParser
       ..addOption('dir', defaultsTo: '.', abbr: 'd', help: 'the base path of the package to process')
+      ..addOption('module-prefix', defaultsTo: '../node_modules/', help: 'The absolute module prefix')
+      ..addOption('module-suffix', defaultsTo: '.js', help: 'The modules suffix')
       ..addFlag('watch', abbr: 'w', defaultsTo: false, help: 'watch for changes');
   }
 
@@ -48,7 +50,11 @@ class Dart2TsBuildCommand extends Command<bool> {
     PackageGraph graph = new PackageGraph.forPath(argResults['dir']);
 
     List<BuildAction> actions = [
-      new BuildAction(new Dart2TsBuilder(), graph.root.name, inputs: ['lib/**.dart', 'web/**.dart'])
+      new BuildAction(
+          new Dart2TsBuilder(
+              new Config(modulePrefix: argResults['module-prefix'], moduleSuffix: argResults['module-suffix'])),
+          graph.root.name,
+          inputs: ['lib/**.dart', 'web/**.dart'])
     ];
 
     if (argResults['watch'] == true) {
@@ -59,8 +65,8 @@ class Dart2TsBuildCommand extends Command<bool> {
   }
 }
 
-Builder dart2TsBuilder() {
-  return new Dart2TsBuilder();
+Builder dart2TsBuilder([Config config]) {
+  return new Dart2TsBuilder(config ?? new Config());
 }
 
 /// A [Builder] wrapping on one or more [Generator]s.
@@ -86,6 +92,10 @@ abstract class _BaseBuilder extends Builder {
 }
 
 class Dart2TsBuilder extends _BaseBuilder {
+  Config _config;
+
+  Dart2TsBuilder(this._config);
+
   @override
   Future generateForLibrary(LibraryElement library, BuildStep buildStep) async {
     AssetId destId = new AssetId(buildStep.inputId.package, "${path.withoutExtension(buildStep.inputId.path)}.ts");
@@ -94,7 +104,7 @@ class Dart2TsBuilder extends _BaseBuilder {
     IndentingPrinter printer = new IndentingPrinter();
     Overrides overrides = await Overrides.forCurrentContext();
     runWithContext(library.context, () {
-      LibraryContext libraryContext = new LibraryContext(library, overrides);
+      LibraryContext libraryContext = new LibraryContext(library, overrides, _config);
 
       libraryContext
         ..translate()

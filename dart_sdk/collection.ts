@@ -1,6 +1,6 @@
-import {Duration} from "./lib/core";
-import {extendPrototype} from "./utils";
-import {DartMetadata,IDartMetadata,OverrideMethod,OverrideProperty} from "./decorations";
+import {Duration} from "./lib/core.js";
+import {extendPrototype} from "./utils.js";
+import {DartMetadata,IDartMetadata,OverrideMethod,OverrideProperty} from "./decorations.js";
 
 
 export namespace Symbols {

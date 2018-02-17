@@ -1,8 +1,8 @@
 // export * from "./lib/async";
 
-import * as core from './core';
-import {Duration} from "./lib/core";
-import {extendPrototype} from "./utils";
+import * as core from './core.js';
+import {Duration} from "./lib/core.js";
+import {extendPrototype} from "./utils.js";
 
 
 declare global {

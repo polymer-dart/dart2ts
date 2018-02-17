@@ -6,7 +6,7 @@ import 'package:js/js.dart';
 import 'package:dart2ts/annotations.dart';
 
 @JS()
-@TS(generate: true, export: '../node_modules/@polymer/polymer/polymer-element')
+@TS(generate: true, export: '@polymer/polymer/polymer-element')
 class Element extends HTMLElement {}
 
 @JS()
