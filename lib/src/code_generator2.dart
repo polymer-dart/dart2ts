@@ -17,10 +17,12 @@ import 'package:source_gen/source_gen.dart';
 import 'package:yaml/yaml.dart';
 
 part 'package:dart2ts/src/parts/contexts.dart';
+
 part 'package:dart2ts/src/parts/ts_simple_ast.dart';
+
 part 'parts/type_manager.dart';
 
-final _P.Context path = new _P.Context(style:_P.Style.posix,current: '/');
+final _P.Context path = new _P.Context(style: _P.Style.posix, current: '/');
 
 /**
  * Second version of the code generator.
@@ -96,7 +98,7 @@ class Dart2TsBuilder extends _BaseBuilder {
 
       libraryContext
         ..translate()
-            ..tsLibrary.writeCode(printer);
+        ..tsLibrary.writeCode(printer);
     });
     await buildStep.writeAsString(destId, printer.buffer);
   }
@@ -135,6 +137,7 @@ class IndentingPrinter {
   }
 
   void indent([int count]) => _currentIndent += count ?? defaultIndent;
+
   void deindent([int count]) => _currentIndent -= count ?? defaultIndent;
 
   void indented(void consumer(IndentingPrinter), {int count}) {

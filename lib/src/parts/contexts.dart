@@ -1019,6 +1019,8 @@ class LibraryContext extends TopLevelContext<TSLibrary> {
   void addExport(String export) {
     tsLibrary.addExport(export);
   }
+
+  void addOnModuleLoad(TSStatement statement) => tsLibrary.onModuleLoad.add(statement);
 }
 
 class FileContext extends ChildContext<TSLibrary, LibraryContext, TSFile> {
@@ -1049,6 +1051,8 @@ class FileContext extends ChildContext<TSLibrary, LibraryContext, TSFile> {
 
   TSDeclareContext resolveDeclarationContext(List<String> namespace) =>
       parentContext.resolveDeclarationContext(namespace);
+
+  void addOnModuleLoad(TSStatement statement) => parentContext.addOnModuleLoad(statement);
 }
 
 class TopLevelDeclarationVisitor extends GeneralizingAstVisitor<Context> {
@@ -1106,6 +1110,11 @@ class TopLevelFunctionContext extends FunctionDeclarationContext {
   void translate() {
     super.translate();
     (parentContext as FileContext).addDeclaration(tsFunction);
+
+    if (hasAnnotation(_functionDeclaration.element.metadata, isOnModuleLoad)) {
+      (parentContext as FileContext).addOnModuleLoad(new TSExpressionStatement(
+          new TSInvoke(new TSSimpleExpression(typeManager.toTsName(_functionDeclaration.element)), null)));
+    }
   }
 }
 

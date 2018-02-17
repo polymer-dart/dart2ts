@@ -57,6 +57,9 @@ bool isTS(DartObject o) => (isDart2TsUri(o.type.element.librarySource.uri) && (o
 
 bool isVarargs(DartObject o) => (isDart2TsUri(o.type.element.librarySource.uri) && (o.type.name == 'VarArgs'));
 
+bool isOnModuleLoad(DartObject o) =>
+    (isDart2TsUri(o.type.element.librarySource.uri) && (o.type.name == 'OnModuleLoad'));
+
 bool isBowerImport(DartObject o) =>
     o != null && (isPolymerElementUri(o.type.element.librarySource.uri)) && (o.type.name == 'BowerImport');
 
@@ -160,6 +163,11 @@ DartObject getAnnotation(
         Iterable<ElementAnnotation> metadata, //
         bool matches(DartObject x)) =>
     (metadata ?? []).map((an) => an.computeConstantValue()).where(notNull).firstWhere(matches, orElse: () => null);
+
+bool hasAnnotation(
+        Iterable<ElementAnnotation> metadata, //
+        bool matches(DartObject x)) =>
+    getAnnotation(metadata, matches) != null;
 
 ElementAnnotation getElementAnnotation(
         Iterable<ElementAnnotation> metadata, //

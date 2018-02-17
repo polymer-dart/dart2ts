@@ -17,6 +17,8 @@ class TSLibrary extends TSNode {
 
   TSGlobalContext globalContext;
 
+  List<TSStatement> onModuleLoad = [];
+
   Set<String> exports = new Set();
 
   TSLibrary(this._name) {}
@@ -65,6 +67,18 @@ class TSLibrary extends TSNode {
     });
     printer.writeln('}');
     printer.writeln('export var module : Module = new Module();');
+
+    if (onModuleLoad.isNotEmpty) {
+      printer.writeln('// On module load');
+      printer.writeln();
+      onModuleLoad.forEach((s) {
+        printer.accept(s);
+        if (s.needsSeparator) {
+          printer.write(';');
+        }
+        printer.writeln();
+      });
+    }
   }
 
   void addChild(TSFile child) {
@@ -672,10 +686,9 @@ class TSFunction extends TSExpression implements TSStatement {
 
         if (namedParameters?.isNotEmpty ?? false) {
           printer.write('let {');
-          printer.joinConsumers(namedParameters.keys.map((k)=> (p) => p.write(k)));
+          printer.joinConsumers(namedParameters.keys.map((k) => (p) => p.write(k)));
           printer.write('} = ');
         }
-
 
         if (namedDefaults?.isNotEmpty ?? false) {
           printer.writeln('Object.assign({');
@@ -699,7 +712,6 @@ class TSFunction extends TSExpression implements TSStatement {
           printer.accept(namedParameterType);
           printer.writeln(';');
         }
-
 
         // Initializers
         if (initializers != null) {

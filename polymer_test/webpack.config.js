@@ -10,7 +10,7 @@ module.exports = {
 };
 */
 module.exports = {
-    entry: './lib/index.ts',
+    entry: './lib/myelement.ts',
     devtool: 'inline-source-map',
     module: {
         rules: [

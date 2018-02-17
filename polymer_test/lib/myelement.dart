@@ -1,5 +1,6 @@
 import 'html_template.dart';
 import 'mini_html.dart';
+import 'package:dart2ts/annotations.dart';
 import 'polymer.dart' as polymer;
 
 class MyElement extends polymer.Element {
@@ -31,9 +32,7 @@ class MyElement extends polymer.Element {
   }
 }
 
-void main() {
+@onModuleLoad
+void _registerElements() {
   customElements.define('my-tag', MyElement);
-  print("hello");
 }
-
-// 4. long string check

@@ -25,4 +25,10 @@ class VarArgs {
   const VarArgs();
 }
 
+class OnModuleLoad {
+  const OnModuleLoad();
+}
+
+const OnModuleLoad onModuleLoad = const OnModuleLoad();
+
 const VarArgs varargs = const VarArgs();
