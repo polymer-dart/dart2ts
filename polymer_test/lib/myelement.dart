@@ -5,6 +5,7 @@ import 'polymer.dart' as polymer;
 
 class MyElement extends polymer.Element {
   String name;
+  int number = 0;
 
   static get template => html("""
   <style>
@@ -28,7 +29,8 @@ class MyElement extends polymer.Element {
 
   void changeName(ev, detail) {
     print('Clicked : ${ev}, ${detail}');
-    name = 'Super app';
+    number = number + 1;
+    name = 'Super app : ${number}';
   }
 }
 
