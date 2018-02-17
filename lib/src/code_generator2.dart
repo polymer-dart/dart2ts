@@ -94,7 +94,9 @@ abstract class _BaseBuilder extends Builder {
 class Dart2TsBuilder extends _BaseBuilder {
   Config _config;
 
-  Dart2TsBuilder(this._config);
+  Dart2TsBuilder([this._config]) {
+    this._config ??= new Config();
+  }
 
   @override
   Future generateForLibrary(LibraryElement library, BuildStep buildStep) async {

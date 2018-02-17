@@ -251,6 +251,18 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
   }
 
   @override
+  TSStatement visitTryStatement(TryStatement node) {
+    return new TSTryStatement(node.body.accept(this), new List.from(node.catchClauses.map((c) => c.accept(this))),
+        node.finallyBlock?.accept(this));
+  }
+
+  @override
+  TSStatement visitCatchClause(CatchClause node) {
+    return new TSCatchStatement(
+        node.exceptionParameter.name, _context.typeManager.toTsType(node.exceptionType?.type), node.body.accept(this));
+  }
+
+  @override
   TSStatement visitStatement(Statement node) {
     return new TSUnknownStatement(node);
   }
@@ -552,7 +564,8 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
   @override
   TSExpression visitIndexExpression(IndexExpression node) {
     // TODO: handle overridden operator
-    return new TSIndexExpression(_context.processExpression(node.target), _context.processExpression(node.index));
+    return _mayWrapInAssignament(new TSIndexExpression(_context.exitAssignament().processExpression(node.target),
+        _context.exitAssignament().processExpression(node.index)));
   }
 
   @override
@@ -720,9 +733,14 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
   TSExpression _newObjectWithConstructor(
       ConstructorElement ctor, InstanceCreationExpression node, ArgumentListCollector collector) {
     TSType myType = _context.typeManager.toTsType(node.bestType);
-    if (ctor.isFactory) {
+    if (ctor.isFactory && !ctor.isExternal) {
       // Invoke as normal static method
-      return new TSInvoke(new TSStaticRef(myType, ctor.name), collector.arguments, collector.namedArguments);
+
+      String factoryName = ctor.name ?? "";
+      if (factoryName.isEmpty) {
+        factoryName = r"$create";
+      }
+      return new TSInvoke(new TSStaticRef(myType, factoryName), collector.arguments, collector.namedArguments);
     } else if ((ctor.name?.length ?? 0) > 0) {
       // Invoke named constructor
       return new TSInvoke(new TSStaticRef(myType, ctor.name), collector.arguments, collector.namedArguments)

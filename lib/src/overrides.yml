@@ -13,6 +13,9 @@ overrides:
            map: $map
  "dart:core":
     classes:
+      Expando:
+         operators:
+           "[]" : "$indexed"
       List:
          to:
            class: Array
@@ -23,6 +26,8 @@ overrides:
          methods:
            map: "$map"
            sublist: "$sublist"
+           add: "$add"
+           remove: "$remove"
       Map:
          to:
            class: Map

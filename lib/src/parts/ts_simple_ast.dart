@@ -997,6 +997,44 @@ class TSDoWhileStatement extends TSStatement {
   }
 }
 
+class TSCatchStatement extends TSStatement {
+  String _exceptionName;
+  TSType _exceptionType;
+  TSStatement _body;
+
+  TSCatchStatement(this._exceptionName, this._exceptionType, this._body);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write(' catch (${_exceptionName}) ');
+    printer.accept(_body);
+  }
+}
+
+class TSTryStatement extends TSStatement {
+  TSStatement _body;
+  List<TSStatement> _catches;
+  TSStatement _finallyBlock;
+
+  TSTryStatement(this._body, this._catches, this._finallyBlock);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.write('try ');
+    printer.accept(_body);
+
+    _catches.forEach((c) => printer.accept(c));
+
+    if (_finallyBlock != null) {
+      printer.write((' finally '));
+      printer.accept(_finallyBlock);
+    }
+  }
+
+  @override
+  bool get needsSeparator => false;
+}
+
 class TSForEachStatement extends TSStatement {
   TSDeclaredIdentifier _ident;
   TSExpression _iterable;

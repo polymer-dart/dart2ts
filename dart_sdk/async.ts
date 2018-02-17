@@ -103,6 +103,10 @@ export class Completer<X> {
 
     isCompleted: boolean = false;
 
+    static $create<X>(): Completer<X> {
+        return new Completer();
+    }
+
     get future(): Promise<X> {
         return this._future;
     }
