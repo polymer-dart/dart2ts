@@ -14,8 +14,8 @@ declare global {
 
         $sublist(from: number, to: number): Array<T>;
 
-        $isEmpty: boolean;
-        $isNotEmpty: boolean;
+        readonly $isEmpty: boolean;
+        readonly $isNotEmpty: boolean;
 
         $add(e: T): void;
 
@@ -44,6 +44,17 @@ export interface DartIterable<T> extends Iterable<T> {
 
 @DartMetadata({library: 'dart:core'})
 export class DartList<T> extends Array<T> implements DartIterable<T> {
+
+    get $isEmpty():boolean {
+        return this.length==0;
+    }
+
+    get $isNotEmpty():boolean {
+        return this.length!=0;
+    }
+
+
+
     @OverrideMethod('$join', 'join')
     $join(separator: string): string {
         return this.join(separator);

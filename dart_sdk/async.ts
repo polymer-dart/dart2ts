@@ -141,13 +141,13 @@ export class StreamController<X> {
         return this._stream;
     }
 
-    constructor() {
-        this._stream = new _Stream<X>();
+    constructor(arg?: { onListen?: () => any, onCancel?: () => any, sync?: boolean }) {
+        this._stream = new _Stream<X>(arg);
     }
 
     // Factory constructor
     static broadcast<Y>(arg?: { onListen?: () => any, onCancel?: () => any, sync?: boolean }): StreamController<Y> {
-        return new StreamController<Y>();
+        return new StreamController<Y>(arg);
     }
 
     add(x: X): void {
@@ -172,7 +172,23 @@ export interface StreamSubscription<X> {
 }
 
 
+function noop<X>() {
+}
+
 class _Stream<X> implements DartStream<X> {
+    private _onListen: () => any;
+    private _onCancel: () => any;
+
+    constructor(arg?: { onListen?: () => any, onCancel?: () => any, sync?: boolean }) {
+        if (arg) {
+            this._onListen = arg.onListen;
+            this._onCancel = arg.onCancel;
+        }
+
+        this._onListen = this._onListen || noop;
+        this._onCancel = this._onCancel || noop;
+    }
+
     $map<U>(mapper: (t: X) => U): DartStream<U> {
         return toStream(this).$map(mapper);
     }
@@ -188,13 +204,28 @@ class _Stream<X> implements DartStream<X> {
     [Symbol.asyncIterator]() {
         let b: Broadcast<X> = new Broadcast<X>(() => {
             this._broadcast.$remove(b);
+            this._removeListener(b.listener);
         });
         this._broadcast.push(b);
-        this._listeners.push((x) => b.add(x));
+        this._addListener(b.listener);
         return b.start();
     }
 
     private _listeners: Array<(X) => any> = [];
+
+    private _addListener(listener: (X) => any) {
+        this._listeners.push(listener);
+        if (this._listeners.length == 1) {
+            this._onListen();
+        }
+    }
+
+    private _removeListener(listener: (x: X) => any) {
+        this._listeners.$remove(listener);
+        if (this._listeners.$isEmpty) {
+            this._onCancel();
+        }
+    }
 
     add(x: X): void {
         this._listeners.forEach((l) => {
@@ -212,13 +243,12 @@ class _Stream<X> implements DartStream<X> {
         }
         this._closed = true;
         this._broadcast.slice().forEach((b) => b.close());
-        this._broadcast = [];
     }
 
     listen(handler: (X) => any): StreamSubscription<X> {
-        this._listeners.push(handler);
+        this._addListener(handler);
         return <StreamSubscription<X>>{
-            cancel: () => this._listeners.splice(this._listeners.indexOf(handler), 1)
+            cancel: () => this._listeners.$remove(handler)
         };
     }
 }
@@ -231,7 +261,13 @@ interface EternalPromise<X> {
 
 const BroadCastClosed = Symbol("BroadcastClosed");
 
+/**
+ * NOTE : using complete instead of completeError to terminate the
+ * consumer to avoid annoying exception when completing a promise that's not in await state.
+ */
 class Broadcast<X> {
+    listener: (x: X) => void = (x: X) => this.add(x);
+
     private _currentConsumer: Completer<EternalPromise<X>>;
     private _currentProvider: Promise<EternalPromise<X>>;
     private _onclose: () => void;
@@ -239,14 +275,9 @@ class Broadcast<X> {
 
     close(): void {
         this._closed = true;
-        try {
-            this._currentConsumer.completeError(BroadCastClosed);
-        } catch (e) {
-            if (e !== BroadCastClosed) {
-                // ignoring BroadCastClosed if the consumer wasn't listening yet
-                throw e;
-            }
-        }
+
+        this._currentConsumer.complete(BroadCastClosed as any);
+
     }
 
     constructor(onClose: () => void) {
@@ -259,8 +290,10 @@ class Broadcast<X> {
         do {
             try {
                 let p = await this._currentProvider;
-                yield p.current;
-                this._currentProvider = p.next;
+                if ((p as any) !== BroadCastClosed) {
+                    yield p.current;
+                    this._currentProvider = p.next;
+                }
             } catch (e) {
                 console.warn(`Finished stream, isClose:${this._closed}`);
                 if (e !== BroadCastClosed) {
