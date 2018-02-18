@@ -15,11 +15,16 @@ overrides:
     classes:
       Expando:
          operators:
-           "[]" : "$indexed"
+           "[]" : "$get"
+           "[]=" : "$set"
       List:
          to:
            class: Array
            from: global
+         constructors:
+           from:
+             name: "$from"
+             factory: true
          properties:
            first: "$first"
            last: "$last"

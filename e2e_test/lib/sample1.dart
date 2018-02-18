@@ -4,6 +4,7 @@ import 'sample3.dart';
 import 'sample4.dart';
 import 'sample5.dart';
 import 'package:dart2ts/annotations.dart';
+import 'test_stream.dart' show testDaStream;
 
 @JS()
 class Metadata {
@@ -16,7 +17,7 @@ external Metadata getMetadata();
 
 @TS(stringInterpolation: true)
 HTMLDivElement testInterpolate(String _, {List<String> literals, List values}) {
-  if (_!=null) {
+  if (_ != null) {
     throw "String interpolation called directly";
   }
   HTMLDivElement div = document.createElement('div');
@@ -118,9 +119,11 @@ void main(List<String> args) {
 
   printToBody('bye!');
 
-  testFuture().then((_) {
-    printToBody("Future works");
-    testFuture2();
+  testDaStream().then((_) {
+    testFuture().then((_) {
+      printToBody("Future works");
+      testFuture2();
+    });
   });
 
   printToBody('LIB: ${getMetadata(xy.MySampleClass1).library}');

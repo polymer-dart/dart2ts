@@ -230,24 +230,28 @@ class TypeManager {
     }
 
     if (type is FunctionType) {
-      Iterable<TSType> args = () sync* {
+      Iterable<List> args = () sync* {
         for (var p in type.normalParameterTypes) {
-          yield toTsType(p);
+          yield [p.name, toTsType(p)];
         }
         for (var p in type.optionalParameterTypes) {
-          yield new TSOptionalType(toTsType(p));
+          yield [p.name, new TSOptionalType(toTsType(p))];
         }
 
         if (type.namedParameterTypes.isNotEmpty) {
-          yield new TSInterfaceType(
-              fields: new Map.fromIterable(type.namedParameterTypes.keys,
-                  value: (k) => new TSOptionalType(toTsType(type.namedParameterTypes[k]))));
+          yield [
+            NAMED_ARGUMENTS,
+            new TSInterfaceType(
+                fields: new Map.fromIterable(type.namedParameterTypes.keys,
+                    value: (k) => new TSOptionalType(toTsType(type.namedParameterTypes[k]))))
+          ];
         }
       }();
 
       Iterable<TSType> typeArguments = new List.from(type.typeArguments?.map((t) => toTsType(t)));
 
-      return new TSFunctionType(toTsType(type.returnType), new List.from(args), typeArguments);
+      return new TSFunctionType(
+          toTsType(type.returnType), new Map.fromIterable(args, key: (p) => p[0], value: (p) => p[1]), typeArguments);
     }
 
     if (getAnnotation(type?.element?.metadata ?? [], isJS) != null) {
@@ -323,4 +327,12 @@ class TypeManager {
   String namespaceForPrefix(PrefixElement prefix) {
     return namespace(_current.getImportsWithPrefix(prefix).first.importedLibrary);
   }
+
+  TSExpression checkOperator(
+          Context<TSNode> context, String op, Expression target, Expression index, TSExpression orElse()) =>
+      _overrides.checkOperator(context, op, target, index, orElse);
+
+  TSExpression checkConstructor(Context<TSNode> context, DartType targetType, ConstructorElement ctor,
+          ArgumentListCollector collector, TSExpression orElse()) =>
+      _overrides.checkConstructor(context, targetType, ctor, collector, orElse);
 }

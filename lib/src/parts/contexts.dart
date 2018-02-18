@@ -31,20 +31,7 @@ class Overrides {
 
   TSExpression checkMethod(TypeManager typeManager, DartType type, String methodName, TSExpression tsTarget,
       {TSExpression orElse()}) {
-    LibraryElement from = type?.element?.library;
-    Uri fromUri = from?.source?.uri;
-
-    _logger.fine("Checking method for {${fromUri}}${type.name} -> ${methodName}");
-    if (type == null || fromUri == null) {
-      return orElse();
-    }
-
-    var libOverrides = _overrides[fromUri.toString()];
-    if (libOverrides == null) {
-      return orElse();
-    }
-
-    var classOverrides = (libOverrides['classes'] ?? {})[type.name];
+    var classOverrides = _findClassOverride(type);
 
     if (classOverrides == null) {
       return orElse();
@@ -79,20 +66,7 @@ class Overrides {
   }
 
   String checkProperty(TypeManager typeManager, DartType type, String name) {
-    LibraryElement from = type?.element?.library;
-    Uri fromUri = from?.source?.uri;
-
-    _logger.fine("Checking props for {${fromUri}}${type.name} -> ${name}");
-    if (type == null || fromUri == null) {
-      return name;
-    }
-
-    var libOverrides = _overrides[fromUri.toString()];
-    if (libOverrides == null) {
-      return name;
-    }
-
-    var classOverrides = (libOverrides['classes'] ?? {})[type.name];
+    var classOverrides = _findClassOverride(type);
 
     if (classOverrides == null) {
       return name;
@@ -107,21 +81,25 @@ class Overrides {
     return propsOverrides;
   }
 
-  TSType checkType(TypeManager typeManager, String origPrefix, DartType type, bool noTypeArgs, {TSType orElse()}) {
+  _findClassOverride(DartType type) {
     LibraryElement from = type?.element?.library;
     Uri fromUri = from?.source?.uri;
 
-    _logger.fine("Checking type for {${fromUri}}${type.name}");
+    _logger.fine("Checking type for {${fromUri}}${type?.name}");
     if (type == null || fromUri == null) {
-      return orElse();
+      return null;
     }
 
     var libOverrides = _overrides[fromUri.toString()];
     if (libOverrides == null) {
-      return orElse();
+      return null;
     }
 
-    var classOverrides = (libOverrides['classes'] ?? {})[type.name];
+    return (libOverrides['classes'] ?? {})[type.name];
+  }
+
+  TSType checkType(TypeManager typeManager, String origPrefix, DartType type, bool noTypeArgs, {TSType orElse()}) {
+    var classOverrides = _findClassOverride(type);
 
     if (classOverrides == null || classOverrides['to'] == null || (classOverrides['to'] as YamlMap)['class'] == null) {
       return orElse();
@@ -141,6 +119,65 @@ class Overrides {
     } else {
       return new TSSimpleType("${p}${actualName}", !TypeManager.isNativeType(type));
     }
+  }
+
+  TSExpression checkOperator(
+      Context<TSNode> context, String op, Expression target, Expression index, TSExpression orElse()) {
+    var classOverrides = _findClassOverride(target.bestType);
+
+    if (classOverrides == null) return orElse();
+
+    var operators = classOverrides['operators'];
+
+    if (context.isAssigning) {
+      op = "${op}=";
+    }
+
+    if (operators == null || operators[op] == null) {
+      return orElse();
+    }
+
+    // replace with method invocation
+    String methodName = operators[op];
+
+    if (context.isAssigning) {
+      Context noAssign = context.exitAssignament();
+      return new TSInvoke(new TSDotExpression(noAssign.processExpression(target), methodName), [
+        noAssign.processExpression(index),
+        context.assigningValue,
+      ]);
+    } else {
+      return new TSInvoke(
+          new TSDotExpression(context.processExpression(target), methodName), [context.processExpression(index)]);
+    }
+  }
+
+  TSExpression checkConstructor(Context<TSNode> context, DartType targetType, ConstructorElement ctor,
+      ArgumentListCollector collector, TSExpression orElse()) {
+    var classOverrides = _findClassOverride(targetType);
+    if (classOverrides == null || classOverrides['constructors'] == null) {
+      return orElse();
+    }
+
+    var constructor = classOverrides['constructors'][ctor.name ?? "\$default"];
+    if (constructor == null) {
+      return orElse();
+    }
+
+    String newName;
+    bool isFactory;
+    if (constructor is String) {
+      newName = constructor;
+      isFactory = false;
+    } else {
+      newName = constructor['name'];
+      isFactory = constructor['factory'];
+    }
+
+    TSType tsType = context.typeManager.toTsType(targetType);
+
+    return new TSInvoke(new TSStaticRef(tsType, newName), collector.arguments, collector.namedArguments)
+      ..asNew = !isFactory;
   }
 }
 
@@ -564,8 +601,13 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
   @override
   TSExpression visitIndexExpression(IndexExpression node) {
     // TODO: handle overridden operator
-    return _mayWrapInAssignament(new TSIndexExpression(_context.exitAssignament().processExpression(node.target),
-        _context.exitAssignament().processExpression(node.index)));
+    return _context.typeManager.checkOperator(
+        _context,
+        '[]',
+        node.target,
+        node.index,
+        () => _mayWrapInAssignament(new TSIndexExpression(_context.exitAssignament().processExpression(node.target),
+            _context.exitAssignament().processExpression(node.index))));
   }
 
   @override
@@ -732,23 +774,24 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   TSExpression _newObjectWithConstructor(
       ConstructorElement ctor, InstanceCreationExpression node, ArgumentListCollector collector) {
-    TSType myType = _context.typeManager.toTsType(node.bestType);
-    if (ctor.isFactory && !ctor.isExternal) {
-      // Invoke as normal static method
+    return _context.typeManager.checkConstructor(_context, node.bestType, ctor, collector, () {
+      TSType myType = _context.typeManager.toTsType(node.bestType);
+      TSExpression target;
 
-      String factoryName = ctor.name ?? "";
-      if (factoryName.isEmpty) {
-        factoryName = r"$create";
+      bool asNew = (!ctor.isFactory || ctor.isExternal);
+
+      if ((ctor.name?.isEmpty ?? true) && asNew) {
+        target = new TSTypeRef(myType);
+      } else {
+        String factoryName = ctor.name ?? "";
+        if (factoryName.isEmpty) {
+          factoryName = r"$create";
+        }
+        target = new TSStaticRef(myType, factoryName);
       }
-      return new TSInvoke(new TSStaticRef(myType, factoryName), collector.arguments, collector.namedArguments);
-    } else if ((ctor.name?.length ?? 0) > 0) {
-      // Invoke named constructor
-      return new TSInvoke(new TSStaticRef(myType, ctor.name), collector.arguments, collector.namedArguments)
-        ..asNew = true;
-    } else {
-      // Invoke normal constructor
-      return new TSInvoke(new TSTypeRef(myType), collector.arguments, collector.namedArguments)..asNew = true;
-    }
+
+      return new TSInvoke(target, collector.arguments, collector.namedArguments)..asNew = asNew;
+    });
   }
 
   @override

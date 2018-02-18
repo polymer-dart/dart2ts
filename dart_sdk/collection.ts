@@ -1,6 +1,6 @@
 import {Duration} from "./lib/core.js";
 import {extendPrototype} from "./utils.js";
-import {DartMetadata,IDartMetadata,OverrideMethod,OverrideProperty} from "./decorations.js";
+import {DartMetadata, IDartMetadata, OverrideMethod, OverrideProperty} from "./decorations.js";
 
 
 export namespace Symbols {
@@ -24,6 +24,10 @@ declare global {
         $map<X>(f: (t: T) => X): DartIterable<X>;
     }
 
+    interface ArrayConstructor {
+        $from<T>(source: Iterable<T>): Array<T>;
+    }
+
 }
 
 
@@ -35,41 +39,45 @@ export interface DartIterable<T> extends Iterable<T> {
 
     $map<X>(f: (t: T) => X): DartIterable<X>;
 
-    forEach(f: (x:T)=> any):void;
+    forEach(f: (x: T) => any): void;
 }
 
-@DartMetadata({library:'dart:core'})
+@DartMetadata({library: 'dart:core'})
 export class DartList<T> extends Array<T> implements DartIterable<T> {
-    @OverrideMethod('$join','join')
+    @OverrideMethod('$join', 'join')
     $join(separator: string): string {
         return this.join(separator);
     }
 
-    @OverrideProperty('$first','first')
+    @OverrideProperty('$first', 'first')
     get $first(): T {
         return this[0];
     }
-    @OverrideProperty('$last','last')
+
+    @OverrideProperty('$last', 'last')
     get $last(): T {
         return this[this.length - 1];
     }
 
-    @OverrideMethod('$sublist','sublist')
+    @OverrideMethod('$sublist', 'sublist')
     $sublist(from: number, to: number): Array<T> {
         return this.slice(from, to);
     }
 
-    @OverrideMethod('$add','add')
+    @OverrideMethod('$add', 'add')
     $add(e: T): void {
         this.push(e);
     }
 
-    @OverrideMethod('$remove','remove')
+    @OverrideMethod('$remove', 'remove')
     $remove(e: T): void {
-        this.splice(this.indexOf(e), 1);
+        let idx = this.indexOf(e);
+        if (idx >= 0) {
+            this.splice(this.indexOf(e), 1);
+        }
     }
 
-    @OverrideMethod('$map','map')
+    @OverrideMethod('$map', 'map')
     $map<X>(f: (t: T) => X): DartIterable<X> {
         let self = this;
         return toDartIterable<X>({
@@ -82,16 +90,16 @@ export class DartList<T> extends Array<T> implements DartIterable<T> {
     }
 }
 
-export function iter<X>(generator:()=>Iterator<X>) {
+export function iter<X>(generator: () => Iterator<X>) {
     return toDartIterable({
-        [Symbol.iterator]:generator
+        [Symbol.iterator]: generator
     });
 }
 
 function toDartIterable<X>(x: Iterable<X>): DartIterable<X> {
-    @DartMetadata({library:'dart:core'})
+    @DartMetadata({library: 'dart:core'})
     class _ implements DartIterable<X> {
-        @OverrideMethod('$map','map')
+        @OverrideMethod('$map', 'map')
         $map<T>(f: (t: X) => T): DartIterable<T> {
             let self = this;
 
@@ -104,18 +112,18 @@ function toDartIterable<X>(x: Iterable<X>): DartIterable<X> {
             });
         }
 
-        forEach(f: (x:X)=>any):void {
+        forEach(f: (x: X) => any): void {
             for (let _ of this) {
                 f(_);
             }
         }
 
-        @OverrideMethod('$join','join')
+        @OverrideMethod('$join', 'join')
         $join(separator: string): string {
             return Array.from(this).join(separator);
         }
 
-        @OverrideProperty('$first','first')
+        @OverrideProperty('$first', 'first')
         get $first(): X {
             let first: X;
             for (let x of this) {
@@ -125,7 +133,7 @@ function toDartIterable<X>(x: Iterable<X>): DartIterable<X> {
             return first;
         }
 
-        @OverrideProperty('$last','last')
+        @OverrideProperty('$last', 'last')
         get $last(): X {
             let last: X;
             for (let x of this) {
@@ -149,8 +157,7 @@ export class DartMap<K, V>
 }
 
 
-let
-    inited: boolean = false;
+let inited: boolean = false;
 
 
 export function
@@ -160,7 +167,17 @@ initCollections() {
         return;
     }
 
+    inited = true;
+
     extendPrototype(Array, DartList);
     extendPrototype(Map, DartMap);
+
+    Object.defineProperty(Array, "$from", {
+        get() {
+            return function <X>(source: Iterable<X>): Array<X> {
+                return Array.from(source);
+            }
+        }
+    });
 
 }

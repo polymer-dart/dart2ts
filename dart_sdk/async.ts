@@ -66,6 +66,8 @@ export function initAsync() {
         return;
     }
 
+    inited = true;
+
 
     extendPrototype(Promise, DartFuture);
 
@@ -152,9 +154,16 @@ export class StreamController<X> {
         this._stream.add(x);
     }
 
+    close(): void {
+        this._stream.close();
+    }
+
 }
 
 export interface StreamSink<X> {
+    add(event: X): void;
+
+    close(): void;
 
 }
 
@@ -165,30 +174,25 @@ export interface StreamSubscription<X> {
 
 class _Stream<X> implements DartStream<X> {
     $map<U>(mapper: (t: X) => U): DartStream<U> {
-        return undefined;
+        return toStream(this).$map(mapper);
     }
 
     private _closed: boolean = false;
+
+    private _broadcast: Array<Broadcast<X>> = [];
 
     /**
      *  Implementing the iterable protocols allows
      * to easily implement "await for" constructs.
      */
-    get [Symbol.asyncIterator]() {
-        return async function* () {
-            while (!this._closed) {
-                let next: Promise<X> = new Promise((resolve, reject) => {
-                    let sub = this.listen((x) => {
-                        sub.cancel();
-                        resolve(x);
-                    });
-                });
-
-                yield next;
-            }
-        }
+    [Symbol.asyncIterator]() {
+        let b: Broadcast<X> = new Broadcast<X>(() => {
+            this._broadcast.$remove(b);
+        });
+        this._broadcast.push(b);
+        this._listeners.push((x) => b.add(x));
+        return b.start();
     }
-
 
     private _listeners: Array<(X) => any> = [];
 
@@ -202,10 +206,86 @@ class _Stream<X> implements DartStream<X> {
         });
     }
 
+    close(): void {
+        if (this._closed) {
+            return;
+        }
+        this._closed = true;
+        this._broadcast.slice().forEach((b) => b.close());
+        this._broadcast = [];
+    }
+
     listen(handler: (X) => any): StreamSubscription<X> {
         this._listeners.push(handler);
         return <StreamSubscription<X>>{
             cancel: () => this._listeners.splice(this._listeners.indexOf(handler), 1)
         };
     }
+}
+
+interface EternalPromise<X> {
+    current: X;
+    next: Promise<EternalPromise<X>>;
+}
+
+
+const BroadCastClosed = Symbol("BroadcastClosed");
+
+class Broadcast<X> {
+    private _currentConsumer: Completer<EternalPromise<X>>;
+    private _currentProvider: Promise<EternalPromise<X>>;
+    private _onclose: () => void;
+    private _closed: boolean = false;
+
+    close(): void {
+        this._closed = true;
+        try {
+            this._currentConsumer.completeError(BroadCastClosed);
+        } catch (e) {
+            if (e !== BroadCastClosed) {
+                // ignoring BroadCastClosed if the consumer wasn't listening yet
+                throw e;
+            }
+        }
+    }
+
+    constructor(onClose: () => void) {
+        this._onclose = onClose;
+        this._currentConsumer = new Completer<EternalPromise<X>>();
+        this._currentProvider = this._currentConsumer.future;
+    }
+
+    async * start(): AsyncIterator<X> {
+        do {
+            try {
+                let p = await this._currentProvider;
+                yield p.current;
+                this._currentProvider = p.next;
+            } catch (e) {
+                console.warn(`Finished stream, isClose:${this._closed}`);
+                if (e !== BroadCastClosed) {
+                    throw e;
+                }
+            }
+        } while (!this._closed);
+
+        this._onclose();
+    }
+
+
+    add(x: X): void {
+        if (this._closed) {
+            throw "Cannot add to a closed listener";
+        }
+
+        let old = this._currentConsumer;
+        this._currentConsumer = new Completer<EternalPromise<X>>();
+
+        old.complete({
+            current: x,
+            next: this._currentConsumer.future
+        });
+
+    }
+
 }

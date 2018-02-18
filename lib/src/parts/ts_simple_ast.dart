@@ -277,9 +277,9 @@ class TSThrow extends TSExpression {
 class TSFunctionType extends TSType {
   TSType _returnType;
   List<TSType> _typeArguments;
-  List<TSType> _argumentsType;
+  Map<String, TSType> _arguments;
 
-  TSFunctionType(this._returnType, this._argumentsType, [this._typeArguments]) : super(true);
+  TSFunctionType(this._returnType, this._arguments, [this._typeArguments]) : super(true);
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -289,7 +289,12 @@ class TSFunctionType extends TSType {
       printer.write('>');
     }
     printer.write('(');
-    printer.join(_argumentsType);
+
+    printer.joinConsumers(_arguments.keys.map((n) => (p) {
+          p.write(n);
+          p.write(' : ');
+          p.accept(_arguments[n]);
+        }));
     printer.write(') => ');
     printer.accept(_returnType);
   }
