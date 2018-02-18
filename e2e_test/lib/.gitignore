@@ -11,3 +11,7 @@ simple_expression.ts
 class_constructors.ts
 strange_prefix_case.ts
 extending_list.ts
+array_from.ts
+expando.ts
+field_array.ts
+test_stream.ts
