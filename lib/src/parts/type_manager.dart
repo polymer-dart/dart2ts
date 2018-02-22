@@ -231,11 +231,16 @@ class TypeManager {
 
     if (type is FunctionType) {
       Iterable<List> args = () sync* {
-        for (var p in type.normalParameterTypes) {
-          yield [p.name, toTsType(p)];
+        Map<String, DartType> normalPars = new Map.fromIterables(type.normalParameterNames, type.normalParameterTypes);
+
+        for (var p in type.normalParameterNames) {
+          yield [p, toTsType(normalPars[p])];
         }
-        for (var p in type.optionalParameterTypes) {
-          yield [p.name, new TSOptionalType(toTsType(p))];
+
+        Map<String, DartType> optionalPars =
+            new Map.fromIterables(type.optionalParameterNames, type.optionalParameterTypes);
+        for (var p in type.optionalParameterNames) {
+          yield [p, new TSOptionalType(toTsType(optionalPars[p]))];
         }
 
         if (type.namedParameterTypes.isNotEmpty) {

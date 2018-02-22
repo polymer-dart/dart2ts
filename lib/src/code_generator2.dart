@@ -65,6 +65,26 @@ class Dart2TsBuildCommand extends Command<bool> {
   }
 }
 
+Future<BuildResult> dart2tsBuild(String path, Config config) {
+  PackageGraph graph = new PackageGraph.forPath(path);
+
+  List<BuildAction> actions = [
+    new BuildAction(new Dart2TsBuilder(config), graph.root.name, inputs: ['lib/**.dart', 'web/**.dart'])
+  ];
+
+  return build(actions, packageGraph: graph, onLog: (_) {}, deleteFilesByDefault: true);
+}
+
+Future<ServeHandler> dart2tsWatch(String path, Config config) {
+  PackageGraph graph = new PackageGraph.forPath(path);
+
+  List<BuildAction> actions = [
+    new BuildAction(new Dart2TsBuilder(config), graph.root.name, inputs: ['lib/**.dart', 'web/**.dart'])
+  ];
+
+  return watch(actions, packageGraph: graph, onLog: (_) {}, deleteFilesByDefault: true);
+}
+
 Builder dart2TsBuilder([Config config]) {
   return new Dart2TsBuilder(config ?? new Config());
 }

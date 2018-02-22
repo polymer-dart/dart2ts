@@ -5,6 +5,7 @@ import 'sample4.dart';
 import 'sample5.dart';
 import 'package:dart2ts/annotations.dart';
 import 'test_stream.dart' show testDaStream;
+import 'method_ref.dart' as mref show MyClass;
 
 @JS()
 class Metadata {
@@ -38,6 +39,9 @@ HTMLDivElement testInterpolate(String _, {List<String> literals, List values}) {
 }
 
 void main(List<String> args) {
+  new mref.MyClass(96).testMethodRef();
+  new mref.MyClass(69, (a, b) => 'Nicky Hayden Lives! ${a}, ${b}').testMethodRef();
+
   pippo(String x) => testInterpolate("[${x}]");
   document.body.appendChild(testInterpolate("Ciao ${args[0]} e ${args[1]}. E ora : ${pippo(args[2])}"));
 

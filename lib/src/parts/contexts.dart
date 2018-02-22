@@ -526,7 +526,14 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     if (node.operator.type != TokenType.TILDE_SLASH &&
         (node.operator.type != TokenType.STAR || node.leftOperand.bestType != currentContext.typeProvider.stringType) &&
         (TypeManager.isNativeType(node.leftOperand.bestType) || !node.operator.isUserDefinableOperator)) {
-      return new TSBinaryExpression(leftExpression, node.operator.lexeme.toString(), rightExpression);
+      String op;
+      if (node.operator.type == TokenType.QUESTION_QUESTION) {
+        op = '||';
+      } else {
+        op = node.operator.lexeme.toString();
+      }
+
+      return new TSBinaryExpression(leftExpression, op, rightExpression);
     }
 
     if (node.leftOperand.bestType is InterfaceType && !TypeManager.isNativeType(node.leftOperand.bestType)) {
@@ -984,6 +991,10 @@ MethodElement findMethod(InterfaceType tp, String methodName) {
 
   if (tp.superclass != null) {
     return findMethod(tp.superclass, methodName);
+  }
+
+  if (tp.interfaces != null) {
+    return tp.interfaces.map((i) => findMethod(i, methodName)).firstWhere((m) => m != null, orElse: () => null);
   }
 
   return null;
