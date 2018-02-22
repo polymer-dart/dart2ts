@@ -13,7 +13,7 @@ void main() {
 
       Directory dartTool = new Directory("e2e_test/.dart_tool");
       await dartTool.delete(recursive: true);
-      BuildResult buildResult = await dart2tsBuild("e2e_test", new Config(moduleSuffix: ""));
+      BuildResult buildResult = await dart2tsBuild("e2e_test", new Config());
       expect(buildResult.status, equals(BuildStatus.success), reason: "Build is ok");
       print("TS Build, now running webpack");
       ProcessResult res = await Process.run('npm', ['run', 'tsc'], workingDirectory: 'e2e_test');

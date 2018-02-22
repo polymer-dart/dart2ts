@@ -1,0 +1,31 @@
+{
+  "name": "dart2ts",
+  "version": "1.0.0",
+  "description": "js test for dart2ts",
+  "main": "index.js",
+  "flat": true,
+  "directories": {
+    "doc": "docs",
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "mocha --exit --recursive test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/polymer-dart/dart2ts.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/polymer-dart/dart2ts/issues"
+  },
+  "homepage": "https://github.com/polymer-dart/dart2ts#readme",
+  "dependencies": {
+    "chai": "^4.1.2",
+    "express": "^4.16.2",
+    "mocha": "^5.0.1",
+    "puppeteer": "^1.1.0"
+  }
+}

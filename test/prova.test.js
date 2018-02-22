@@ -2,16 +2,6 @@ const {expect} = require('chai');
 const puppeteer = require('puppeteer');
 const express = require('express');
 
-/*
-(async () => {
-    const browser = await puppeteer.launch();
-    const page = await browser.newPage();
-    await page.goto('https://example.com');
-    await page.screenshot({path: 'example.png'});
-
-    await browser.close();
-})();
-*/
 
 describe('First tests with puppeteer:', function () {
     // Define global variables
@@ -62,7 +52,7 @@ describe('First tests with puppeteer:', function () {
         await page.waitForSelector('div.endofwork', {timeout: 90000});
 
 
-        const createdTask = await page.evaluate(() => document.querySelector('div.endofwork').textContent)
+        const createdTask = await page.evaluate(() => document.querySelector('div.endofwork').textContent);
 
         // Compare actual text with expected input
         console.log('executing task');
