@@ -15,3 +15,7 @@ array_from.ts
 expando.ts
 field_array.ts
 test_stream.ts
+method_ref.ts
+*.js
+*.js.map
+*.d.ts

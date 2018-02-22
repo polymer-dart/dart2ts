@@ -39,8 +39,8 @@ HTMLDivElement testInterpolate(String _, {List<String> literals, List values}) {
 }
 
 void main(List<String> args) {
-  new mref.MyClass(96).testMethodRef();
-  new mref.MyClass(69, (a, b) => 'Nicky Hayden Lives! ${a}, ${b}').testMethodRef();
+  new mref.MyClass<String>(96).testMethodRef();
+  new mref.MyClass<int>(69, (a, b) => 'Nicky Hayden Lives! ${a}, ${b}').testMethodRef();
 
   pippo(String x) => testInterpolate("[${x}]");
   document.body.appendChild(testInterpolate("Ciao ${args[0]} e ${args[1]}. E ora : ${pippo(args[2])}"));

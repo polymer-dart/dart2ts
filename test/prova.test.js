@@ -45,11 +45,11 @@ describe('First tests with puppeteer:', function () {
     });
 
     it('page should be rendered', async function () {
-        this.timeout(90000);
+        this.timeout(20000);
 
         console.log('waiting for end of work');
 
-        await page.waitForSelector('div.endofwork', {timeout: 90000});
+        await page.waitForSelector('div.endofwork', {timeout: 20000});
 
 
         const createdTask = await page.evaluate(() => document.querySelector('div.endofwork').textContent);

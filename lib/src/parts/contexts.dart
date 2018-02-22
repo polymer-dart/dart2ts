@@ -190,6 +190,8 @@ abstract class Context<T extends TSNode> {
 
   bool get isCascading;
 
+  bool get isInvoking;
+
   TSExpression get cascadingTarget;
 
   TSExpression get assigningValue;
@@ -236,6 +238,10 @@ abstract class Context<T extends TSNode> {
       new CascadingContext(this, target, dartTarget);
 
   exitAssignament() => this;
+
+  InvokingContext enterInvoking() => new InvokingContext(this);
+
+  exitInvoking() => this;
 
   FormalParameterCollector collectParameters(FormalParameterList params) {
     FormalParameterCollector res = new FormalParameterCollector(this);
@@ -624,8 +630,8 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     String name = node.name;
 
     DartType currentClassType = _context.currentClass?._classDeclaration?.element?.type;
-    if (node.staticElement is PropertyAccessorElement) {
-      PropertyInducingElement el = (node.staticElement as PropertyAccessorElement).variable;
+    if (node.bestElement is PropertyAccessorElement) {
+      PropertyInducingElement el = (node.bestElement as PropertyAccessorElement).variable;
 
       if (el.enclosingElement is ClassElement) {
         name = _context.typeManager.checkProperty((el.enclosingElement as ClassElement).type, node.name);
@@ -642,13 +648,13 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
         }
         return _mayWrapInAssignament(new TSDotExpression(tgt, name));
       }
-    } else if (node.staticElement is MethodElement) {
-      MethodElement el = node.staticElement;
+    } else if (node.bestElement is MethodElement) {
+      MethodElement el = node.bestElement;
 
       if (_context.currentClass != null && findMethod(currentClassType, node.name) == el) {
         TSExpression tgt;
         if (el.isStatic) {
-          tgt = new TSTypeExpr(_context.typeManager.toTsType(currentClassType), false);
+          tgt = new TSTypeExpr.noTypeParams(_context.typeManager.toTsType(currentClassType));
         } else {
           tgt = new TSSimpleExpression('this');
         }
@@ -656,6 +662,11 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
         TSExpression expr = _context.typeManager.checkMethod(
             el.enclosingElement.type, node.name, new TSSimpleExpression('this'),
             orElse: () => new TSDotExpression(tgt, node.name));
+
+        // When using a method without invoking it => bind it to this
+        if (!_context.isAssigning && (node.parent is! MethodInvocation)) {
+          return new TSInvoke(new TSDotExpression(expr, 'bind'), [new TSSimpleExpression('this')]);
+        }
 
         return _mayWrapInAssignament(expr);
       }
@@ -964,6 +975,17 @@ class AssigningContext<A extends TSNode, B extends Context<A>> extends ChildCont
   exitAssignament() => parentContext.exitAssignament();
 }
 
+class InvokingContext<A extends TSNode, B extends Context<A>> extends ChildContext<A, B, A> {
+  bool get isInvoking => true;
+
+  InvokingContext(B parent) : super(parent);
+
+  @override
+  void translate() => parentContext.translate();
+
+  exitInvoking() => parentContext.exitInvoking();
+}
+
 class CascadingContext<A extends TSNode, B extends Context<A>> extends ChildContext<A, B, A> {
   TSExpression _cascadingTarget;
   Expression _target;
@@ -986,6 +1008,9 @@ class CascadingContext<A extends TSNode, B extends Context<A>> extends ChildCont
 MethodElement findMethod(InterfaceType tp, String methodName) {
   MethodElement m = tp.getMethod(methodName);
   if (m != null) {
+    if (m is MethodMember) {
+      return m.baseElement;
+    }
     return m;
   }
 
@@ -1003,6 +1028,9 @@ MethodElement findMethod(InterfaceType tp, String methodName) {
 FieldElement findField(ClassElement tp, String fieldName) {
   FieldElement m = tp.getField(fieldName);
   if (m != null) {
+    if (m is FieldMember) {
+      return m.baseElement;
+    }
     return m;
   }
 
@@ -1021,6 +1049,8 @@ abstract class TopLevelContext<E extends TSNode> extends Context<E> {
   bool get isAssigning => false;
 
   bool get isCascading => false;
+
+  bool get isInvoking => false;
 
   TSExpression get assigningValue => null;
 
@@ -1043,6 +1073,8 @@ abstract class ChildContext<A extends TSNode, P extends Context<A>, E extends TS
   bool get isAssigning => parentContext.isAssigning;
 
   bool get isCascading => parentContext.isCascading;
+
+  bool get isInvoking => parentContext.isInvoking;
 
   TSExpression get assigningValue => parentContext.assigningValue;
 
