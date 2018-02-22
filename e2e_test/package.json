@@ -5,7 +5,8 @@
   "main": "lib/index.html",
   "scripts": {
     "build": "webpack --config webpack.config.js",
-    "serve": "webpack-dev-server --config webpack.config.js"
+    "serve": "webpack-dev-server --config webpack.config.js",
+    "tsc": "tsc"
   },
   "author": "",
   "license": "ISC",
@@ -15,8 +16,9 @@
   },
   "devDependencies": {
     "ts-loader": "^2.3.7",
-    "typescript": "^2.7.1",
+    "typescript": "^2.7.2",
     "webpack": "^3.10.0",
+    "puppeteer": "^1.1.0",
     "webpack-dev-server": "^2.11.1"
   }
 }
