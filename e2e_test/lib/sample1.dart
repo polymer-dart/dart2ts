@@ -215,5 +215,8 @@ void main(List<String> args) {
 testFuture2() async {
   await testFuture();
   printToBody('Future works2');
-  cips();
+  await cips();
+
+  // Signal end of work
+  document.body.appendChild(document.createElement('div')..innerHTML = '<div class="endofwork">finished</div>');
 }

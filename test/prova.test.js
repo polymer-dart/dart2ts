@@ -1,8 +1,6 @@
 const {expect} = require('chai');
 const puppeteer = require('puppeteer');
-const connect = require('connect');
-const serveStatic = require('serve-static');
-const http = require('http');
+const express = require('express');
 
 /*
 (async () => {
@@ -20,12 +18,16 @@ describe('First tests with puppeteer:', function () {
     let browser;
     let page;
     let app;
+    let server;
 
     before(async function () {
 
         // Simple server for serving static files
-        app = connect().use(serveStatic('e2e_test/'));
-        http.createServer(app).listen(9000, () => {
+        // Simple server for serving static files
+        app = express();
+        app.use(express.static('e2e_test'));
+        //app.use('/node_modules/dart_sdk',express.static('../dart_sdk'));
+        server = app.listen(9000, () => {
             console.log('Listening...');
         });
 
@@ -34,7 +36,12 @@ describe('First tests with puppeteer:', function () {
 
     beforeEach(async function () {
         page = await browser.newPage();
-        await page.goto('http://localhost:9000');
+        page.on('console', msg => {
+            for (let i = 0; i < msg.args().length; ++i)
+                //console.log(`${i}: ${msg.args()[i]}`);
+                console.log(`JS> ${msg.text()}`);
+        });
+        await page.goto('http://localhost:9000/lib/index.html');
     });
 
     afterEach(async function () {
@@ -43,9 +50,25 @@ describe('First tests with puppeteer:', function () {
 
     after(async function () {
         await browser.close();
+        await server.close();
+        console.log('TEST FINISHED');
     });
 
-    it('should add item to the list', async function () {
-        await page.screenshot({path: 'test/screens/item.png'});
+    it('page should be rendered', async function () {
+        this.timeout(90000);
+
+        console.log('waiting for end of work');
+
+        await page.waitForSelector('div.endofwork', {timeout: 90000});
+
+
+        const createdTask = await page.evaluate(() => document.querySelector('div.endofwork').textContent)
+
+        // Compare actual text with expected input
+        console.log('executing task');
+        expect(createdTask).to.equal("finished");
+
+        await page.screenshot({path: 'test/screens/item.png', fullscreen: true});
+
     });
 });
