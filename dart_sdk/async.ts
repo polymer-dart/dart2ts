@@ -9,7 +9,7 @@ declare global {
     interface PromiseConstructor {
         delayed<T>(d: Duration, val?: () => T): Promise<T>;
 
-        wait(promises: Array<Promise<any>>): Promise<Array<any>>;
+        wait(promises: Iterable<Promise<any>>): Promise<Array<any>>;
     }
 }
 
@@ -85,8 +85,8 @@ export function initAsync() {
 
     Object.defineProperty(Promise, 'wait', {
         "get": function () {
-            return async function (promises: Array<Promise<any>>): Promise<Array<any>> {
-                return await Promise.all(promises);
+            return async function (promises: Iterable<Promise<any>>): Promise<Array<any>> {
+                return await Promise.all(Array.from(promises));
             }
         }
     });
