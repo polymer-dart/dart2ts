@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+    <title>Sample</title>
+    <style>
+        div {
+            padding: 0.5em;
+            border-bottom: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+<script>
+    var NativeNamespace = NativeNamespace || {};
+    NativeNamespace.NativeClass = class {
+        constructor() {
+
+        }
+
+        doSomething(nm) {
+            return `This is a native method, ${nm}`;
+        }
+
+        get readOnlyString() {
+            return "READONLY";
+        }
+
+        create() {
+            return `create ${this.normal}`;
+        }
+    };
+</script>
+<script type='module' src='./exports.js'>
+</script>
+</body>
+</html>

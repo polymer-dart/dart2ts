@@ -1,9 +1,9 @@
-const {expect} = require('chai');
+const {expect, assert} = require('chai');
 const puppeteer = require('puppeteer');
 const express = require('express');
 
 
-describe('First tests with puppeteer:', function () {
+describe('dart2ts', function () {
     // Define global variables
     let browser;
     let page;
@@ -17,25 +17,9 @@ describe('First tests with puppeteer:', function () {
         app = express();
         app.use(express.static('e2e_test'));
         //app.use('/node_modules/dart_sdk',express.static('../dart_sdk'));
-        server = app.listen(9000, () => {
-            console.log('Listening...');
-        });
+        server = app.listen(9000);
 
         browser = await puppeteer.launch();
-    });
-
-    beforeEach(async function () {
-        page = await browser.newPage();
-        page.on('console', msg => {
-            for (let i = 0; i < msg.args().length; ++i)
-                //console.log(`${i}: ${msg.args()[i]}`);
-                console.log(`JS> ${msg.text()}`);
-        });
-        await page.goto('http://localhost:9000/lib/index.html');
-    });
-
-    afterEach(async function () {
-        await page.close();
     });
 
     after(async function () {
@@ -44,21 +28,68 @@ describe('First tests with puppeteer:', function () {
         console.log('TEST FINISHED');
     });
 
-    it('page should be rendered', async function () {
-        this.timeout(20000);
+    describe('tests', () => {
+        before(async () => {
+            page = await browser.newPage();
+            page.on('console', msg => {
+                for (let i = 0; i < msg.args().length; ++i)
+                    //console.log(`${i}: ${msg.args()[i]}`);
+                    console.log(`TESTS> ${msg.text()}`);
+            });
+            await page.goto('http://localhost:9000/lib/tests.html');
+        });
 
-        console.log('waiting for end of work');
+        after(async () => {
+            await page.close();
+            page = null;
+        });
 
-        await page.waitForSelector('div.endofwork', {timeout: 20000});
+        it('async await', async function () {
+            this.timeout(20000);
+            
+            const testAwait = await page.evaluate(() => window.tests.testAsync());
+
+            assert.isArray(testAwait);
+            expect(testAwait).to.deep.equal([0, 1, 2, 3, 4]);
+
+        });
+    });
+
+    describe('index', () => {
+        before(async () => {
+            page = await browser.newPage();
+            page.on('console', msg => {
+                for (let i = 0; i < msg.args().length; ++i)
+                    //console.log(`${i}: ${msg.args()[i]}`);
+                    console.log(`INDEX> ${msg.text()}`);
+            });
+            await page.goto('http://localhost:9000/lib/index.html');
+        });
+
+        after(async () => {
+            await page.close();
+            page = null;
+        });
+
+        it('page should be rendered', async function () {
+            this.timeout(20000);
+
+            console.log('waiting for end of work');
+
+            await page.waitForSelector('div.endofwork', {timeout: 20000});
 
 
-        const createdTask = await page.evaluate(() => document.querySelector('div.endofwork').textContent);
+            const createdTask = await page.evaluate(() => document.querySelector('div.endofwork').textContent);
 
-        // Compare actual text with expected input
-        console.log('executing task');
-        expect(createdTask).to.equal("finished");
+            // Compare actual text with expected input
+            console.log('executing task');
+            expect(createdTask).to.equal("finished");
 
-        await page.screenshot({path: 'test/screens/item.png', fullscreen: true});
+            await page.screenshot({path: 'test/screens/item.png', fullscreen: true});
+
+        });
 
     });
+
+
 });

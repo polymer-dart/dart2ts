@@ -679,6 +679,19 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       name = _context.typeManager.toTsName(node.bestElement);
     }
 
+     /*
+    if (node.bestElement is InterfaceType) {
+      return new TSTypeExpr.noTypeParams(_context.typeManager.toTsType(node.bestElement as InterfaceType));
+    }*/
+
+    if (node.bestElement is ClassElement) {
+      if (node.parent is MethodInvocation) {
+        return new TSTypeExpr.noTypeParams(_context.typeManager.toTsType((node.bestElement as ClassElement).type));
+      } else {
+        return new TSTypeExpr(_context.typeManager.toTsType((node.bestElement as ClassElement).type));
+      }
+    }
+
     return _mayWrapInAssignament(new TSSimpleExpression(name));
   }
 

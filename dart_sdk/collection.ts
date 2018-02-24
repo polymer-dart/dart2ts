@@ -26,6 +26,8 @@ declare global {
 
     interface ArrayConstructor {
         $from<T>(source: Iterable<T>): Array<T>;
+
+        generate<T>(count: number, generator: (n: number) => T): Array<T>;
     }
 
 }
@@ -45,14 +47,13 @@ export interface DartIterable<T> extends Iterable<T> {
 @DartMetadata({library: 'dart:core'})
 export class DartList<T> extends Array<T> implements DartIterable<T> {
 
-    get $isEmpty():boolean {
-        return this.length==0;
+    get $isEmpty(): boolean {
+        return this.length == 0;
     }
 
-    get $isNotEmpty():boolean {
-        return this.length!=0;
+    get $isNotEmpty(): boolean {
+        return this.length != 0;
     }
-
 
 
     @OverrideMethod('$join', 'join')
@@ -188,6 +189,16 @@ initCollections() {
             return function <X>(source: Iterable<X>): Array<X> {
                 return Array.from(source);
             }
+        }
+    });
+
+    Object.defineProperty(Array, "generate", {
+        get() {
+            return <T>(count: number, generator: (n: number) => T): Array<T> => Array.from((function* () {
+                for (let i = 0; i < count; i++) {
+                    yield generator(i);
+                }
+            })());
         }
     });
 

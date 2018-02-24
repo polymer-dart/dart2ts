@@ -6,6 +6,9 @@ import 'sample5.dart';
 import 'package:dart2ts/annotations.dart';
 import 'test_stream.dart' show testDaStream;
 import 'method_ref.dart' as mref show MyClass;
+import 'dart:async';
+
+part 'test_async.dart';
 
 @JS()
 class Metadata {

@@ -1,6 +1,7 @@
 @TestOn('vm')
 library my_test;
 
+import 'dart:convert';
 import 'package:build_runner/build_runner.dart';
 import 'package:test/test.dart';
 import 'package:dart2ts/dart2ts.dart';
@@ -16,15 +17,19 @@ void main() {
       BuildResult buildResult = await dart2tsBuild("e2e_test", new Config());
       expect(buildResult.status, equals(BuildStatus.success), reason: "Build is ok");
       print("TS Build, now running webpack");
-      ProcessResult res = await Process.run('npm', ['run', 'tsc'], workingDirectory: 'e2e_test');
-      print("RES: ${res.stdout}  / ${res.stderr}");
-      expect(res.exitCode, equals(0), reason: "Ts Compile Ok");
+      Process npm = await Process.start('npm', ['run', 'tsc'], workingDirectory: 'e2e_test');
+      stdout.addStream(npm.stdout);
+      stderr.addStream(npm.stderr);
+      int exitCode = await npm.exitCode;
+      expect(exitCode, equals(0), reason: "Ts Compile Ok");
     });
 
     test("execute mocha tests", () async {
-      ProcessResult res = await Process.run('npm', ['run', 'test'], workingDirectory: '.');
-      print("RES: ${res.stdout}  / ${res.stderr}");
-      expect(res.exitCode, equals(0), reason: "mocha test Ok");
+      Process res = await Process.start('npm', ['run', 'test'], workingDirectory: '.');
+      stdout.addStream(res.stdout);
+      stderr.addStream(res.stderr);
+
+      expect(await res.exitCode, equals(0), reason: "mocha test Ok");
     });
   });
 }

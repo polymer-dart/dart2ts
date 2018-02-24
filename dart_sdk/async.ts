@@ -7,7 +7,7 @@ import {extendPrototype} from "./utils.js";
 
 declare global {
     interface PromiseConstructor {
-        delayed<T>(d: Duration): Promise<T>;
+        delayed<T>(d: Duration, val?: () => T): Promise<T>;
 
         wait(promises: Array<Promise<any>>): Promise<Array<any>>;
     }
@@ -73,10 +73,10 @@ export function initAsync() {
 
     Object.defineProperty(Promise, 'delayed', {
         "get": function () {
-            return function (d: Duration): Promise<any> {
+            return function <T>(d: Duration, val?: () => T): Promise<T> {
                 return new Promise<any>((resolve, reject) => {
                     setTimeout(() => {
-                        resolve();
+                        resolve(val && val());
                     }, d.inMilliseconds);
                 });
             }
