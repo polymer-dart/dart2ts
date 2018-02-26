@@ -638,8 +638,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       }
 
       // check if current class has it
-      if (_context.currentClass != null &&
-          findField(_context.currentClass._classDeclaration.element, node.name) == el) {
+      if (_context.currentClass != null && findField(currentClassType, node.name) == el) {
         TSExpression tgt;
         if (el.isStatic) {
           tgt = new TSTypeExpr(_context.typeManager.toTsType(currentClassType), false);
@@ -679,7 +678,7 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       name = _context.typeManager.toTsName(node.bestElement);
     }
 
-     /*
+    /*
     if (node.bestElement is InterfaceType) {
       return new TSTypeExpr.noTypeParams(_context.typeManager.toTsType(node.bestElement as InterfaceType));
     }*/
@@ -803,11 +802,22 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     }
   }
 
+  bool isAnonymousJS(ClassElement ce) {
+    if (ce == null) return false;
+    return hasAnnotation(ce.metadata, isJS) && hasAnnotation(ce.metadata, isAnonymous);
+  }
+
   TSExpression _newObjectWithConstructor(
       ConstructorElement ctor, InstanceCreationExpression node, ArgumentListCollector collector) {
     return _context.typeManager.checkConstructor(_context, node.bestType, ctor, collector, () {
       TSType myType = _context.typeManager.toTsType(node.bestType);
       TSExpression target;
+
+      // Check if it's an anonymous @JS constructor
+      if (isAnonymousJS(ctor?.enclosingElement)) {
+        return new TSAsExpression(new TSObjectLiteral(collector.namedArguments ?? {}),
+            _context.typeManager.toTsType(ctor.enclosingElement.type));
+      }
 
       bool asNew = (!ctor.isFactory || ctor.isExternal);
 
@@ -1028,7 +1038,10 @@ MethodElement findMethod(InterfaceType tp, String methodName) {
   }
 
   if (tp.superclass != null) {
-    return findMethod(tp.superclass, methodName);
+    MethodElement me = findMethod(tp.superclass, methodName);
+    if (me != null) {
+      return me;
+    }
   }
 
   if (tp.interfaces != null) {
@@ -1038,17 +1051,25 @@ MethodElement findMethod(InterfaceType tp, String methodName) {
   return null;
 }
 
-FieldElement findField(ClassElement tp, String fieldName) {
-  FieldElement m = tp.getField(fieldName);
-  if (m != null) {
+FieldElement findField(InterfaceType tp, String fieldName) {
+  PropertyAccessorElement pe = tp.getGetter(fieldName) ?? tp.getSetter(fieldName);
+  if (pe != null) {
+    FieldElement m = pe.variable as FieldElement;
     if (m is FieldMember) {
       return m.baseElement;
     }
     return m;
   }
 
-  if (tp.type.superclass?.element != null) {
-    return findField(tp.type.superclass?.element, fieldName);
+  if (tp.superclass != null) {
+    FieldElement fe = findField(tp.superclass, fieldName);
+    if (fe != null) {
+      return fe;
+    }
+  }
+
+  if (tp.interfaces != null) {
+    return tp.interfaces.map((i) => findField(i, fieldName)).firstWhere((m) => m != null, orElse: () => null);
   }
 
   return null;
