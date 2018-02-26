@@ -15,6 +15,16 @@ npm([List<String> args = const ['run', 'build']]) async {
   }
 }
 
+tsc({String basePath: '.'}) async {
+  Process npm = await Process.start('tsc', [], workingDirectory: basePath);
+  stdout.addStream(npm.stdout);
+  stderr.addStream(npm.stderr);
+  int exitCode = await npm.exitCode;
+  if (exitCode != 0) {
+    throw "Build error";
+  }
+}
+
 enum Mode { APPLICATION, LIBRARY }
 
 class BuildException {
@@ -35,15 +45,33 @@ Future<builder.BuildResult> tsbuild({String basePath: '.', bool clean: true, Mod
 
   builder.PackageGraph packageGraph = new builder.PackageGraph.forPath(basePath);
 
+  Config cfg;
+
+  switch (mode) {
+    case Mode.LIBRARY:
+      cfg = new Config(modulePrefix: 'node_modules');
+      break;
+    case Mode.APPLICATION:
+      cfg = new Config();
+      break;
+  }
+
   builder.BuildResult res = await builder.build([
-    new builder.BuildAction(
-        new Dart2TsBuilder(new Config(modulePrefix: mode == Mode.LIBRARY ? 'node_modules' : '../node_modules')),
-        packageGraph.root.name,
-        inputs: ['lib/**.dart']),
+    new builder.BuildAction(new Dart2TsBuilder(cfg), packageGraph.root.name, inputs: ['lib/**.dart']),
   ], deleteFilesByDefault: true, packageGraph: packageGraph);
 
   if (res.status != builder.BuildStatus.success) {
     throw new BuildException(res);
+  }
+
+  await tsc(basePath: basePath);
+
+  switch (mode) {
+    case Mode.LIBRARY:
+      await finishLibrary(basePath: basePath);
+      break;
+    case Mode.APPLICATION:
+      break;
   }
 
   return res;
