@@ -5,6 +5,7 @@
     "sourceMap": true,
     "declaration": true,
     "rootDir":"./",
+    "baseUrl": "./lib",
     "experimentalDecorators" :true,
 	"lib": [      
       "dom",

@@ -1,0 +1,21 @@
+{
+  "name": "dart_sdk",
+  "version": "0.0.1",
+  "description": "DartSDK emu",
+  "scripts": {
+    "build": "tsc"
+  },
+  "files": [
+    "**/*.js",
+    "**/*.d.ts",
+    "package.json"
+  ],
+  "author": "vittorio.ballestra@gmail.com",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^2.7.2"
+  },
+  "dependencies": {
+    "reflect-metadata": "^0.1.12"
+  }
+}

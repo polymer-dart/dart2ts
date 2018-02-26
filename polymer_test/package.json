@@ -5,11 +5,9 @@
   "description": "a test for it",
   "main": "lib/index.html",
   "scripts": {
-    "build": "webpack --config webpack.config.js",
-    "tsbuild": "tsc",
-    "serve": "webpack-dev-server --config webpack.config.js",
-    "srv": "python -m SimpleHTTPServer 8000",
-    "polyserv": "polymer serve"
+    "build": "tsc",
+    "serve": "polymer serve",
+    "pserve" : "python -m SimpleHTTPServer 8000"
   },
   "author": "",
   "license": "ISC",

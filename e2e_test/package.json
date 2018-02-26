@@ -4,14 +4,13 @@
   "description": "a test for it",
   "main": "lib/index.html",
   "scripts": {
-    "build": "webpack --config webpack.config.js",
-    "serve": "webpack-dev-server --config webpack.config.js",
-    "tsc": "tsc"
+    "build": "tsc",
+    "serve": "python -m SimpleHTTPServer 8000"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "dart_sdk": "file:../dart_sdk/",
+    "dart_sdk": "file:../dart_sdk/dist",
     "reflect-metadata": "^0.1.12"
   },
   "devDependencies": {
