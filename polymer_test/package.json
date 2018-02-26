@@ -7,13 +7,13 @@
   "scripts": {
     "build": "tsc",
     "serve": "polymer serve",
-    "pserve" : "python -m SimpleHTTPServer 8000"
+    "pserve": "python -m SimpleHTTPServer 8000"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@polymer/polymer": "^3.0.0-pre.9",
-    "dart_sdk": "file:../dart_sdk/",
+    "dart_sdk": "file:../dart_sdk/dist",
     "reflect-metadata": "^0.1.12"
   },
   "devDependencies": {
