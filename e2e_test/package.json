@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "a test for it",
   "main": "lib/index.html",
+  "flat" : true,
   "scripts": {
     "build": "tsc",
     "serve": "python -m SimpleHTTPServer 8000"
@@ -14,10 +15,6 @@
     "reflect-metadata": "^0.1.12"
   },
   "devDependencies": {
-    "ts-loader": "^2.3.7",
-    "typescript": "^2.7.2",
-    "webpack": "^3.10.0",
-    "puppeteer": "^1.1.0",
-    "webpack-dev-server": "^2.11.1"
+    "typescript": "^2.7.2"
   }
 }

@@ -27,5 +27,13 @@
     "express": "^4.16.2",
     "mocha": "^5.0.1",
     "puppeteer": "^1.1.0"
+  },
+  "resolutions": {
+    "debug": "3.1.0",
+    "depd": "1.1.2",
+    "setprototypeof": "1.1.0",
+    "statuses": "1.4.0",
+    "mime": "1.6.0",
+    "mkdirp": "0.5.1"
   }
 }
