@@ -121,16 +121,21 @@ class Overrides {
     }
   }
 
-  TSExpression checkOperator(
-      Context<TSNode> context, String op, Expression target, Expression index, TSExpression orElse()) {
+  TSExpression checkIndexedOperator(
+      Context<TSNode> context, Expression target, Expression index, TSExpression orElse()) {
     var classOverrides = _findClassOverride(target.bestType);
 
     if (classOverrides == null) return orElse();
 
     var operators = classOverrides['operators'];
 
-    if (context.isAssigning) {
-      op = "${op}=";
+    bool isAssigning = isAssigningLeftSide(target.parent);
+
+    String op;
+    if (isAssigning) {
+      op = "[]=";
+    } else {
+      op = "[]";
     }
 
     if (operators == null || operators[op] == null) {
@@ -140,11 +145,10 @@ class Overrides {
     // replace with method invocation
     String methodName = operators[op];
 
-    if (context.isAssigning) {
-      Context noAssign = context.exitAssignament();
-      return new TSInvoke(new TSDotExpression(noAssign.processExpression(target), methodName), [
-        noAssign.processExpression(index),
-        context.assigningValue,
+    if (isAssigning) {
+      return new TSInvoke(new TSDotExpression(context.processExpression(target), methodName), [
+        context.processExpression(index),
+        context.processExpression(assigningValue(target.parent)),
       ]);
     } else {
       return new TSInvoke(
@@ -186,12 +190,6 @@ abstract class Context<T extends TSNode> {
 
   bool get topLevel;
 
-  bool get isAssigning;
-
-  bool get isInvoking;
-
-  TSExpression get assigningValue;
-
   ClassContext get currentClass;
 
   void translate();
@@ -225,14 +223,6 @@ abstract class Context<T extends TSNode> {
     withVisitor ??= new StatementVisitor(this);
     return statement.accept(withVisitor);
   }
-
-  AssigningContext enterAssigning(TSExpression value) => new AssigningContext(this, value);
-
-  exitAssignament() => this;
-
-  InvokingContext enterInvoking() => new InvokingContext(this);
-
-  exitInvoking() => this;
 
   FormalParameterCollector collectParameters(FormalParameterList params) {
     FormalParameterCollector res = new FormalParameterCollector(this);
@@ -399,6 +389,10 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
 }
 
 enum OperatorType { BINARY, PREFIX, SUFFIX }
+
+bool isAssigningLeftSide(AstNode node) => (node.parent is AssignmentExpression) && (node != assigningValue(node));
+
+Expression assigningValue(AstNode node) => (node.parent as AssignmentExpression).rightHandSide;
 
 abstract class ExpressionVisitor implements AstVisitor<TSExpression> {
   factory ExpressionVisitor(Context context) => new CachingExpressionVisitor(context);
@@ -616,16 +610,12 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitIndexExpression(IndexExpression node) {
-    // TODO: handle overridden operator
-    return _context.typeManager.checkOperator(
+    return _context.typeManager.checkIndexedOperator(
         _context,
-        '[]',
         node.target,
         node.index,
-        () => _mayWrapInAssignament(
-            node,
-            new TSIndexExpression(_context.exitAssignament().processExpression(node.target),
-                _context.exitAssignament().processExpression(node.index))));
+        () => _mayWrapInAssignament(node,
+            new TSIndexExpression(_context.processExpression(node.target), _context.processExpression(node.index))));
   }
 
   @override
@@ -668,7 +658,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
             orElse: () => new TSDotExpression(tgt, node.name));
 
         // When using a method without invoking it => bind it to this
-        if (!_context.isAssigning && (node.parent is! MethodInvocation)) {
+        if (!isAssigningLeftSide(node) && (node.parent is! MethodInvocation)) {
           return new TSInvoke(new TSDotExpression(expr, 'bind'), [TSSimpleExpression.THIS]);
         }
 
@@ -701,9 +691,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitAssignmentExpression(AssignmentExpression node) {
-    TSExpression value = _context.processExpression(node.rightHandSide);
-    AssigningContext assigningContext = _context.enterAssigning(value);
-    return assigningContext.processExpression(node.leftHandSide);
+    return node.leftHandSide.accept(this);
   }
 
   @override
@@ -724,7 +712,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     if (node.isCascaded) {
       tsTarget = new TSSimpleExpression.cascadingTarget();
     } else {
-      tsTarget = _context.exitAssignament().processExpression(node.target);
+      tsTarget = _context.processExpression(node.target);
     }
 
     return asFieldAccess(tsTarget, node.propertyName);
@@ -755,7 +743,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
       return _mayWrapInAssignament(node, new TSDotExpression(new TSSimpleExpression(prefixStr), node.identifier.name));
     }
-    return asFieldAccess(_context.exitAssignament().processExpression(node.prefix), node.identifier);
+    return asFieldAccess(_context.processExpression(node.prefix), node.identifier);
   }
 
   TSExpression _mayWrapInAssignament(AstNode node, TSExpression expre) {
@@ -790,10 +778,6 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       }
     }
   }
-
-  bool isAssigningLeftSide(AstNode node) => (node.parent is AssignmentExpression) && (node != assigningValue(node));
-
-  Expression assigningValue(AstNode node) => (node.parent as AssignmentExpression).rightHandSide;
 
   @override
   TSExpression visitStringInterpolation(StringInterpolation node) {
@@ -1012,21 +996,6 @@ class InterpolationElementVisitor extends GeneralizingAstVisitor<TSNode> {
   }
 }
 
-class AssigningContext<A extends TSNode, B extends Context<A>> extends ChildContext<A, B, A> {
-  TSExpression _value;
-
-  TSExpression get assigningValue => _value;
-
-  bool get isAssigning => true;
-
-  AssigningContext(B parent, this._value) : super(parent);
-
-  @override
-  void translate() => parentContext.translate();
-
-  exitAssignament() => parentContext.exitAssignament();
-}
-
 class InvokingContext<A extends TSNode, B extends Context<A>> extends ChildContext<A, B, A> {
   bool get isInvoking => true;
 
@@ -1034,8 +1003,6 @@ class InvokingContext<A extends TSNode, B extends Context<A>> extends ChildConte
 
   @override
   void translate() => parentContext.translate();
-
-  exitInvoking() => parentContext.exitInvoking();
 }
 
 MethodElement findMethod(InterfaceType tp, String methodName) {
@@ -1090,18 +1057,6 @@ abstract class TopLevelContext<E extends TSNode> extends Context<E> {
 
   bool get topLevel => true;
 
-  bool get isAssigning => false;
-
-  bool get isCascading => false;
-
-  bool get isInvoking => false;
-
-  TSExpression get assigningValue => null;
-
-  TSExpression get cascadingTarget => null;
-
-  Expression get cascadingExpression => null;
-
   ClassContext get currentClass => null;
 }
 
@@ -1113,12 +1068,6 @@ abstract class ChildContext<A extends TSNode, P extends Context<A>, E extends TS
   TypeManager get typeManager => parentContext.typeManager;
 
   bool get topLevel => false;
-
-  bool get isAssigning => parentContext.isAssigning;
-
-  bool get isInvoking => parentContext.isInvoking;
-
-  TSExpression get assigningValue => parentContext.assigningValue;
 
   ClassContext get currentClass => parentContext.currentClass;
 }

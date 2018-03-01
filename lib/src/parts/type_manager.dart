@@ -333,9 +333,9 @@ class TypeManager {
     return namespace(_current.getImportsWithPrefix(prefix).first.importedLibrary);
   }
 
-  TSExpression checkOperator(
-          Context<TSNode> context, String op, Expression target, Expression index, TSExpression orElse()) =>
-      _overrides.checkOperator(context, op, target, index, orElse);
+  TSExpression checkIndexedOperator(
+          Context<TSNode> context, Expression target, Expression index, TSExpression orElse()) =>
+      _overrides.checkIndexedOperator(context, target, index, orElse);
 
   TSExpression checkConstructor(Context<TSNode> context, DartType targetType, ConstructorElement ctor,
           ArgumentListCollector collector, TSExpression orElse()) =>
