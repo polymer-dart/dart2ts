@@ -188,17 +188,11 @@ abstract class Context<T extends TSNode> {
 
   bool get isAssigning;
 
-  bool get isCascading;
-
   bool get isInvoking;
-
-  TSExpression get cascadingTarget;
 
   TSExpression get assigningValue;
 
   ClassContext get currentClass;
-
-  Expression get cascadingExpression;
 
   void translate();
 
@@ -233,9 +227,6 @@ abstract class Context<T extends TSNode> {
   }
 
   AssigningContext enterAssigning(TSExpression value) => new AssigningContext(this, value);
-
-  CascadingContext enterCascade(Expression dartTarget, TSExpression target) =>
-      new CascadingContext(this, target, dartTarget);
 
   exitAssignament() => this;
 
@@ -589,13 +580,9 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitCascadeExpression(CascadeExpression node) {
-    TSExpression target = new TSSimpleExpression('_');
-    CascadingContext cascadingContext = _context.enterCascade(node.target, target);
-    //CascadingVisitor cascadingVisitor = new CascadingVisitor(_context, target);
+    TSExpression target = new TSSimpleExpression.cascadingTarget();
     TSBody body = new TSBody(statements: () sync* {
-      yield* node.cascadeSections
-          .map((e) => cascadingContext.processExpression(e))
-          .map((e) => new TSExpressionStatement(e));
+      yield* node.cascadeSections.map((e) => _context.processExpression(e)).map((e) => new TSExpressionStatement(e));
       yield new TSReturnStatement(target);
     }());
     return new TSInvoke(
@@ -609,7 +596,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitThisExpression(ThisExpression node) {
-    return new TSSimpleExpression('this');
+    return TSSimpleExpression.THIS;
   }
 
   @override
@@ -659,7 +646,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
         if (el.isStatic) {
           tgt = new TSTypeExpr(_context.typeManager.toTsType(currentClassType), false);
         } else {
-          tgt = new TSSimpleExpression('this');
+          tgt = TSSimpleExpression.THIS;
         }
         return _mayWrapInAssignament(new TSDotExpression(tgt, name));
       }
@@ -671,16 +658,16 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
         if (el.isStatic) {
           tgt = new TSTypeExpr.noTypeParams(_context.typeManager.toTsType(currentClassType));
         } else {
-          tgt = new TSSimpleExpression('this');
+          tgt = TSSimpleExpression.THIS;
         }
 
         TSExpression expr = _context.typeManager.checkMethod(
-            el.enclosingElement.type, node.name, new TSSimpleExpression('this'),
+            el.enclosingElement.type, node.name, TSSimpleExpression.THIS,
             orElse: () => new TSDotExpression(tgt, node.name));
 
         // When using a method without invoking it => bind it to this
         if (!_context.isAssigning && (node.parent is! MethodInvocation)) {
-          return new TSInvoke(new TSDotExpression(expr, 'bind'), [new TSSimpleExpression('this')]);
+          return new TSInvoke(new TSDotExpression(expr, 'bind'), [TSSimpleExpression.THIS]);
         }
 
         return _mayWrapInAssignament(expr);
@@ -730,11 +717,12 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitPropertyAccess(PropertyAccess node) {
-    TSExpression tsTarget;;
+    TSExpression tsTarget;
+    ;
     if (node.isCascaded) {
-      tsTarget = new TSSimpleExpression('_');
+      tsTarget = new TSSimpleExpression.cascadingTarget();
     } else {
-      tsTarget= _context.exitAssignament().processExpression(node.target);
+      tsTarget = _context.exitAssignament().processExpression(node.target);
     }
 
     return asFieldAccess(tsTarget, node.propertyName);
@@ -895,7 +883,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     TSExpression target;
     TSExpression method;
     if (node.isCascaded) {
-      target = new TSSimpleExpression('_');
+      target = new TSSimpleExpression.cascadingTarget();
       Expression cascadeTarget = findCascadeTarget(node);
       method = _context.typeManager.checkMethod(cascadeTarget.bestType, node.methodName.name, target,
           orElse: () => new TSDotExpression(target, node.methodName.name));
@@ -1041,25 +1029,6 @@ class InvokingContext<A extends TSNode, B extends Context<A>> extends ChildConte
   exitInvoking() => parentContext.exitInvoking();
 }
 
-class CascadingContext<A extends TSNode, B extends Context<A>> extends ChildContext<A, B, A> {
-  TSExpression _cascadingTarget;
-  Expression _target;
-
-  CascadingContext(B parent, this._cascadingTarget, this._target) : super(parent);
-
-  @override
-  void translate() => parentContext.translate();
-
-  @override
-  bool get isCascading => true;
-
-  @override
-  TSExpression get cascadingTarget => _cascadingTarget;
-
-  @override
-  Expression get cascadingExpression => _target;
-}
-
 MethodElement findMethod(InterfaceType tp, String methodName) {
   MethodElement m = tp.getMethod(methodName);
   if (m != null) {
@@ -1138,15 +1107,9 @@ abstract class ChildContext<A extends TSNode, P extends Context<A>, E extends TS
 
   bool get isAssigning => parentContext.isAssigning;
 
-  bool get isCascading => parentContext.isCascading;
-
   bool get isInvoking => parentContext.isInvoking;
 
   TSExpression get assigningValue => parentContext.assigningValue;
-
-  TSExpression get cascadingTarget => parentContext.cascadingTarget;
-
-  Expression get cascadingExpression => parentContext.cascadingExpression;
 
   ClassContext get currentClass => parentContext.currentClass;
 }
@@ -1643,7 +1606,7 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
                                           'prototype'),
                                       metName),
                                   'apply'),
-                              [new TSSimpleExpression('this'), new TSSimpleExpression('args')]))
+                              [TSSimpleExpression.THIS, new TSSimpleExpression('args')]))
                         ])),
                     null)
               ]),

@@ -1430,9 +1430,15 @@ class TSParameter extends TSNode {
 }
 
 class TSSimpleExpression extends TSExpression {
+  static final _cascadingTarget = new TSSimpleExpression('_');
+  static final THIS = new TSSimpleExpression('this');
+
   String _expression;
 
   TSSimpleExpression(this._expression);
+
+  factory TSSimpleExpression.cascadingTarget() => _cascadingTarget;
+
 
   @override
   void writeCode(IndentingPrinter printer) {

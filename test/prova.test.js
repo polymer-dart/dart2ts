@@ -280,7 +280,7 @@ describe('dart2ts', function () {
             const createdTask = await page.evaluate(() => document.querySelector('div.endofwork').textContent);
 
             // Compare actual text with expected input
-            console.log('executing task');
+            //console.log('executing task');
             expect(createdTask).to.equal("finished");
 
             await page.screenshot({path: 'test/screens/item.png', fullscreen: true});
