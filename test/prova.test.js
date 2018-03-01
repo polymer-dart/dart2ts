@@ -256,7 +256,7 @@ describe('dart2ts', function () {
                     collected_logs.push(m);
                     //m = m.replace('\'', '\\\'').replace('\n', '\\n');
                     //console.log(`'${m}',`);
-                    console.log(m);
+                    //console.log(m);
                 }
             });
             await page.goto('http://localhost:9000/lib/index.html');
@@ -270,7 +270,7 @@ describe('dart2ts', function () {
         it('page should be rendered', async function () {
             this.timeout(20000);
 
-            console.log('waiting for end of work');
+            //console.log('waiting for end of work');
 
             await page.waitForSelector('div.endofwork', {timeout: 20000});
 
