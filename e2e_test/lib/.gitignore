@@ -19,3 +19,4 @@ method_ref.ts
 *.js
 *.js.map
 *.d.ts
+test_*.ts

@@ -1,0 +1,13 @@
+name: polymer2_test
+description: sample_project to be translated
+version: 0.0.1
+dependencies:
+ js: any
+ html5: any
+ polymer2:
+  path: ../polymer2
+ dart2ts:
+  path: ..
+override_dependencies:
+ html5:
+  path: ../../html5

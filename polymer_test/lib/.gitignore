@@ -2,3 +2,6 @@ html_template.ts
 mini_html.ts
 myelement.ts
 polymer.ts
+*.js
+*.js.map
+*.d.ts

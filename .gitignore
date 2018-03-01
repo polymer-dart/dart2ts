@@ -7,3 +7,6 @@ pubspec.lock
 *.sublime-project
 *.sublime-workspace
 package-lock.json
+.DS_Store
+node_modules
+test/screens

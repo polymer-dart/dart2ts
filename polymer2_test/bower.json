@@ -1,0 +1,17 @@
+{
+  "name": "polymer_test",
+  "description": "a polymer 2 sample with dart2ts",
+  "main": "lib/index.html",
+  "authors": [
+    "Vittorio Ballestra <vittorio.ballestra@gmail.com>"
+  ],
+  "license": "ISC",
+  "homepage": "https://github.com/polymer-dart/dart2ts",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}

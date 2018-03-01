@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "module": "es6",
+    "target": "es6",
+    "sourceMap": true,
+    "declaration": true,
+    "rootDir":"./lib/",
+    "experimentalDecorators" :true,
+	"lib": [      
+      "dom",
+      "es6",
+      "esnext.asynciterable"
+    ]
+  },
+  "exclude": [
+    "node_modules"
+  ],
+  "include": [
+    "lib/**/*.ts"
+  ]
+}
