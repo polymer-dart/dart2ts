@@ -13,7 +13,9 @@ void main() {
       print("Build e2e");
 
       Directory dartTool = new Directory("e2e_test/.dart_tool");
-      await dartTool.delete(recursive: true);
+      if (dartTool.existsSync()) {
+        await dartTool.delete(recursive: true);
+      }
       BuildResult buildResult = await dart2tsBuild("e2e_test", new Config());
       expect(buildResult.status, equals(BuildStatus.success), reason: "Build is ok");
       print("TS Build, now running webpack");

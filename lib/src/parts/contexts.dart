@@ -409,10 +409,26 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
 
 enum OperatorType { BINARY, PREFIX, SUFFIX }
 
-class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
+abstract class ExpressionVisitor implements AstVisitor<TSExpression> {
+  factory ExpressionVisitor(Context context) => new CachingExpressionVisitor(context);
+}
+
+class CachingExpressionVisitor extends GeneralizingAstVisitor<TSExpression> implements ExpressionVisitor {
+  final _ExpressionVisitor _actualVisitor;
+  final Map<AstNode, TSExpression> _cache = new Map();
+
+  CachingExpressionVisitor(Context context) : _actualVisitor = new _ExpressionVisitor(context);
+
+  @override
+  TSExpression visitNode(AstNode node) {
+    return _cache.putIfAbsent(node, () => node.accept(_actualVisitor));
+  }
+}
+
+class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
   Context _context;
 
-  ExpressionVisitor(this._context);
+  _ExpressionVisitor(this._context);
 
   @override
   TSExpression visitIntegerLiteral(IntegerLiteral node) {
@@ -714,10 +730,25 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitPropertyAccess(PropertyAccess node) {
-    TSExpression target =
-        node.isCascaded ? _context.cascadingTarget : _context.exitAssignament().processExpression(node.target);
-    return asFieldAccess(target, node.propertyName);
+    TSExpression tsTarget;;
+    if (node.isCascaded) {
+      tsTarget = new TSSimpleExpression('_');
+    } else {
+      tsTarget= _context.exitAssignament().processExpression(node.target);
+    }
+
+    return asFieldAccess(tsTarget, node.propertyName);
   }
+
+  CascadeExpression findCascadeExpression(AstNode node) {
+    while (node is! CascadeExpression && node != null) {
+      node = node.parent;
+    }
+
+    return node;
+  }
+
+  Expression findCascadeTarget(AstNode node) => findCascadeExpression(node)?.target;
 
   @override
   TSExpression visitPrefixedIdentifier(PrefixedIdentifier node) {
@@ -863,9 +894,10 @@ class ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     Element elem = node.methodName.staticElement;
     TSExpression target;
     TSExpression method;
-    if (_context.isCascading) {
-      target = _context.cascadingTarget;
-      method = _context.typeManager.checkMethod(_context.cascadingExpression.bestType, node.methodName.name, target,
+    if (node.isCascaded) {
+      target = new TSSimpleExpression('_');
+      Expression cascadeTarget = findCascadeTarget(node);
+      method = _context.typeManager.checkMethod(cascadeTarget.bestType, node.methodName.name, target,
           orElse: () => new TSDotExpression(target, node.methodName.name));
     } else if (node.target != null) {
       if (node.target is SimpleIdentifier && (node.target as SimpleIdentifier).bestElement is PrefixElement) {
