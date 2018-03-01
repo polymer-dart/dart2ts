@@ -22,6 +22,12 @@ class TSPath {
   String get modulePath => modulePathElements.join('/');
 
   String get name => namespacePathElements.join('.');
+
+  void fixWindowAtFirst() {
+    if (namespacePathElements.isNotEmpty && namespacePathElements.first == 'window') {
+      namespacePathElements.removeAt(0);
+    }
+  }
 }
 
 class TypeManager {
@@ -171,6 +177,7 @@ class TypeManager {
 
     TSPath p = new TSPath();
     collector(start, p, collector);
+    p.fixWindowAtFirst();
     return p;
   }
 

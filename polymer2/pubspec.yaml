@@ -1,0 +1,15 @@
+name: polymer2
+version: 0.1.0
+description: Polymer2 Support for dart2ts
+dependencies:
+ html5: any
+dev_dependencies:
+ dart2ts:
+  path: ..
+ polymer_element: any
+dependency_overrides:
+ html5:
+  path: ../../html5
+
+environment:
+    sdk: ">=1.8.0 <2.0.0"

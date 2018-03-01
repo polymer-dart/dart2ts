@@ -1,0 +1,17 @@
+<dom-module id="my-tag">
+    <template>
+        <style>
+            .btn {
+                display: inline-block;
+                margin:1em;
+                padding: 1em;
+                background-color: yellow;
+                cursor: pointer;
+            }
+        </style>
+        <div>
+            This is a good "old" polymer 2 component
+            <div class="btn" on-click="changeName">[[name]]</div>
+        </div>
+    </template>
+</dom-module>

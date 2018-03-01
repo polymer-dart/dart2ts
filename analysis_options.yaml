@@ -5,3 +5,7 @@ analyzer:
   exclude:
    - bazel-*/**
    - gen/**
+   - polymer2
+   - polymer2_builder
+   - polymer2_test
+   - polymer_test

@@ -6,11 +6,11 @@ import 'package:js/js.dart';
 import 'package:polymer2/src/annotations.dart';
 import 'package:dart2ts/annotations.dart';
 import 'dart:async';
-import 'html_import.dart';
 
 @JS()
 @TS(generate: true)
-@BowerImport(ref: 'polymer#2.0.0', name: 'polymer', import: 'polymer/polymer_element.html')
+@BowerImport(
+    ref: 'polymer#2.5.0', name: 'polymer', import: 'polymer/polymer.html')
 abstract class Element extends HTMLElement {
   get(String path);
 
@@ -18,12 +18,3 @@ abstract class Element extends HTMLElement {
 
   notifyPath(String path);
 }
-
-List<Future> _allFutures = [];
-
-@onModuleLoad
-_importHtml() {
-  _allFutures.add(importHtml('bower_components/polymer/polymer_element.html'));
-}
-
-Future get polymerReady => Future.wait(_allFutures);

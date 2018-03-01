@@ -1,18 +1,23 @@
-import 'html_template.dart';
-import 'mini_html.dart';
 import 'package:dart2ts/annotations.dart';
 import 'package:html5/html.dart';
-import 'polymer.dart' as polymer;
+import 'package:polymer2/polymer2.dart' as polymer;
+import 'package:js/js.dart';
 
-class MyElement extends HTMLElement {
+@polymer.PolymerRegister('my-tag', template: 'myelement.html')
+abstract class MyElement extends polymer.Element {
   String name;
   int number = 0;
+
+  @JS('is')
+  static String _tagName = 'my-tag';
 
   MyElement() {
     name = "Pino" " Daniele " "Lives!";
   }
 
-  void changeName(ev, detail) {
+  void changeName(Event ev, detail) {
+    ev.preventDefault();
+    ev.stopPropagation();
     print('Clicked : ${ev}, ${detail}');
     //number = number + 1;
     name = 'Super app : ${number++}';
@@ -21,5 +26,5 @@ class MyElement extends HTMLElement {
 
 @onModuleLoad
 void _registerElements() {
-  customElements.define('my-tag', MyElement);
+  window.customElements.define('my-tag', MyElement);
 }

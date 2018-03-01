@@ -1473,10 +1473,18 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
     methodContext.translate();
   }
 
+  String variableName(VariableDeclaration v) {
+    if (hasAnnotation(v.element.metadata, isJS)) {
+      return getAnnotation(v.element.metadata, isJS).getField('name').toStringValue();
+    } else {
+      return v.name.name;
+    }
+  }
+
   @override
   visitFieldDeclaration(FieldDeclaration node) {
     _context.tsClass.members.add(new TSVariableDeclarations(
-      new List.from(node.fields.variables.map((v) => new TSVariableDeclaration(v.name.name,
+      new List.from(node.fields.variables.map((v) => new TSVariableDeclaration(variableName(v),
           _context.processExpression(v.initializer), _context.typeManager.toTsType(node.fields.type?.type)))),
       isField: true,
       isStatic: node.isStatic,

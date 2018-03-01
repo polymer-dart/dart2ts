@@ -241,6 +241,15 @@ describe('dart2ts', function () {
 
             expect(testCascading).equals('Hi');
         });
+
+        it('test js anno', async () => {
+            const MyClass = await page.evaluate(() => {
+                return window.tests.t2MyClass;
+            });
+
+            expect(MyClass.otherName).equals('hi');
+        });
+
     });
 
     describe('index', () => {
