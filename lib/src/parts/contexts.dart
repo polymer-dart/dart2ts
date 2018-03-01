@@ -406,7 +406,7 @@ abstract class ExpressionVisitor implements AstVisitor<TSExpression> {
 
 class CachingExpressionVisitor extends GeneralizingAstVisitor<TSExpression> implements ExpressionVisitor {
   final _ExpressionVisitor _actualVisitor;
-  final Map<AstNode, TSExpression> _cache = new Map();
+  static final Map<AstNode, TSExpression> _cache = new Map();
 
   CachingExpressionVisitor(Context context) : _actualVisitor = new _ExpressionVisitor(context);
 
@@ -622,8 +622,10 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
         '[]',
         node.target,
         node.index,
-        () => _mayWrapInAssignament(new TSIndexExpression(_context.exitAssignament().processExpression(node.target),
-            _context.exitAssignament().processExpression(node.index))));
+        () => _mayWrapInAssignament(
+            node,
+            new TSIndexExpression(_context.exitAssignament().processExpression(node.target),
+                _context.exitAssignament().processExpression(node.index))));
   }
 
   @override
@@ -648,7 +650,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
         } else {
           tgt = TSSimpleExpression.THIS;
         }
-        return _mayWrapInAssignament(new TSDotExpression(tgt, name));
+        return _mayWrapInAssignament(node, new TSDotExpression(tgt, name));
       }
     } else if (node.bestElement is MethodElement) {
       MethodElement el = node.bestElement;
@@ -670,7 +672,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
           return new TSInvoke(new TSDotExpression(expr, 'bind'), [TSSimpleExpression.THIS]);
         }
 
-        return _mayWrapInAssignament(expr);
+        return _mayWrapInAssignament(node, expr);
       }
     }
 
@@ -694,7 +696,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       }
     }
 
-    return _mayWrapInAssignament(new TSSimpleExpression(name));
+    return _mayWrapInAssignament(node, new TSSimpleExpression(name));
   }
 
   @override
@@ -751,14 +753,14 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
         prefixStr = "${prefixStr}.module";
       }
 
-      return _mayWrapInAssignament(new TSDotExpression(new TSSimpleExpression(prefixStr), node.identifier.name));
+      return _mayWrapInAssignament(node, new TSDotExpression(new TSSimpleExpression(prefixStr), node.identifier.name));
     }
     return asFieldAccess(_context.exitAssignament().processExpression(node.prefix), node.identifier);
   }
 
-  TSExpression _mayWrapInAssignament(TSExpression expre) {
-    if (_context.isAssigning) {
-      return new TSAssignamentExpression(expre, _context.assigningValue);
+  TSExpression _mayWrapInAssignament(AstNode node, TSExpression expre) {
+    if (isAssigningLeftSide(node)) {
+      return new TSAssignamentExpression(expre, _context.processExpression(assigningValue(node)));
     } else {
       return expre;
     }
@@ -773,18 +775,25 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
       name = _context.typeManager.checkProperty((identifier.bestElement.enclosingElement as ClassElement).type, name);
 
-      return _mayWrapInAssignament(new TSDotExpression(expression, name));
+      return _mayWrapInAssignament(identifier.parent, new TSDotExpression(expression, name));
     } else {
       // Use the property accessor helper
-      if (_context.isAssigning) {
-        return new TSInvoke(new TSSimpleExpression('bare.writeProperty'),
-            [expression, new TSSimpleExpression('"${identifier.name}"'), _context.assigningValue]);
+      if (isAssigningLeftSide(identifier.parent)) {
+        return new TSInvoke(new TSSimpleExpression('bare.writeProperty'), [
+          expression,
+          new TSSimpleExpression('"${identifier.name}"'),
+          _context.processExpression(assigningValue(identifier.parent))
+        ]);
       } else {
         return new TSInvoke(
             new TSSimpleExpression('bare.readProperty'), [expression, new TSSimpleExpression('"${identifier.name}"')]);
       }
     }
   }
+
+  bool isAssigningLeftSide(AstNode node) => (node.parent is AssignmentExpression) && (node != assigningValue(node));
+
+  Expression assigningValue(AstNode node) => (node.parent as AssignmentExpression).rightHandSide;
 
   @override
   TSExpression visitStringInterpolation(StringInterpolation node) {
