@@ -72,7 +72,7 @@ Future<builder.BuildResult> tsbuild({String basePath: '.', bool clean: true, Mod
 
   switch (mode) {
     case Mode.LIBRARY:
-      await finishLibrary(basePath: basePath,packageName: packageGraph.root.name);
+      await finishLibrary(basePath: basePath, packageName: packageGraph.root.name);
       break;
     case Mode.APPLICATION:
       break;
@@ -84,21 +84,21 @@ Future<builder.BuildResult> tsbuild({String basePath: '.', bool clean: true, Mod
 Future fixDependencyPath(String dist, String packageName) async {
   // Replace "node_modules" with relative url
 
-  RegExp re = new RegExp("import([^\"']*)[\"'](node_modules/([^\"']*))[\"']");
+  RegExp re = new RegExp("import([^\"']*)[\"']([^\"']*)[\"']");
   await for (FileSystemEntity f in new Directory(dist).list(recursive: true)) {
     if (f is File) {
       List<String> lines = await f.readAsLines();
       IOSink sink = f.openWrite();
       lines.map((l) {
         Match m = re.matchAsPrefix(l);
-        if (m != null) {
-          String p = m[2];
-          String vMypath =
+        if (m != null && (!path.isAbsolute(m[2]) && !m[2].startsWith('.'))) {
+          String origPath = m[2];
+          String virtualAbsolutePath =
               path.joinAll(["node_modules", packageName]..addAll(path.split(path.relative(f.path, from: dist))));
-          String relPath = path.relative(m[2], from: vMypath);
+          String virtualRelativePath = path.relative(m[2], from: virtualAbsolutePath);
           // Compute relative path from "virtual" directory "node_modules/<package>/current_path"
 
-          l = "import${m[1]}'${relPath}';";
+          l = "import${m[1]}'${virtualRelativePath}';";
         }
 
         return l;
