@@ -5,7 +5,7 @@
   "description": "a test for it",
   "main": "lib/index.html",
   "scripts": {
-    "srv": "python -m SimpleHTTPServer 8000",
+    "srv": "python -m http.server 8000",
     "polyserv": "polymer serve"
   },
   "author": "",

@@ -5,6 +5,10 @@ import 'package:build_runner/build_runner.dart' as builder;
 
 import 'package:dart2ts/src/code_generator2.dart';
 
+import 'package:path/path.dart' as p;
+
+final p.Context path = p.url;
+
 npm([List<String> args = const ['run', 'build']]) async {
   Process npm = await Process.start('npm', args);
   stdout.addStream(npm.stdout);
@@ -68,7 +72,7 @@ Future<builder.BuildResult> tsbuild({String basePath: '.', bool clean: true, Mod
 
   switch (mode) {
     case Mode.LIBRARY:
-      await finishLibrary(basePath: basePath);
+      await finishLibrary(basePath: basePath,packageName: packageGraph.root.name);
       break;
     case Mode.APPLICATION:
       break;
@@ -77,10 +81,10 @@ Future<builder.BuildResult> tsbuild({String basePath: '.', bool clean: true, Mod
   return res;
 }
 
-Future fixDependencyPath(String dist) async {
+Future fixDependencyPath(String dist, String packageName) async {
   // Replace "node_modules" with relative url
 
-  RegExp re = new RegExp("import([^\"]*)\"node_modules/(.*)");
+  RegExp re = new RegExp("import([^\"']*)[\"'](node_modules/([^\"']*))[\"']");
   await for (FileSystemEntity f in new Directory(dist).list(recursive: true)) {
     if (f is File) {
       List<String> lines = await f.readAsLines();
@@ -88,7 +92,13 @@ Future fixDependencyPath(String dist) async {
       lines.map((l) {
         Match m = re.matchAsPrefix(l);
         if (m != null) {
-          l = "import${m[1]}\"../../${m[2]}";
+          String p = m[2];
+          String vMypath =
+              path.joinAll(["node_modules", packageName]..addAll(path.split(path.relative(f.path, from: dist))));
+          String relPath = path.relative(m[2], from: vMypath);
+          // Compute relative path from "virtual" directory "node_modules/<package>/current_path"
+
+          l = "import${m[1]}'${relPath}';";
         }
 
         return l;
@@ -114,10 +124,10 @@ Future copyAssets(String dist, {String basePath: '.'}) async {
   }
 }
 
-Future finishLibrary({String basePath: '.'}) async {
+Future finishLibrary({String basePath: '.', String packageName}) async {
   File tsconfigFile = new File(path.join(basePath, 'tsconfig.json'));
   var tsconfig = JSON.decode(tsconfigFile.readAsStringSync());
   String dist = path.joinAll([basePath, tsconfig['compilerOptions']['outDir'], 'lib']);
-  await fixDependencyPath(dist);
+  await fixDependencyPath(dist, packageName);
   await copyAssets(dist);
 }
