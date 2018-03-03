@@ -1099,14 +1099,17 @@ class TSInvoke extends TSExpression {
 
 class TSDotExpression extends TSExpression {
   TSExpression _expression;
-  String _name;
+  TSExpression _name;
 
-  TSDotExpression(this._expression, this._name);
+  TSDotExpression(TSExpression expression, String name) : this.expr(expression, new TSSimpleExpression(name));
+
+  TSDotExpression.expr(this._expression, this._name);
 
   @override
   void writeCode(IndentingPrinter printer) {
     printer.accept(_expression);
-    printer.write('.${_name}');
+    printer.write('.');
+    printer.accept(_name);
   }
 }
 
@@ -1438,7 +1441,6 @@ class TSSimpleExpression extends TSExpression {
   TSSimpleExpression(this._expression);
 
   factory TSSimpleExpression.cascadingTarget() => _cascadingTarget;
-
 
   @override
   void writeCode(IndentingPrinter printer) {

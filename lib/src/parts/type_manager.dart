@@ -14,6 +14,7 @@ class TSImport extends TSNode {
 }
 
 class TSPath {
+  bool isJSAnnotated = false;
   List<String> modulePathElements = [];
   List<String> namespacePathElements = [];
 
@@ -139,47 +140,55 @@ class TypeManager {
 
   static final RegExp NAME_PATTERN = new RegExp('(([^#]+)#)?(.*)');
 
-  TSPath _collectJSPath(Element start) {
-    var collector = (Element e, TSPath p, var c) {
-      DartObject anno = getAnnotation(e.metadata, isJS);
+  Iterable<Element> _elementsFromLibrary(Element e) sync* {
+    if (e == null) {
+      return;
+    }
 
-      if (e is! LibraryElement) {
-        c(e.enclosingElement, p, c);
-      }
+    if (e is! LibraryElement) {
+      yield* _elementsFromLibrary(e.enclosingElement);
+    }
 
-      if (anno == null) return;
-
-      // Collect if metadata
-      String name = anno.getField('name')?.toStringValue();
-      if (name != null && name.isNotEmpty) {
-        Match m = NAME_PATTERN.matchAsPrefix(name);
-        if ((m != null && m[2] != null)) {
-          p.modulePathElements.add(m[2]);
-          if ((m[3] ?? '').isNotEmpty) p.namespacePathElements.addAll(m[3].split('.'));
-        } else {
-          p.namespacePathElements.addAll(name.split('.'));
-        }
-      } else if (e == start) {
-        // Add name if it's the first
-        p.namespacePathElements.addAll(e.name.split('.'));
-      }
-
-      // Process module path
-      var moduleAnnotation = getAnnotation(e.metadata, isModule);
-      String module = moduleAnnotation?.getField('path')?.toStringValue();
-      if (module != null) {
-        p.modulePathElements.add(module);
-        if (moduleAnnotation.getField('export')?.toBoolValue() ?? false) {
-          exports.add(module);
-        }
-      }
-    };
-
-    TSPath p = new TSPath();
-    collector(start, p, collector);
-    p.fixWindowAtFirst();
-    return p;
+    if (e is! CompilationUnitElement) {
+      yield e;
+    }
   }
+
+  TSPath _collectJSPath(Element start) => _elementsFromLibrary(start).fold(new TSPath(), (p, e) {
+        DartObject anno = getAnnotation(e.metadata, isJS);
+        //if (anno == null) return p;
+        p.isJSAnnotated = p.isJSAnnotated || (anno!=null);
+
+        // Collect if metadata
+        String name = anno?.getField('name')?.toStringValue();
+
+
+        if (name != null && name.isNotEmpty) {
+          Match m = NAME_PATTERN.matchAsPrefix(name);
+          if ((m != null && m[2] != null)) {
+            p.modulePathElements.add(m[2]);
+            if ((m[3] ?? '').isNotEmpty) p.namespacePathElements.addAll(m[3].split('.'));
+          } else {
+            p.namespacePathElements.addAll(name.split('.'));
+          }
+        } else if (e == start) {
+          // Add name if it's the first
+          p.namespacePathElements.add(_name(e));
+        }
+
+        // Process module path
+        var moduleAnnotation = getAnnotation(e.metadata, isModule);
+        String module = moduleAnnotation?.getField('path')?.toStringValue();
+        if (module != null) {
+          p.modulePathElements.add(module);
+          if (moduleAnnotation.getField('export')?.toBoolValue() ?? false) {
+            exports.add(module);
+          }
+        }
+
+        return p;
+      })
+        ..fixWindowAtFirst();
 
   static Set<DartType> nativeTypes() => ((TypeProvider x) => new Set<DartType>.from([
         x.boolType,
@@ -199,26 +208,42 @@ class TypeManager {
   static String _name(Element e) => (e is PropertyAccessorElement) ? e.variable.name : e.name;
 
   String toTsName(Element element, {bool nopath: false}) {
-    TSPath jspath = _collectJSPath(element); // note: we should check if var is top, but ... whatever.
-    String name;
-    if (nopath) {
-      return jspath.namespacePathElements.last;
+    if (element == null) {
+      return null;
     }
-    if (jspath.namespacePathElements.isNotEmpty) {
-      if (jspath.modulePathElements.isNotEmpty) {
-        name = namespaceFor(uri: jspath.moduleUri, modulePath: jspath.modulePath) + "." + jspath.name;
+
+    TSPath jspath = _collectJSPath(element); // note: we should check if var is top, but ... whatever.
+
+    // For top level elements (properties and methods) use namespace path and module path
+    if (isTopLevel(element)) {
+      String name;
+      // In case of explicit namespaces use it
+      if (jspath.isJSAnnotated) {
+        if (jspath.modulePathElements.isNotEmpty) {
+          name = namespaceFor(uri: jspath.moduleUri, modulePath: jspath.modulePath) + "." + jspath.name;
+        } else {
+          name = jspath.name;
+        }
       } else {
-        name = jspath.name;
+        // Use normal prefix + name otherwise , use also module for toplevel properties
+        String m = (element is PropertyAccessorElement) ? "module." : "";
+        String prefix = namespace(element.library);
+        prefix = (prefix == null) ? "" : "${prefix}.";
+
+        name = "${prefix}${m}${_name(element)}";
       }
+
+      return name;
+    }
+
+    // For class members use the name or js name only
+    String name;
+    // In case of explicit namespaces use it
+    if (jspath.namespacePathElements.isNotEmpty) {
+      name = jspath.namespacePathElements.last;
     } else {
-      String prefix = namespace(element.library);
-      if ((element is PropertyAccessorElement) && isTopLevel(element)) {
-        prefix = prefix == null ? "module" : "${prefix}.module";
-      }
-      if (prefix != null && isTopLevel(element)) {
-        name = "${prefix}.${_name(element)}";
-      } else
-        name = _name(element);
+      // Use normal prefix + name otherwise , use also module for toplevel properties
+      name = _name(element);
     }
 
     return name;

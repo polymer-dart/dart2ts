@@ -29,7 +29,6 @@ overrides:
            first: "$first"
            last: "$last"
          methods:
-           map: "$map"
            sublist: "$sublist"
            add: "$add"
            remove: "$remove"
@@ -48,3 +47,4 @@ overrides:
            map: "$map"
            where: "$where"
            join: "$join"
+           toList: "$toList"

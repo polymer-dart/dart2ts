@@ -5,7 +5,6 @@ import 'package:html5/html.dart';
 import 'package:js/js.dart';
 import 'package:polymer2/src/annotations.dart';
 import 'package:dart2ts/annotations.dart';
-import 'dart:async';
 
 @JS()
 @TS(generate: true)

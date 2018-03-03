@@ -81,21 +81,39 @@ class Overrides {
     return propsOverrides;
   }
 
-  _findClassOverride(DartType type) {
-    LibraryElement from = type?.element?.library;
-    Uri fromUri = from?.source?.uri;
+  Iterable<DartType> _visitTypeHierarchy(DartType type) sync* {
+    if (type == null) return;
 
-    _logger.fine("Checking type for {${fromUri}}${type?.name}");
-    if (type == null || fromUri == null) {
-      return null;
+    yield type;
+
+    if (type == currentContext.typeProvider.objectType) return;
+
+    if (type.element is ClassElement) {
+      yield* _visitTypeHierarchy((type.element as ClassElement).supertype);
+
+      for (DartType intf in (type.element as ClassElement).interfaces) {
+        yield* _visitTypeHierarchy(intf);
+      }
     }
+  }
 
-    var libOverrides = _overrides[fromUri.toString()];
-    if (libOverrides == null) {
-      return null;
-    }
+  _findClassOverride(DartType mainType) {
+    return _visitTypeHierarchy(mainType).map((type) {
+      LibraryElement from = type?.element?.library;
+      Uri fromUri = from?.source?.uri;
 
-    return (libOverrides['classes'] ?? {})[type.name];
+      _logger.fine("Checking type for {${fromUri}}${type?.name}");
+      if (type == null || fromUri == null) {
+        return null;
+      }
+
+      var libOverrides = _overrides[fromUri.toString()];
+      if (libOverrides == null) {
+        return null;
+      }
+
+      return (libOverrides['classes'] ?? {})[type.name];
+    }).firstWhere(notNull, orElse: () => null);
   }
 
   TSType checkType(TypeManager typeManager, String origPrefix, DartType type, bool noTypeArgs, {TSType orElse()}) {
@@ -622,7 +640,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
   TSExpression visitSimpleIdentifier(SimpleIdentifier node) {
     // Check for implicit this
 
-    String name = node.name;
+    String name = _context.typeManager.toTsName(node.bestElement) ?? node.name;
 
     DartType currentClassType = _context.currentClass?._classDeclaration?.element?.type;
     if (node.bestElement is PropertyAccessorElement) {
@@ -664,27 +682,18 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
         return _mayWrapInAssignament(node, expr);
       }
-    }
-
-    // Resolve names otherwisely ( <- I know this term doesn't exist, but I like it)
-
-    if (node.bestElement is ExecutableElement) {
-      // need resolve prefix
-      name = _context.typeManager.toTsName(node.bestElement);
-    }
-
-    /*
-    if (node.bestElement is InterfaceType) {
-      return new TSTypeExpr.noTypeParams(_context.typeManager.toTsType(node.bestElement as InterfaceType));
-    }*/
-
-    if (node.bestElement is ClassElement) {
+    } else if (node.bestElement is ClassElement) {
       if (node.parent is MethodInvocation) {
         return new TSTypeExpr.noTypeParams(_context.typeManager.toTsType((node.bestElement as ClassElement).type));
       } else {
         return new TSTypeExpr(_context.typeManager.toTsType((node.bestElement as ClassElement).type));
       }
+    } else if (node.bestElement is ExecutableElement) {
+      // need resolve prefix
+      name = _context.typeManager.toTsName(node.bestElement);
     }
+
+    // Resolve names otherwisely ( <- I know this term doesn't exist, but I like it)
 
     return _mayWrapInAssignament(node, new TSSimpleExpression(name));
   }
@@ -872,44 +881,49 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
      */
     ArgumentListCollector collector = new ArgumentListCollector(_context, node.methodName.bestElement);
     node.argumentList.accept(collector);
-    Element elem = node.methodName.staticElement;
-    TSExpression target;
-    TSExpression method;
-    if (node.isCascaded) {
-      target = new TSSimpleExpression.cascadingTarget();
-      Expression cascadeTarget = findCascadeTarget(node);
-      method = _context.typeManager.checkMethod(cascadeTarget.bestType, node.methodName.name, target,
-          orElse: () => new TSDotExpression(target, node.methodName.name));
-    } else if (node.target != null) {
-      if (node.target is SimpleIdentifier && (node.target as SimpleIdentifier).bestElement is PrefixElement) {
-        Element el = (node.target as SimpleIdentifier).bestElement;
-        target = new TSSimpleExpression('null');
-
-        String name = node.methodName.name;
-
-        // use "module." for top level module getter (if they aren't external)
-        if (node.methodName.bestElement is PropertyAccessorElement &&
-            getAnnotation(node.methodName.bestElement.metadata, isJS) == null) {
-          name = "module.${name}";
-        }
-
-        method = new TSDotExpression(new TSSimpleExpression(_context.typeManager.namespaceForPrefix(el)), name);
-      } else {
-        target = _context.processExpression(node.target);
-
-        // Check for method substitution
-        method = _context.typeManager.checkMethod(node.target.bestType, node.methodName.name, target,
-            orElse: () => new TSDotExpression(target, node.methodName.name));
-      }
-    } else {
-      target = new TSSimpleExpression('null');
-      method = _context.processExpression(node.methodName);
-    }
+    Element elem = node.methodName.bestElement;
 
     if (elem != null) {
+      TSExpression target;
+      TSExpression method;
+      if (node.isCascaded) {
+        target = new TSSimpleExpression.cascadingTarget();
+        Expression cascadeTarget = findCascadeTarget(node);
+        method = _context.typeManager.checkMethod(cascadeTarget.bestType, node.methodName.name, target,
+            orElse: () => new TSDotExpression(target, _context.typeManager.toTsName(elem)));
+      } else if (!TypeManager.isTopLevel(elem) && (elem.enclosingElement is ClassElement)) {
+        DartType targetType = node.target?.bestType ?? (elem.enclosingElement as ClassElement).type;
+        target = _context.processExpression(node.target) ??
+            ((elem as ExecutableElement).isStatic
+                ? new TSTypeExpr(_context.typeManager.toTsType(targetType))
+                : TSSimpleExpression.THIS);
+
+        // Check for method substitution
+        method = _context.typeManager.checkMethod(targetType, node.methodName.name, target, orElse: () {
+          TSExpression res = _context.processExpression(node.methodName);
+          if (node.target != null) {
+            res = new TSDotExpression.expr(target, res);
+          }
+          return res;
+        });
+      } else {
+        target = new TSSimpleExpression('null /*topLevl*/');
+        method = _context.processExpression(node.methodName);
+      }
+
       // Invoke normal method / function
       return new TSInvoke(method, collector.arguments, collector.namedArguments);
     } else {
+      TSExpression target;
+      if (node.isCascaded) {
+        target = new TSSimpleExpression.cascadingTarget();
+      } else if (node.target != null &&
+          !(node.target is SimpleIdentifier && ((node.target as SimpleIdentifier)).bestElement is! PrefixElement)) {
+        target = _context.processExpression(node.target);
+      } else {
+        target = new TSSimpleExpression('null /*topLevl*/');
+      }
+
       return new TSInvoke(
           new TSSimpleExpression('bare.invokeMethod'),
           new List()

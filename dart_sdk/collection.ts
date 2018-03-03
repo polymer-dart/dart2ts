@@ -8,9 +8,7 @@ export namespace Symbols {
 
 declare global {
 
-    interface Array<T> {
-        readonly $first: T;
-        readonly $last: T;
+    interface Array<T> extends DartIterable<T> {
 
         $sublist(from: number, to: number): Array<T>;
 
@@ -21,7 +19,7 @@ declare global {
 
         $remove(e: T): void;
 
-        $map<X>(f: (t: T) => X): DartIterable<X>;
+
     }
 
     interface ArrayConstructor {
@@ -42,6 +40,8 @@ export interface DartIterable<T> extends Iterable<T> {
     $map<X>(f: (t: T) => X): DartIterable<X>;
 
     forEach(f: (x: T) => any): void;
+
+    $toList(arg?: { growable?: boolean }): DartList<T>;
 }
 
 @DartMetadata({library: 'dart:core'})
@@ -100,6 +100,10 @@ export class DartList<T> extends Array<T> implements DartIterable<T> {
             }
         });
     }
+
+    $toList(arg?: { growable?: boolean }): DartList<T> {
+        return this;
+    }
 }
 
 export function iter<X>(generator: () => Iterator<X>) {
@@ -157,7 +161,11 @@ function toDartIterable<X>(x: Iterable<X>): DartIterable<X> {
         [Symbol.iterator](): Iterator<X> {
             return x[Symbol.iterator]();
         }
-    };
+
+        $toList(arg?: { growable?: boolean }): DartList<X> {
+            return Array.from(this);
+        }
+    }
 
     return new _();
 }

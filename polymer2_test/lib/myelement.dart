@@ -1,6 +1,7 @@
 import 'package:dart2ts/annotations.dart';
 import 'package:html5/html.dart';
 import 'package:polymer2/polymer2.dart' as polymer;
+import 'package:polymer2/src/polymer_support.dart' as polymer2 show register;
 import 'package:js/js.dart';
 
 @polymer.PolymerRegister('my-tag', template: 'myelement.html')
@@ -8,8 +9,8 @@ abstract class MyElement extends polymer.Element {
   String name;
   int number = 0;
 
-  @JS('is')
-  static String _tagName = 'my-tag';
+  //@JS('is')
+  //static String _tagName = 'my-tag';
 
   MyElement() {
     name = "Pino" " Daniele " "Lives!";
@@ -26,5 +27,6 @@ abstract class MyElement extends polymer.Element {
 
 @onModuleLoad
 void _registerElements() {
-  window.customElements.define('my-tag', MyElement);
+  polymer2.register(MyElement, 'my-tag');
+  //window.customElements.define('my-tag', MyElement);
 }
