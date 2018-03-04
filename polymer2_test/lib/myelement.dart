@@ -6,6 +6,7 @@ import 'package:js/js.dart';
 @polymer.PolymerRegister('my-tag', template: 'myelement.html')
 abstract class MyElement extends polymer.Element {
   String name;
+  @polymer.Property(notify:true)
   int number = 0;
 
   //@JS('is')
