@@ -7,14 +7,48 @@ declare global {
 
         remainder(n: number): number;
 
-        readonly hashCode: number;
+        readonly $hashCode: number;
 
         abs(): number;
     }
+
+    interface Object {
+        readonly $hashCode: number;
+    }
+
+    interface String {
+        readonly $hashCode: number;
+
+    }
+
 }
 
 export interface Comparable<T> {
     compareTo(t: T): number;
+}
+
+abstract class ObjectExtension extends Object {
+    get $hashCode(): number {
+        return this.toString().$hashCode;
+    }
+}
+
+abstract class StringExtension extends String {
+    get $hashCode(): number {
+        let h = 0, l = this.valueOf().length, i = 0;
+        if (l > 0)
+            while (i < l)
+                h = (h << 5) - h + this.valueOf().charCodeAt(i++) | 0;
+        return h;
+    }
+}
+
+export function sequenceHashCode(things: Iterable<any>) {
+    let res: number = 1;
+    for (let v of things) {
+        res = (res * 31 + v.$hashCode) & 0xffffffff;
+    }
+    return res;
 }
 
 abstract class NumberExtension implements Number {
@@ -43,9 +77,6 @@ abstract class NumberExtension implements Number {
         return this.valueOf() % n;
     }
 
-    get hashCode(): number {
-        return this.valueOf();
-    }
 
     abs(): number {
         return Math.abs(this.valueOf());
@@ -55,4 +86,6 @@ abstract class NumberExtension implements Number {
 
 export function initNatives() {
     extendPrototype(Number, NumberExtension);
+    extendPrototype(String, StringExtension);
+    extendPrototype(Object, ObjectExtension);
 }

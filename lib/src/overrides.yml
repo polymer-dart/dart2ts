@@ -34,8 +34,11 @@ overrides:
            remove: "$remove"
       Map:
          to:
-           class: Map
-           from: global
+           class: DartMap
+           from: "module:dart_sdk/map"
+         operators:
+            "[]" : "get"
+            "[]=" : "set"
       Iterable:
          to:
            class: DartIterable

@@ -210,6 +210,14 @@ describe('dart2ts', function () {
             page = null;
         });
 
+        describe('maps', () => {
+            it('has maps', async () => {
+                const testMap = await page.evaluate(() => window.tests.test_map.testMap());
+                expect(testMap).to.be.equal(3);
+
+            });
+        });
+
         it('resolves metadata', async () => {
 
             const meta = await page.evaluate(() => window.tests.testMetadata());
