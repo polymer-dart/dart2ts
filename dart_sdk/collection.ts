@@ -42,6 +42,10 @@ export interface DartIterable<T> extends Iterable<T> {
     forEach(f: (x: T) => any): void;
 
     $toList(arg?: { growable?: boolean }): DartList<T>;
+
+    $firstWhere(cond: (t: T) => boolean, opts?: { orElse?: () => T }): T;
+
+    $where(cond: (t: T) => boolean): DartIterable<T>;
 }
 
 @DartMetadata({library: 'dart:core'})
@@ -104,6 +108,29 @@ export class DartList<T> extends Array<T> implements DartIterable<T> {
     $toList(arg?: { growable?: boolean }): DartList<T> {
         return this;
     }
+
+    $firstWhere(cond: (x: T) => boolean, opts?: { orElse?: () => T }): T {
+        for (let x of this) {
+            if (cond(x)) {
+                return x;
+            }
+        }
+        if (opts !== null && opts.orElse !== null) {
+            return opts.orElse();
+        }
+
+        throw "not found any and not or Else";
+    }
+
+    $where(cond: (t: T) => boolean): DartIterable<T> {
+        return iter((function* () {
+            for (let t of this) {
+                if (cond(t)) {
+                    yield t;
+                }
+            }
+        }).bind(this));
+    }
 }
 
 export function iter<X>(generator: () => Iterator<X>) {
@@ -164,6 +191,29 @@ function toDartIterable<X>(x: Iterable<X>): DartIterable<X> {
 
         $toList(arg?: { growable?: boolean }): DartList<X> {
             return Array.from(this);
+        }
+
+        $firstWhere(cond: (x: X) => boolean, opts?: { orElse?: () => X }): X {
+            for (let x of this) {
+                if (cond(x)) {
+                    return x;
+                }
+            }
+            if (opts !== null && opts.orElse !== null) {
+                return opts.orElse();
+            }
+
+            throw "not found any and not or Else";
+        }
+
+        $where(cond: (t: X) => boolean): DartIterable<X> {
+            return iter((function* () {
+                for (let t of this) {
+                    if (cond(t)) {
+                        yield t;
+                    }
+                }
+            }).bind(this));
         }
     }
 

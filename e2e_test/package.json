@@ -6,7 +6,7 @@
   "flat" : true,
   "scripts": {
     "build": "tsc",
-    "serve": "python -m SimpleHTTPServer 8000"
+    "serve": "python -m http.server 8000"
   },
   "author": "",
   "license": "ISC",

@@ -48,3 +48,4 @@ overrides:
            where: "$where"
            join: "$join"
            toList: "$toList"
+           firstWhere: "$firstWhere"

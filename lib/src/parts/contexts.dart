@@ -1380,6 +1380,51 @@ class FunctionDeclarationContext extends ChildContext<TSNode, Context, TSFunctio
   }
 }
 
+TSAnnotation Function(Annotation anno) annotationMapper(
+    Context context,
+    TSAnnotation Function(
+            Uri library, String type, List<TSExpression> arguments, Map<String, TSExpression> namedArguments)
+        annoFactory) {
+  return (Annotation anno) {
+    // Ignore unknown anno
+    if (anno.constructorName?.bestElement == null && anno.name.bestElement == null) {
+      return null;
+    }
+
+    ArgumentListCollector collector;
+    String name;
+    if (anno.name.bestElement is PropertyAccessorElement) {
+      ConstVariableElement constVar =
+          ((anno.name.bestElement as PropertyAccessorElement).variable) as ConstVariableElement;
+
+      InstanceCreationExpression creationExpression = (constVar.computeNode() as VariableDeclaration).initializer;
+
+      ConstructorElement cons = creationExpression.staticElement;
+
+      collector = new ArgumentListCollector(context, cons);
+      if (anno.arguments != null) collector.processArgumentList(creationExpression.argumentList);
+      name = cons.name;
+
+      //ArgumentListCollector collector = new ArgumentListCollector(context, cons);
+      //collector.processArgumentList(inv.arguments);
+    } else {
+      ConstructorElement cons = anno.constructorName?.bestElement ??
+          (anno.name.bestElement as ClassElement).constructors.firstWhere((e) => e.name == null || e.name.isEmpty);
+
+      collector = new ArgumentListCollector(context, cons);
+      if (anno.arguments != null) collector.processArgumentList(anno.arguments);
+      name = cons.name;
+    }
+
+    if (name == null || name.isEmpty) {
+      name = anno.name.bestElement.name;
+    } else {
+      name = "${anno.name.bestElement.name}.${name}";
+    }
+    return annoFactory(anno.name.bestElement.library.source.uri, name, collector.arguments, collector.namedArguments);
+  };
+}
+
 class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
   final ClassDeclaration _classDeclaration;
 
@@ -1403,26 +1448,10 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
 
     // Add annotations
     _tsClass.annotations = _classDeclaration.metadata
-        .map((anno) {
-          // Ignore unknown anno
-          if (anno.constructorName?.bestElement == null && anno.name.bestElement == null) {
-            return null;
-          }
-
-          ConstructorElement cons = anno.constructorName?.bestElement ??
-              (anno.name.bestElement as ClassElement).constructors.firstWhere((e) => e.name == null || e.name.isEmpty);
-          ArgumentListCollector collector = new ArgumentListCollector(this, cons);
-          collector.processArgumentList(anno.arguments);
-
-          String name;
-          if (cons.name == null || cons.name.isEmpty) {
-            name = anno.name.bestElement.name;
-          } else {
-            name = "${anno.name.bestElement.name}.${cons.name}";
-          }
-          return new TSAnnotation.classAnnotation(
-              cons.library.source.uri, name, collector.arguments, collector.namedArguments);
-        })
+        .map(annotationMapper(
+            this,
+            (uri, name, arguments, namedArguments) =>
+                new TSAnnotation.classAnnotation(uri, name, arguments, namedArguments)))
         .where(notNull)
         .toList();
 
@@ -1523,11 +1552,19 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
 
   @override
   visitFieldDeclaration(FieldDeclaration node) {
+    List<TSAnnotation> dartAnno = node.metadata
+        .map(annotationMapper(
+            _context,
+            (uri, name, arguments, namedArguments) =>
+                new TSAnnotation.propertyAnnotation(uri, name, arguments, namedArguments)))
+        .where(notNull)
+        .toList();
     _context.tsClass.members.add(new TSVariableDeclarations(
       new List.from(node.fields.variables.map((v) => new TSVariableDeclaration(variableName(v),
           _context.processExpression(v.initializer), _context.typeManager.toTsType(node.fields.type?.type)))),
       isField: true,
       isStatic: node.isStatic,
+      annotations: dartAnno,
       //isConst: node.fields.isConst || node.fields.isFinal,
     ));
   }
@@ -1765,6 +1802,14 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
         'op': new TSSimpleExpression('"${tk.lexeme}"')
       })));
     }
+
+    // Dart Annotations
+    annotations.addAll(_methodDeclaration.metadata
+        .map(annotationMapper(
+            this,
+            (uri, name, arguments, namedArguments) =>
+                new TSAnnotation.methodAnnotation(uri, name, arguments, namedArguments)))
+        .where(notNull));
 
     parentContext.tsClass.members.add(new TSFunction(
       typeManager,

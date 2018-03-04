@@ -229,6 +229,21 @@ describe('dart2ts', function () {
 
         });
 
+        it('resolves metadata on props too', async () => {
+
+            const meta = await page.evaluate(() => window.tests.propAnno());
+
+            expect(meta).to.not.be.null;
+            expect(meta).to.deep.equals([{
+                "arguments": [
+                    "onprop"
+                ],
+                "namedArguments": {}
+            }]);
+
+
+        });
+
         it('async await', async function () {
             this.timeout(20000);
 

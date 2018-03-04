@@ -6,6 +6,7 @@ export interface IDartMetadata {
     methodOverrides?: Map<string | symbol, string | symbol>;
     propertyOverrides?: Map<string | symbol, string | symbol>;
     annotations?: Array<IAnnotation>;
+    propertyAnnotations?: Map<string | symbol, Map<string, Array<any>>>;
 }
 
 export function DartMetadata(m: IDartMetadata): ClassDecorator {
@@ -20,10 +21,42 @@ export interface IAnnotation {
     value: any;
 }
 
+export interface IAnnotationKey {
+    library: string;
+    type: string;
+}
+
 export function DartClassAnnotation(anno: IAnnotation): ClassDecorator {
     return (target) => {
         getDartMetadata(target).annotations.push(anno);
     }
+}
+
+export function DartMethodAnnotation(anno: IAnnotation): MethodDecorator {
+    return (target, name, descriptor) => registerPropAnno(anno, target, name);
+}
+
+let registerPropAnno: (anno: IAnnotation, target: Object, name: string | symbol) => void = (anno: IAnnotation, target: Object, name: string | symbol) => {
+    let md: IDartMetadata = getDartMetadata(target.constructor);
+
+    let propAnnos: Map<string, Array<any>> = md.propertyAnnotations.get(name);
+    if (propAnnos == null) {
+        propAnnos = new Map<string, Array<any>>();
+        md.propertyAnnotations.set(name, propAnnos);
+    }
+
+    let key: string = `{${anno.library}}#{${anno.type}}`;
+    let values: Array<any> = propAnnos.get(key);
+    if (values == null) {
+        values = [];
+        propAnnos.set(key, values);
+    }
+
+    values.push(anno.value);
+};
+
+export function DartPropertyAnnotation(anno: IAnnotation): PropertyDecorator {
+    return (target, name) => registerPropAnno(anno, target, name);
 }
 
 export function OverrideMethod(newName: string | symbol, oldName?: string): MethodDecorator {
@@ -71,7 +104,8 @@ export function getDartMetadata(t): IDartMetadata {
             operators: new Map(),
             methodOverrides: new Map(),
             propertyOverrides: new Map(),
-            annotations: []
+            annotations: [],
+            propertyAnnotations: new Map<string | symbol, Map<string, Array<any>>>()
         };
     }
     return meta;

@@ -155,7 +155,7 @@ class TSClass extends TSNode {
       printer.writeln('@bare.DartMetadata({library:\'${this.library}\'})');
     }
 
-    annotations?.forEach((a){
+    annotations?.forEach((a) {
       printer.accept(a);
       printer.writeln();
     });
@@ -405,7 +405,15 @@ class TSAnnotation extends TSNode {
 
   TSAnnotation.classAnnotation(
       Uri libUri, String name, List<TSExpression> arguments, Map<String, TSExpression> namedArguments)
-      : this(createClassAnnotationInvoke(libUri, name, arguments, namedArguments));
+      : this(createClassAnnotationInvoke('bare.DartClassAnnotation', libUri, name, arguments, namedArguments));
+
+  TSAnnotation.methodAnnotation(
+      Uri libUri, String name, List<TSExpression> arguments, Map<String, TSExpression> namedArguments)
+      : this(createClassAnnotationInvoke('bare.DartMethodAnnotation', libUri, name, arguments, namedArguments));
+
+  TSAnnotation.propertyAnnotation(
+      Uri libUri, String name, List<TSExpression> arguments, Map<String, TSExpression> namedArguments)
+      : this(createClassAnnotationInvoke('bare.DartPropertyAnnotation', libUri, name, arguments, namedArguments));
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -414,8 +422,8 @@ class TSAnnotation extends TSNode {
   }
 
   static TSInvoke createClassAnnotationInvoke(
-      Uri libUri, String name, List<TSExpression> arguments, Map<String, TSExpression> namedArguments) {
-    return new TSInvoke(new TSSimpleExpression('bare.DartClassAnnotation'), [
+      String cons, Uri libUri, String name, List<TSExpression> arguments, Map<String, TSExpression> namedArguments) {
+    return new TSInvoke(new TSSimpleExpression(cons), [
       new TSObjectLiteral({
         'library': new TSSimpleExpression("'${libUri}'"),
         'type': new TSStringLiteral(name),
@@ -1390,6 +1398,7 @@ class TSVariableDeclarations extends TSStatement {
   bool isConst;
   bool readonly;
   bool declared;
+  final List<TSAnnotation> annotations;
 
   TSVariableDeclarations(this._declarations,
       {this.isStatic: false,
@@ -1397,10 +1406,18 @@ class TSVariableDeclarations extends TSStatement {
       this.isTopLevel: false,
       this.isConst: false,
       this.readonly: false,
-      this.declared: false});
+      this.declared: false,
+      this.annotations});
 
   @override
   void writeCode(IndentingPrinter printer) {
+    if (annotations != null) {
+      annotations.forEach((a) {
+        printer.accept(a);
+        printer.writeln();
+      });
+    }
+
     if (isStatic) {
       printer.write('static ');
     }

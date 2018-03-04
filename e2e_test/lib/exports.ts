@@ -8,5 +8,6 @@ window["tests"] = {
     testAsync: s1.testAsync,
     testCascading: t1.testCascading,
     t2MyClass: t2.MyClass,
-    testMetadata: t3.testMetadata
+    testMetadata: t3.testMetadata,
+    propAnno: t3.propAnno
 };
