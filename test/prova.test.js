@@ -210,6 +210,25 @@ describe('dart2ts', function () {
             page = null;
         });
 
+        it('resolves metadata', async () => {
+
+            const meta = await page.evaluate(() => window.tests.testMetadata());
+
+            expect(meta).to.not.be.null;
+            expect(meta.annotations).to.deep.equals([{
+                "library": "asset:sample_project/lib/test_anno.dart",
+                "type": "MyAnnotation",
+                "value": {
+                    "arguments": [
+                        "Yeah!"
+                    ],
+                    "namedArguments": {}
+                }
+            }]);
+
+
+        });
+
         it('async await', async function () {
             this.timeout(20000);
 

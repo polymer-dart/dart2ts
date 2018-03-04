@@ -1,4 +1,3 @@
-
 const DartMetadataKey = Symbol.for('dart:metadata');
 
 export interface IDartMetadata {
@@ -6,6 +5,7 @@ export interface IDartMetadata {
     operators?: Map<symbol, Function>;
     methodOverrides?: Map<string | symbol, string | symbol>;
     propertyOverrides?: Map<string | symbol, string | symbol>;
+    annotations?: Array<IAnnotation>;
 }
 
 export function DartMetadata(m: IDartMetadata): ClassDecorator {
@@ -14,13 +14,25 @@ export function DartMetadata(m: IDartMetadata): ClassDecorator {
     }
 }
 
-export function OverrideMethod(newName: string | symbol,oldName?: string): MethodDecorator {
+export interface IAnnotation {
+    library: string;
+    type: string;
+    value: any;
+}
+
+export function DartClassAnnotation(anno: IAnnotation): ClassDecorator {
+    return (target) => {
+        getDartMetadata(target).annotations.push(anno);
+    }
+}
+
+export function OverrideMethod(newName: string | symbol, oldName?: string): MethodDecorator {
     return (target, name, descriptor) => {
         getDartMetadata(target.constructor).methodOverrides.set(newName, oldName || name);
     };
 }
 
-export function OverrideProperty(newName: string | symbol,oldName?: string): PropertyDecorator {
+export function OverrideProperty(newName: string | symbol, oldName?: string): PropertyDecorator {
     return (target, name) => {
         getDartMetadata(target.constructor).propertyOverrides.set(newName, oldName || name);
     };
@@ -58,7 +70,8 @@ export function getDartMetadata(t): IDartMetadata {
         t[DartMetadataKey] = meta = {
             operators: new Map(),
             methodOverrides: new Map(),
-            propertyOverrides: new Map()
+            propertyOverrides: new Map(),
+            annotations: []
         };
     }
     return meta;

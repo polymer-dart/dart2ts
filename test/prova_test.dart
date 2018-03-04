@@ -32,6 +32,6 @@ void main() {
       stderr.addStream(res.stderr);
 
       expect(await res.exitCode, equals(0), reason: "mocha test Ok");
-    });
+    }, timeout: new Timeout(new Duration(minutes: 5)));
   });
 }

@@ -500,7 +500,8 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitListLiteral(ListLiteral node) {
-    return new TSList(new List.from(node.elements.map((e) => _context.processExpression(e))));
+    return new TSList(new List.from(node.elements.map((e) => _context.processExpression(e))),
+        _context.typeManager.toTsType(node?.typeArguments?.arguments?.first?.type));
   }
 
   @override
@@ -1396,9 +1397,34 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
 
   @override
   void translate() {
-    _tsClass = new TSClass(library: currentClass._classDeclaration.element.librarySource.uri.toString());
+    _tsClass = new TSClass(library: _classDeclaration.element.librarySource.uri.toString());
     ClassMemberVisitor visitor = new ClassMemberVisitor(this, _tsClass, _declarationMode);
     _tsClass.name = _classDeclaration.name.name;
+
+    // Add annotations
+    _tsClass.annotations = _classDeclaration.metadata
+        .map((anno) {
+          // Ignore unknown anno
+          if (anno.constructorName?.bestElement == null && anno.name.bestElement == null) {
+            return null;
+          }
+
+          ConstructorElement cons = anno.constructorName?.bestElement ??
+              (anno.name.bestElement as ClassElement).constructors.firstWhere((e) => e.name == null || e.name.isEmpty);
+          ArgumentListCollector collector = new ArgumentListCollector(this, cons);
+          collector.processArgumentList(anno.arguments);
+
+          String name;
+          if (cons.name == null || cons.name.isEmpty) {
+            name = anno.name.name;
+          } else {
+            name = "${anno.name.name}.${cons.name}";
+          }
+          return new TSAnnotation.classAnnotation(
+              cons.library.source.uri, name, collector.arguments, collector.namedArguments);
+        })
+        .where(notNull)
+        .toList();
 
     if (_classDeclaration.extendsClause != null) {
       tsClass.superClass = typeManager.toTsType(_classDeclaration.extendsClause.superclass.type);

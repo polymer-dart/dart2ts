@@ -17,7 +17,7 @@ class Metadata {
 
 @JS('getDartMetadata')
 @Module('dart_sdk/decorations')
-external Metadata getMetadata();
+external Metadata getMetadata(Type type);
 
 @TS(stringInterpolation: true)
 HTMLDivElement testInterpolate(String _, {List<String> literals, List values}) {

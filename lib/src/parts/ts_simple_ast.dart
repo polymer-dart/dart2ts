@@ -139,6 +139,7 @@ class TSClass extends TSNode {
   String library;
   bool declared;
   List<TSType> typeParameters;
+  List<TSAnnotation> annotations;
 
   TSClass(
       {this.topLevel: true,
@@ -153,6 +154,11 @@ class TSClass extends TSNode {
     if (library != null && !isInterface) {
       printer.writeln('@bare.DartMetadata({library:\'${this.library}\'})');
     }
+
+    annotations?.forEach((a){
+      printer.accept(a);
+      printer.writeln();
+    });
 
     if (topLevel) {
       printer.write('export ');
@@ -397,10 +403,28 @@ class TSAnnotation extends TSNode {
 
   TSAnnotation(this._invoke);
 
+  TSAnnotation.classAnnotation(
+      Uri libUri, String name, List<TSExpression> arguments, Map<String, TSExpression> namedArguments)
+      : this(createClassAnnotationInvoke(libUri, name, arguments, namedArguments));
+
   @override
   void writeCode(IndentingPrinter printer) {
     printer.write('@');
     printer.accept(_invoke);
+  }
+
+  static TSInvoke createClassAnnotationInvoke(
+      Uri libUri, String name, List<TSExpression> arguments, Map<String, TSExpression> namedArguments) {
+    return new TSInvoke(new TSSimpleExpression('bare.DartClassAnnotation'), [
+      new TSObjectLiteral({
+        'library': new TSSimpleExpression("'${libUri}'"),
+        'type': new TSStringLiteral(name),
+        'value': new TSObjectLiteral({
+          'arguments': new TSList(arguments),
+          'namedArguments': new TSObjectLiteral(namedArguments ?? {}),
+        })
+      })
+    ]);
   }
 }
 
@@ -420,7 +444,7 @@ class TSStringLiteral extends TSExpression {
   String stringValue;
   bool isSingleQuoted;
 
-  TSStringLiteral(this.stringValue, this.isSingleQuoted);
+  TSStringLiteral(this.stringValue, [this.isSingleQuoted = true]);
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -800,12 +824,18 @@ class TSIndexExpression extends TSExpression {
 }
 
 class TSList extends TSExpression {
-  List<TSExpression> _elements;
+  final List<TSExpression> _elements;
+  final TSType _tsType;
 
-  TSList(this._elements);
+  TSList(this._elements, [this._tsType]);
 
   @override
   void writeCode(IndentingPrinter printer) {
+    if (_tsType != null) {
+      printer.write('<');
+      printer.accept(_tsType);
+      printer.write('>');
+    }
     printer.write('[');
     printer.join(_elements);
     printer.write(']');
