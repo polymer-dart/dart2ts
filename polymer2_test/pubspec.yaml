@@ -6,6 +6,8 @@ dependencies:
  html5: any
  polymer2:
   path: ../polymer2
+ polymerize: any
+ polymer_element: any
  dart2ts:
   path: ..
 override_dependencies:

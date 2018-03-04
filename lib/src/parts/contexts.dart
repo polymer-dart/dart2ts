@@ -1416,9 +1416,9 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
 
           String name;
           if (cons.name == null || cons.name.isEmpty) {
-            name = anno.name.name;
+            name = anno.name.bestElement.name;
           } else {
-            name = "${anno.name.name}.${cons.name}";
+            name = "${anno.name.bestElement.name}.${cons.name}";
           }
           return new TSAnnotation.classAnnotation(
               cons.library.source.uri, name, collector.arguments, collector.namedArguments);
