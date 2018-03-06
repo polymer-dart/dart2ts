@@ -49,15 +49,11 @@ class Dart2TsBuildCommand extends Command<bool> {
   }
 
   @override
-  void run() {
+  run() {
     PackageGraph graph = new PackageGraph.forPath(argResults['dir']);
 
     List<BuildAction> actions = [
-      new BuildAction(
-          new Dart2TsBuilder(
-              new Config(modulePrefix: argResults['module-prefix'], moduleSuffix: argResults['module-suffix'])),
-          graph.root.name,
-          inputs: ['lib/**.dart', 'web/**.dart'])
+      new BuildAction(new Dart2TsBuilder(new Config(modulePrefix: argResults['module-prefix'], moduleSuffix: argResults['module-suffix'])), graph.root.name, inputs: ['lib/**.dart', 'web/**.dart'])
     ];
 
     if (argResults['watch'] == true) {

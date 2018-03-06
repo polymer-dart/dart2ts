@@ -37,7 +37,7 @@ class Dart2TsInstallCommand extends Command<bool> {
   }
 
   @override
-  void run() {
+  run() {
     String rootPath = argResults['dir'];
     String destPath = argResults['out'];
 

@@ -181,8 +181,7 @@ describe('dart2ts', function () {
         // Simple server for serving static files
         // Simple server for serving static files
         app = express();
-        app.use(express.static('e2e_test'));
-        //app.use('/node_modules/dart_sdk',express.static('../dart_sdk'));
+        app.use(express.static('../e2e_test'));
         server = app.listen(9000);
 
         browser = await puppeteer.launch();

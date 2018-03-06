@@ -4,16 +4,16 @@ homepage: https://github.com/orgs/polymer-dart
 description: A better interface for TS
 version: 0.0.2-dev
 dependencies:
-  build: ^0.11.2
-  build_runner: ^0.6.1
-  analyzer: ^0.30.0
+  build: ">=0.11.2"
+  build_runner: ">=0.6.1"
+  analyzer: ">=0.30.0 <0.32.0"
   args: any
   source_gen: any
-  resource: "^2.1.2"
+  resource: ">=2.1.2"
   yaml: any
 executables:
  dart2ts: dart2ts
 dev_dependencies:
   test: any
 environment:
-    sdk: ">=1.8.0 <2.0.0"
+    sdk: ">=1.8.0 <3.0.0"

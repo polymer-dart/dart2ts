@@ -4,4 +4,4 @@ version: 0.0.1
 dependencies:
  js: any
  dart2ts:
-  path: ..
+  path: ../dart2ts
