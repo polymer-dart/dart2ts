@@ -6,13 +6,19 @@ dependencies:
 dev_dependencies:
  dart2ts:
   path: ..
- build_runner: "0.4.0+3"
+ build_runner: ^0.6.1
  polymer_element: any
+ analyzer: ^0.30.0
+ polymerize: ^0.9.8
  polymer2:
   path: ../polymer2
 dependency_overrides:
  html5:
   path: ../../html5
+ build_runner: ^0.6.1
+ build: ^0.11.2
+ polymerize:
+  path: /Users/vittorio/Projects/Personali/Dart/polymerize
 
 environment:
     sdk: ">=1.8.0 <2.0.0"
