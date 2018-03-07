@@ -16,6 +16,7 @@ expando.ts
 field_array.ts
 test_stream.ts
 method_ref.ts
+mini_html.ts
 *.js
 *.js.map
 *.d.ts

@@ -664,8 +664,17 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     } else if (node.bestElement is MethodElement) {
       MethodElement el = node.bestElement;
 
-      if (_context.currentClass != null && findMethod(currentClassType, node.name) == el) {
-        TSExpression tgt;
+      bool hasTarget = false;
+      TSExpression tgt;
+      if (node.parent is MethodInvocation) {
+        MethodInvocation inv = node.parent as MethodInvocation;
+        if (inv.methodName == node && inv.target != null) {
+          hasTarget = true;
+          tgt = _context.processExpression(inv.target);
+        }
+      }
+
+      if (_context.currentClass != null && findMethod(currentClassType, node.name) == el && !hasTarget) {
         if (el.isStatic) {
           tgt = new TSTypeExpr.noTypeParams(_context.typeManager.toTsType(currentClassType));
         } else {
@@ -682,6 +691,11 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
         }
 
         return _mayWrapInAssignament(node, expr);
+      }
+
+      // When using a method without invoking it => bind it to this
+      if (!isAssigningLeftSide(node) && (node.parent is! MethodInvocation)) {
+        return new TSInvoke(new TSDotExpression(new TSSimpleExpression(name), 'bind'), [tgt]);
       }
     } else if (node.bestElement is ClassElement) {
       if (node.parent is MethodInvocation) {
@@ -773,7 +787,12 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
       name = _context.typeManager.checkProperty((identifier.bestElement.enclosingElement as ClassElement).type, name);
 
-      return _mayWrapInAssignament(identifier.parent, new TSDotExpression(expression, name));
+      // Handler method name ref
+      if (identifier.bestElement is MethodElement) {
+        return new TSInvoke(new TSDotExpression(new TSDotExpression(expression, name), 'bind'), [expression]);
+      } else {
+        return _mayWrapInAssignament(identifier.parent, new TSDotExpression(expression, name));
+      }
     } else {
       // Use the property accessor helper
       if (isAssigningLeftSide(identifier.parent)) {
@@ -919,7 +938,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       if (node.isCascaded) {
         target = new TSSimpleExpression.cascadingTarget();
       } else if (node.target != null &&
-          !(node.target is SimpleIdentifier && ((node.target as SimpleIdentifier)).bestElement is! PrefixElement)) {
+          !(node.target is SimpleIdentifier && ((node.target as SimpleIdentifier)).bestElement is PrefixElement)) {
         target = _context.processExpression(node.target);
       } else {
         target = new TSSimpleExpression('null /*topLevl*/');

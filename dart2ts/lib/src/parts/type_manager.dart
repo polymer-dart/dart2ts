@@ -157,7 +157,7 @@ class TypeManager {
   TSPath _collectJSPath(Element start) => _elementsFromLibrary(start).fold(new TSPath(), (p, e) {
         DartObject anno = getAnnotation(e.metadata, isJS);
         //if (anno == null) return p;
-        p.isJSAnnotated = p.isJSAnnotated || (anno!=null);
+        p.isJSAnnotated = p.isJSAnnotated || (e is! LibraryElement && anno!=null);
 
         // Collect if metadata
         String name = anno?.getField('name')?.toStringValue();
@@ -187,8 +187,7 @@ class TypeManager {
         }
 
         return p;
-      })
-        ..fixWindowAtFirst();
+      });
 
   static Set<DartType> nativeTypes() => ((TypeProvider x) => new Set<DartType>.from([
         x.boolType,

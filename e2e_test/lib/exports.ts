@@ -8,7 +8,7 @@ import * as test_map$ from './test_map.js';
 window["tests"] = {
     testAsync: s1.testAsync,
     testCascading: t1.testCascading,
-    t2MyClass: t2.MyClass,
+    test_js_anno: t2,
     testMetadata: t3.testMetadata,
     propAnno: t3.propAnno,
     test_map: test_map$

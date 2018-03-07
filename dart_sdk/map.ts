@@ -12,4 +12,8 @@ export class DartMap<K, V> {
     set(k: K, v: V): void {
         this._map.set(k, v);
     }
+
+    forEach(handler: (k: K, v: V) => void) {
+        this._map.forEach((v, k, map) => handler(k, v));
+    }
 }

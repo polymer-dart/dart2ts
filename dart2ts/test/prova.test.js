@@ -285,11 +285,20 @@ describe('dart2ts', function () {
 
         it('test js anno', async () => {
             const MyClass = await page.evaluate(() => {
-                return window.tests.t2MyClass;
+                return window.tests.test_js_anno.MyClass;
             });
 
             expect(MyClass.otherName).equals('hi');
         });
+
+    it('test refs', async () => {
+        const a1 = await page.evaluate(() => {
+        return window.tests.test_js_anno.testRefs();
+});
+
+    expect(a1.c).equals(3);
+    expect(a1.x.c).equals(2);
+});
 
     });
 
