@@ -19,6 +19,11 @@ export class Expando<X> {
 }
 
 
+export class Object {
+
+}
+
+
 export function print(message: String): void {
     console.log(message);
 }

@@ -13,6 +13,10 @@ overrides:
            map: $map
  "dart:core":
     classes:
+    #  Object:
+    #     to:
+    #       class: Object
+    #       from: global
       Expando:
          operators:
            "[]" : "$get"

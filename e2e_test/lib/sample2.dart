@@ -3,7 +3,6 @@ void sayHello(String msg) {
 }
 
 class AnotherClass {
-
   String _title;
 
   String get title => _title;
@@ -17,7 +16,7 @@ class AnotherClass {
   AnotherClass({String named, int num}) {
     print('parent :${named} , ${num}');
     count = num;
-    this._title = ''
+    this._title = '';
   }
 
   AnotherClass.other(String x) {
@@ -25,9 +24,9 @@ class AnotherClass {
     this._title = 'uga : ${x}';
   }
 
-  operator ==(AnotherClass other) {
-    print('Calling equals ${this._title} == ${other._title} ??');
-    return this._title == other._title;
+  operator ==(Object other) {
+    print('Calling equals ${this._title} == ${(other as AnotherClass)._title} ??');
+    return this._title == (other as AnotherClass)._title;
   }
 
   AnotherClass operator +(AnotherClass other) {
@@ -50,8 +49,7 @@ class AnotherClass {
     return here();
   }
 
-  Iterable<int> testMethodIterator() =>
-      (() sync* {
+  Iterable<int> testMethodIterator() => (() sync* {
         yield count++;
         yield count++;
       })();
@@ -61,7 +59,6 @@ class MySampleClass1 extends AnotherClass {
   MySampleClass1() : super() {
     print('hi man!');
   }
-
 
   MySampleClass1.another(String who) : super.other('XX${who}xx') {
     print('Yo ${who}');
@@ -90,9 +87,7 @@ class MySampleClass2 extends AnotherClass {
 }
 
 class MakeItReal extends MySampleClass2 {
-  MakeItReal() :super.extra(namedOnNamed: 'ciccio') {
-
-  }
+  MakeItReal() : super.extra(namedOnNamed: 'ciccio') {}
 }
 
 MySampleClass1 createSampleClass1() => new MySampleClass1();

@@ -6,13 +6,13 @@ Future testFuture() async {
 }
 
 Future<bool> simpleAsyncFunc() async {
-  await new Future<any>.delayed(new Duration(seconds: 1));
+  await new Future.delayed(new Duration(seconds: 1));
   return true;
 }
 
 Stream<int> simpleAsyncStreamFunc() async* {
   for (int i = 0; i < 5; i++) {
-    await new Future<any>.delayed(new Duration(milliseconds: 500));
+    await new Future.delayed(new Duration(milliseconds: 500));
     yield i;
   }
 }

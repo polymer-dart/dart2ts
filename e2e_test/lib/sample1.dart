@@ -135,8 +135,8 @@ void main(List<String> args) {
 
   printToBody('LIB: ${getMetadata(xy.MySampleClass1).library}');
 
-  xy.AnotherClass a0 = new xy.AnotherClass('ciao')..count = 5;
-  xy.AnotherClass a1 = new xy.AnotherClass('ciao')..count = 10;
+  xy.AnotherClass a0 = new xy.AnotherClass(named: 'ciao',num: 0)..count = 5;
+  xy.AnotherClass a1 = new xy.AnotherClass(named: 'ciao',num: 1)..count = 10;
   printToBody('Uguali (static typed): ${a0 == a1}');
   printToBody('Uguali (dynamic typed): ${(a0 as dynamic) == (a1 as dynamic)}');
 

@@ -16,7 +16,7 @@ class MyAnnotatedClass {
 @JS("Map")
 class JSMap<K, V> {
   @JS('get')
-  V GET(K str);
+  external V GET(K str);
 }
 
 @JS()
@@ -41,7 +41,7 @@ class IAnnotation {
 @Module('dart_sdk/decorations')
 class IDartMetadata {
   String library;
-  List<TSAnno> annotations;
+  List<IAnnotation> annotations;
   JSMap<String, JSMap<String, List<dynamic>>> propertyAnnotations;
 }
 

@@ -27,14 +27,12 @@ testDaStream() async {
 
   await execStream(startStream2, 5);
 
-
-
   // Now with onListen
 }
 
 Future execStreamOnListen<X>(void source(StreamController<X> c), [int max]) async {
-  StreamController controller =
-      new StreamController.broadcast(onListen: () => source(controller), onCancel: () => print('CANCEL'));
+  StreamController controller;
+  controller = new StreamController.broadcast(onListen: () => source(controller), onCancel: () => print('CANCEL'));
 
   print('start receiving');
   await for (String event in controller.stream) {

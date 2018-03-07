@@ -5,9 +5,9 @@ external void alert(String);
 
 @JS()
 class Document {
-  Element get body;
+  external Element get body;
 
-  Element createElement(String div);
+  external Element createElement(String div);
 }
 
 @JS()
@@ -17,7 +17,7 @@ external Document get document;
 class Element {
   String innerHTML;
 
-  void appendChild(Element e);
+  external void appendChild(Element e);
 }
 
 @JS()
