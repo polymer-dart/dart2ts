@@ -9,7 +9,7 @@ import 'package:dart2ts/annotations.dart';
 @JS()
 @TS(generate: true)
 @BowerImport(
-    ref: 'polymer#2.5.0', name: 'polymer', import: 'polymer/polymer.html')
+    ref: 'polymer#2.5.0', name: 'polymer', path: 'polymer/polymer.html')
 abstract class Element extends HTMLElement {
   get(String path);
 

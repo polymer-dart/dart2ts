@@ -133,7 +133,7 @@ class Overrides {
     String actualName = classOverrides['to']['class'];
 
     if (!noTypeArgs && type is ParameterizedType && type.typeArguments.isNotEmpty) {
-      return new TSGenericType("${p}${actualName}", type.typeArguments.map((t) => typeManager.toTsType(t)));
+      return new TSGenericType("${p}${actualName}", type.typeArguments.map((t) => typeManager.toTsType(t)).toList());
     } else {
       return new TSSimpleType("${p}${actualName}", !TypeManager.isNativeType(type));
     }

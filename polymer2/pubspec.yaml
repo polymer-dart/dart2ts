@@ -5,8 +5,7 @@ dependencies:
  html5: any
 dev_dependencies:
  dart2ts:
-  path: ..
- polymer_element: any
+  path: ../dart2ts
 dependency_overrides:
  html5:
   path: ../../html5

@@ -6,4 +6,4 @@ import 'package:js/js.dart';
 import 'package:dart2ts/annotations.dart';
 
 @JS()
-external register(Type dartClass, String tagName);
+external register(Type dartClass, [String tagName]);

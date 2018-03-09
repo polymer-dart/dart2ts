@@ -4,20 +4,17 @@ version: 0.0.1
 dependencies:
  js: any
  html5: any
- analyzer: ^0.30.0
+
  polymer2:
   path: ../polymer2
  #polymerize: any
- polymer_element: any
- build_runner: ^0.6.1
- build: ^0.11.2
+ build: ">=0.11.2"
+ build_runner: ">=0.6.1"
+ analyzer: ">=0.30.0 <0.32.0"
  polymer2_builder:
   path: ../polymer2_builder
  dart2ts:
-  path: ..
-override_dependencies:
+  path: ../dart2ts
+dependency_overrides:
  html5:
   path: ../../html5
-
- polymerize:
-   path: ../../Personali/Dart/polymerize

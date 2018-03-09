@@ -23,6 +23,10 @@ export class Object {
 
 }
 
+export interface Type {
+    new(...args: Array<any>): any;
+}
+
 
 export function print(message: String): void {
     console.log(message);

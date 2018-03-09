@@ -19,6 +19,9 @@ bool isTypeInstanceOf(ParameterizedType base, DartType type) =>
 final Uri _DART2TS_URI = Uri.parse('package:dart2ts/annotations.dart');
 final Uri _DART2TS_ASSET_URI = Uri.parse('asset:dart2ts/lib/annotations.dart');
 
+final Uri _POLYMER2_URI = Uri.parse('package:polymer2/src/annotations.dart');
+final Uri _POLYMER2_ASSET_URI = Uri.parse('asset:polymer2/lib/src/annotations.dart');
+
 final Uri _POLYMER_REGISTER_URI = Uri.parse('package:polymer_element/annotations.dart');
 final Uri _POLYMER_REGISTER_ASSET_URI = Uri.parse('asset:polymer_element/lib/annotations.dart');
 final Uri _JS_URI = Uri.parse('package:js/js.dart');
@@ -38,6 +41,8 @@ bool isDart2TsUri(Uri u) => u == _DART2TS_URI || u == _DART2TS_ASSET_URI;
 bool isJsUri(Uri u) => u == _JS_ASSET_URI || u == _JS_URI;
 
 bool isPolymerElementUri(Uri u) => u == _POLYMER_REGISTER_ASSET_URI || u == _POLYMER_REGISTER_URI;
+
+bool isPolymer2Uri(Uri u) => u == _POLYMER2_ASSET_URI || u == _POLYMER2_URI;
 
 bool isPolymerMapUri(Uri u) => u == _POLYMER_MAP_URI || u == _POLYMER_MAP_ASSET_URI;
 
@@ -79,6 +84,9 @@ bool isNotify(DartObject o) => (isPolymerElementUri(o.type.element.librarySource
 
 bool isPolymerRegister(DartObject o) =>
     o != null && (isPolymerElementUri(o.type.element.librarySource.uri)) && (o.type.name == 'PolymerRegister');
+
+bool isPolymerRegister2(DartObject o) =>
+    o != null && (isPolymer2Uri(o.type.element.librarySource.uri)) && (o.type.name == 'PolymerRegister');
 
 bool isPolymerBehavior(DartObject o) =>
     (isPolymerElementUri(o.type.element.librarySource.uri)) && (o.type.name == 'PolymerBehavior');

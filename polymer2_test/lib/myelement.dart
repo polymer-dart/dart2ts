@@ -6,7 +6,7 @@ import 'package:js/js.dart';
 @polymer.PolymerRegister('my-tag', template: 'myelement.html')
 abstract class MyElement extends polymer.Element {
   String name;
-  @polymer.Property(notify:true)
+  @polymer.Property(notify: true)
   int number = 0;
 
   //@JS('is')
@@ -23,10 +23,4 @@ abstract class MyElement extends polymer.Element {
     //number = number + 1;
     name = 'Super app : ${number++}';
   }
-}
-
-@onModuleLoad
-void _registerElements() {
-  polymer.register(MyElement);
-  //window.customElements.define('my-tag', MyElement);
 }

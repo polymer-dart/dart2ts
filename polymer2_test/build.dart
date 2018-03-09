@@ -6,7 +6,7 @@ import 'package:polymer2_builder/polymer2_builder.dart';
 
 Future main(List<String> args) async {
   BuildResult res = await build([
-    new PackageBuildAction(new InitCodePackageBuilder(new Glob('lib/**.dart')), 'polymer2_test'),
+    new BuildAction(new InitCodePackageBuilder(), 'polymer2_test', inputs: ['lib/myelement.dart']),
     new BuildAction(new Dart2TsBuilder(), 'polymer2_test', inputs: ['lib/**.dart']),
   ], deleteFilesByDefault: true);
 
