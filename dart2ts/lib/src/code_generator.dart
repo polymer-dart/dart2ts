@@ -124,6 +124,9 @@ class Dart2TsBuilder extends _BaseBuilder {
 
     IndentingPrinter printer = new IndentingPrinter();
     Overrides overrides = await Overrides.forCurrentContext();
+    if (_config.overrides!=null) {
+      overrides.merge(_config.overrides);
+    }
     runWithContext(library.context, () {
       LibraryContext libraryContext = new LibraryContext(library, overrides, _config);
 

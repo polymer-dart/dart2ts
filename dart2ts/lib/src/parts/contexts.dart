@@ -1,18 +1,25 @@
 part of '../code_generator.dart';
 
 class Overrides {
-  var _yaml;
-  var _overrides;
+  YamlDocument _document;
 
-  Overrides(this._yaml) {
-    this._overrides = _yaml['overrides'] ?? {};
+  YamlMap get overrides => (_document.contents as YamlMap)['overrides'];
+
+  YamlMap getLibraryOverrides(String uri) => overrides[uri] as YamlMap;
+
+  Overrides(YamlDocument _yaml) {
+    this._document = _yaml ?? loadYamlDocument("");
+  }
+
+  factory Overrides.parse(String overrideYaml) {
+    return new Overrides(loadYamlDocument(overrideYaml));
   }
 
   static Future<Overrides> forCurrentContext() async {
     res.Resource resource = new res.Resource('package:dart2ts/src/overrides.yml');
     String str = await resource.readAsString();
 
-    return new Overrides(loadYaml(str));
+    return new Overrides(loadYamlDocument(str));
   }
 
   String resolvePrefix(TypeManager m, String module, [String origPrefix = null]) {
@@ -107,7 +114,7 @@ class Overrides {
         return null;
       }
 
-      var libOverrides = _overrides[fromUri.toString()];
+      var libOverrides = getLibraryOverrides(fromUri.toString());
       if (libOverrides == null) {
         return null;
       }
@@ -201,6 +208,8 @@ class Overrides {
     return new TSInvoke(new TSStaticRef(tsType, newName), collector.arguments, collector.namedArguments)
       ..asNew = !isFactory;
   }
+
+  void merge(Overrides overrides) {}
 }
 
 abstract class Context<T extends TSNode> {
