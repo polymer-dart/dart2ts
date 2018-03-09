@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:build_runner/build_runner.dart' as builder;
 
-import 'package:dart2ts/src/code_generator2.dart';
+import 'package:dart2ts/src/code_generator.dart';
 
 import 'package:path/path.dart' as p;
 

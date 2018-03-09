@@ -1,4 +1,4 @@
-part of '../code_generator2.dart';
+part of '../code_generator.dart';
 
 class Overrides {
   var _yaml;
@@ -1109,8 +1109,9 @@ abstract class ChildContext<A extends TSNode, P extends Context<A>, E extends TS
 class Config {
   String modulePrefix;
   String moduleSuffix;
+  Overrides overrides;
 
-  Config({this.modulePrefix = '../node_modules/', this.moduleSuffix = '.js'});
+  Config({this.modulePrefix = '../node_modules/', this.moduleSuffix = '.js', this.overrides});
 }
 
 /**

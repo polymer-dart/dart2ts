@@ -1,4 +1,4 @@
-part of '../code_generator2.dart';
+part of '../code_generator.dart';
 
 /**
  * TS Generator

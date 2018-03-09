@@ -13,10 +13,6 @@ overrides:
            map: $map
  "dart:core":
     classes:
-    #  Object:
-    #     to:
-    #       class: Object
-    #       from: global
       Expando:
          operators:
            "[]" : "$get"
@@ -29,9 +25,6 @@ overrides:
            from:
              name: "$from"
              factory: true
-         properties:
-           first: "$first"
-           last: "$last"
          methods:
            sublist: "$sublist"
            add: "$add"
