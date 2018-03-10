@@ -19,14 +19,13 @@ Map<K, V> _recursiveMerge<K, V>(Map<K, V> map1, Map<K, V> map2) {
 }
 
 class Overrides extends IOverrides {
-  Map overrides;
+  Map _overrides;
 
-  Map getLibraryOverrides(String uri) => overrides[uri] as Map;
+  Map _libraryOverrides(String uri) => _overrides[uri] as Map;
 
   Overrides(YamlDocument _yaml) {
-    YamlDocument _document = _yaml ?? loadYamlDocument("");
-    Map _d = (_document.contents is Map) ? _document.contents : {};
-    this.overrides = _d['overrides'] ?? {};
+    Map _d = (_yaml?.contents is Map) ? _yaml.contents : {};
+    this._overrides = _d['overrides'] ?? {};
   }
 
   factory Overrides.parse(String overrideYaml) {
@@ -132,7 +131,7 @@ class Overrides extends IOverrides {
         return null;
       }
 
-      var libOverrides = getLibraryOverrides(fromUri.toString());
+      var libOverrides = _libraryOverrides(fromUri.toString());
       if (libOverrides == null) {
         return null;
       }
@@ -228,7 +227,7 @@ class Overrides extends IOverrides {
   }
 
   void merge(Overrides newOverrides) {
-    overrides = _recursiveMerge(newOverrides.overrides, overrides);
+    _overrides = _recursiveMerge(newOverrides._overrides, _overrides);
   }
 }
 
