@@ -8,6 +8,9 @@ main(List<String> args) {
     if (dir.existsSync()) dir.deleteSync(recursive: true);
   }
   build([
-    new BuildAction(new Dart2TsBuilder(), 'sample_project', inputs: ['lib/**.dart']),
+    new BuildAction(new Dart2TsBuilder(new Config(overrides: new IOverrides.parse('''
+overrides:      
+      
+      '''))), 'sample_project', inputs: ['lib/**.dart']),
   ], deleteFilesByDefault: true);
 }

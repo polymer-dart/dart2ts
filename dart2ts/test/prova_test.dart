@@ -7,6 +7,7 @@ import 'package:test/test.dart';
 import 'package:dart2ts/dart2ts.dart';
 import 'dart:io';
 import 'package:path/path.dart' as path;
+import 'package:yaml/yaml.dart';
 
 final String E2E_TEST_PROJECT_PATH = path.canonicalize(path.absolute(path.joinAll(['..', 'e2e_test'])));
 
@@ -19,7 +20,10 @@ void main() {
       if (dartTool.existsSync()) {
         await dartTool.delete(recursive: true);
       }
-      BuildResult buildResult = await dart2tsBuild(E2E_TEST_PROJECT_PATH, new Config());
+      BuildResult buildResult = await dart2tsBuild(E2E_TEST_PROJECT_PATH, new Config(overrides: new IOverrides.parse('''
+      
+      
+      ''')));
       expect(buildResult.status, equals(BuildStatus.success), reason: "Build is ok");
       print("TS Build, now running webpack");
       Process npm = await Process.start('npm', ['run', 'build'], workingDirectory: E2E_TEST_PROJECT_PATH);

@@ -1,14 +1,32 @@
 part of '../code_generator.dart';
 
-class Overrides {
-  YamlDocument _document;
+abstract class IOverrides {
+  IOverrides();
 
-  YamlMap get overrides => (_document.contents as YamlMap)['overrides'];
+  factory IOverrides.parse(String overrideYaml) => new Overrides.parse(overrideYaml);
+}
 
-  YamlMap getLibraryOverrides(String uri) => overrides[uri] as YamlMap;
+Map<K, V> _recursiveMerge<K, V>(Map<K, V> map1, Map<K, V> map2) {
+  Set<K> allKeys = new Set<K>()..addAll(map1.keys)..addAll(map2.keys);
+
+  return new Map.fromIterable(allKeys, value: (k) {
+    if (k is Map) {
+      return _recursiveMerge(map1[k] ?? {}, map2[k] ?? {}) as V;
+    }
+
+    return map1[k] ?? map2[k];
+  });
+}
+
+class Overrides extends IOverrides {
+  Map overrides;
+
+  Map getLibraryOverrides(String uri) => overrides[uri] as Map;
 
   Overrides(YamlDocument _yaml) {
-    this._document = _yaml ?? loadYamlDocument("");
+    YamlDocument _document = _yaml ?? loadYamlDocument("");
+    Map _d = (_document.contents is Map) ? _document.contents : {};
+    this.overrides = _d['overrides'] ?? {};
   }
 
   factory Overrides.parse(String overrideYaml) {
@@ -209,7 +227,9 @@ class Overrides {
       ..asNew = !isFactory;
   }
 
-  void merge(Overrides overrides) {}
+  void merge(Overrides newOverrides) {
+    overrides = _recursiveMerge(newOverrides.overrides, overrides);
+  }
 }
 
 abstract class Context<T extends TSNode> {
@@ -1118,7 +1138,7 @@ abstract class ChildContext<A extends TSNode, P extends Context<A>, E extends TS
 class Config {
   String modulePrefix;
   String moduleSuffix;
-  Overrides overrides;
+  IOverrides overrides;
 
   Config({this.modulePrefix = '../node_modules/', this.moduleSuffix = '.js', this.overrides});
 }
