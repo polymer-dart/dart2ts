@@ -10,7 +10,7 @@ Map<K, V> _recursiveMerge<K, V>(Map<K, V> map1, Map<K, V> map2) {
   Set<K> allKeys = new Set<K>()..addAll(map1.keys)..addAll(map2.keys);
 
   return new Map.fromIterable(allKeys, value: (k) {
-    if (k is Map) {
+    if (map1[k] is Map || map2[k] is Map) {
       return _recursiveMerge(map1[k] ?? {}, map2[k] ?? {}) as V;
     }
 
@@ -53,6 +53,11 @@ class Overrides extends IOverrides {
     }
   }
 
+  /**
+   * Check for method overrides.
+   * The target can be a method name or a square expression. Inside square expression one can use `${prefix}` to replace
+   * with the current prefix for the destination module, in order to access static fields in the native class.
+   */
   TSExpression checkMethod(TypeManager typeManager, DartType type, String methodName, TSExpression tsTarget,
       {TSExpression orElse()}) {
     var classOverrides = _findClassOverride(type);
@@ -143,7 +148,7 @@ class Overrides extends IOverrides {
   TSType checkType(TypeManager typeManager, String origPrefix, DartType type, bool noTypeArgs, {TSType orElse()}) {
     var classOverrides = _findClassOverride(type);
 
-    if (classOverrides == null || classOverrides['to'] == null || (classOverrides['to'] as YamlMap)['class'] == null) {
+    if (classOverrides == null || classOverrides['to'] == null || (classOverrides['to'] as Map)['class'] == null) {
       return orElse();
     }
 
