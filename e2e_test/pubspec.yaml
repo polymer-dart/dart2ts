@@ -3,5 +3,6 @@ description: sample_project to be translated
 version: 0.0.1
 dependencies:
  js: any
+dev_dependencies:
  dart2ts:
   path: ../dart2ts

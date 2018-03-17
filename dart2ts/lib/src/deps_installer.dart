@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:args/command_runner.dart';
+import 'package:build/src/builder/build_step.dart';
+import 'package:build_runner/build_runner.dart';
 import 'package:logging/logging.dart';
 import 'package:package_config/packages_file.dart' as packages;
 import 'package:path/path.dart' as path;
@@ -12,8 +15,13 @@ class Pubspec {
   int depth;
   var content;
   String packagePath;
+
+  List<Pubspec> children = [];
+
   Pubspec({this.packagePath, this.content, this.depth});
+
   String get name => content['name'];
+
   Map get dependencies => content['dependencies'] ?? {};
 
   String get version => content['version'] ?? '0.0.0';
@@ -21,6 +29,16 @@ class Pubspec {
   String get description => content['description'] ?? 'Package ${name}';
 
   String get author => content['author'] ?? 'unknown';
+
+  toString() => "Package ${name} ${version} [${depth}]";
+}
+
+class Dart2TsPackageBuildAction extends PackageBuilder {
+  @override
+  Future build(BuildStep buildStep) {}
+
+  @override
+  Iterable<String> get outputs => ['dart2ts.gen.dart'];
 }
 
 class Dart2TsInstallCommand extends Command<bool> {
@@ -42,106 +60,122 @@ class Dart2TsInstallCommand extends Command<bool> {
     String destPath = argResults['out'];
 
     // Load packages
-    File packagesFile = new File(path.join(rootPath, '.packages'));
+    _installAllDeps(rootPath, destPath);
+  }
+}
 
-    if (!packagesFile.existsSync()) {
-      throw "`.packages` file is missing, please run `pub get`";
-    }
+void _installAllDeps(String rootPath, String destPath) {
+  // Load packages
+  File packagesFile = new File(path.join(rootPath, '.packages'));
 
-    // Read packages file
-    Map<String, Uri> pkgs = packages.parse(packagesFile.readAsBytesSync(), path.toUri(rootPath));
+  if (!packagesFile.existsSync()) {
+    throw "`.packages` file is missing, please run `pub get`";
+  }
 
-    // Recursively collect all the NOT DEV DEPS
+  // Read packages file
+  Map<String, Uri> pkgs = packages.parse(packagesFile.readAsBytesSync(), path.toUri(rootPath));
 
-    Map<String, Pubspec> deps = new Map();
+  // Recursively collect all the NOT DEV DEPS
 
-    Pubspec collectDeps(String fromPath, [int depth = 0]) {
-      var content = loadYaml(new File(path.join(fromPath, 'pubspec.yaml')).readAsStringSync());
-      Pubspec pubspec = new Pubspec(packagePath: fromPath, content: content, depth: depth);
-      deps[name] = pubspec;
+  Map<String, Pubspec> deps = new Map();
+
+  Pubspec collectDeps(String fromPath, [int depth = 0]) {
+    var content = loadYaml(new File(path.join(fromPath, 'pubspec.yaml')).readAsStringSync());
+    Pubspec pubspec = new Pubspec(packagePath: fromPath, content: content, depth: depth);
+    if (!deps.containsKey(pubspec.name)) {
+      deps[pubspec.name] = pubspec;
       (pubspec.dependencies ?? {}).keys.forEach((String k) {
-        deps.putIfAbsent(k, () => collectDeps(path.dirname(pkgs[k].toFilePath()), depth + 1));
+        pubspec.children.add(collectDeps(path.dirname(pkgs[k].toFilePath()), depth + 1));
       });
-
-      return pubspec;
     }
 
-    collectDeps(rootPath);
-
-    _logger.fine("Collected deps : ${deps}");
-
-    (new List<Pubspec>.from(deps.values.where((p) => p.packagePath != rootPath))
-      ..sort((p1, p2) => p2.depth.compareTo(p1.depth))).forEach((p) {
-      _install(p, destPath);
-    });
+    return pubspec;
   }
 
-  void _install(Pubspec pubspec, String dest) {
-    String packageDest = path.join(dest, pubspec.name);
-    _copy(pubspec.packagePath, packageDest);
+  Pubspec rootSpec = collectDeps(rootPath);
 
-    // generate "package.json"
+  List sorted_deps = new List<Pubspec>.from(deps.values.where((p) => p.packagePath != rootPath))
+    ..sort((p1, p2) => p1.depth.compareTo(p2.depth));
 
-    _generatePackageJson(pubspec, dest, path.join(packageDest, 'package.json'));
-    _generateTsConfig(pubspec, dest, path.join(packageDest, 'tsconfig.json'));
-  }
+  _logger.fine("Collected deps : ${sorted_deps}");
 
-  void _copy(String from, String to) {
-    Directory src = new Directory(from);
-    src.listSync(recursive: true).where((f) => f is File).forEach((e) {
-      File f = e;
-      String dest = path.join(to, path.relative(f.path, from: from));
-      new Directory(path.dirname(dest)).createSync(recursive: true);
-      f.copySync(dest);
-    });
-  }
-
-  void _generatePackageJson(Pubspec pubspec, String pkgRoot, String filePath) {
-    File f = new File(filePath);
-    if (!f.existsSync()) {
-      // Create a new file
-      f.writeAsStringSync(JSON.encode({
-        "name": pubspec.name,
-        "version": pubspec.version,
-        "description": pubspec.description,
-        "scripts": {"build": "tsc"},
-        "files": ["lib/**/*.js", "lib/**/*.d.ts", "package.json"],
-        "author": pubspec.author,
-        "license": "ISC",
-        "dependencies": {},
-        "devDependencies": {"typescript": "^2.5.2"}
-      }));
+  // All but root depth first
+  Iterable<Pubspec> depthFirst(Pubspec root) sync* {
+    for (Pubspec child in root.children) {
+      yield* depthFirst(child);
     }
-
-    // For each dep -> install (note: it should be already there)
-    pubspec.dependencies.keys.forEach((String name) {
-      ProcessResult res = Process.runSync(
-          'npm', ['install', '--save', '${path.relative(path.join(pkgRoot,name),from:f.parent.path)}'],
-          workingDirectory: f.parent.path);
-      if (res.exitCode != 0) {
-        throw "${filePath} ERROR!\n${res.stdout} / ${res.stderr}";
-      }
-      _logger.fine("${res.stdout}");
-    });
+    if (root != rootSpec) yield root;
   }
 
-  void _generateTsConfig(Pubspec pubspec, String pkgRoot, String filePath) {
-    File f = new File(filePath);
-    if (!f.existsSync()) {
-      // Create a new file
-      f.writeAsStringSync(JSON.encode({
-        "compilerOptions": {
-          "module": "es6",
-          "target": "es2015",
-          "sourceMap": true,
-          "declaration": true,
-          "rootDir": "./lib/",
-          "experimentalDecorators": true,
-          "baseUrl": "./node_modules"
-        },
-        "exclude": ["node_modules"],
-        "include": ["lib/**/*.ts"]
-      }));
-    }
+  depthFirst(rootSpec).forEach((p) {
+    _logger.fine("Installing ${p.name} into ${destPath}");
+    _install(p, destPath);
+  });
+}
+
+void _install(Pubspec pubspec, String dest) {
+  String packageDest = path.join(dest, pubspec.name);
+  _copy(pubspec.packagePath, packageDest);
+
+  // generate "package.json"
+
+  _generatePackageJson(pubspec, dest, path.join(packageDest, 'package.json'));
+  _generateTsConfig(pubspec, dest, path.join(packageDest, 'tsconfig.json'));
+}
+
+void _copy(String from, String to) {
+  Directory src = new Directory(from);
+  src.listSync(recursive: true).where((f) => f is File).forEach((e) {
+    File f = e;
+    String dest = path.join(to, path.relative(f.path, from: from));
+    new Directory(path.dirname(dest)).createSync(recursive: true);
+    f.copySync(dest);
+  });
+}
+
+void _generatePackageJson(Pubspec pubspec, String pkgRoot, String filePath) {
+  File f = new File(filePath);
+  if (!f.existsSync()) {
+    // Create a new file
+    f.writeAsStringSync(JSON.encode({
+      "name": pubspec.name,
+      "version": pubspec.version,
+      "description": pubspec.description,
+      "scripts": {"build": "tsc"},
+      "files": ["lib/**/*.js", "lib/**/*.d.ts", "package.json"],
+      "author": pubspec.author,
+      "license": "ISC",
+      "dependencies": new Map.fromIterable(pubspec.children,
+          key: (p) => p.name, value: (p) => path.relative(path.join(pkgRoot, p.name, 'dist'), from: f.parent.path)),
+      "devDependencies": {"typescript": "^2.5.2"}
+    }));
+  }
+
+  // copy it into dist too
+  Directory dist = new Directory(path.join(f.parent.path, 'dist'));
+  dist.createSync(recursive: true);
+
+  f.copySync(path.join(dist.path, path.basename(f.path)));
+}
+
+void _generateTsConfig(Pubspec pubspec, String pkgRoot, String filePath) {
+  File f = new File(filePath);
+  if (!f.existsSync()) {
+    // Create a new file
+    f.writeAsStringSync(JSON.encode({
+      "compilerOptions": {
+        "module": "es6",
+        "target": "es6",
+        "sourceMap": true,
+        "declaration": true,
+        "rootDir": "./lib/",
+        "outDir": "dist",
+        "baseUrl": "./",
+        "experimentalDecorators": true,
+        "lib": ["dom", "es6", "esnext.asynciterable"]
+      },
+      "exclude": ["node_modules", "dist"],
+      "include": ["lib/**/*.ts"],
+    }));
   }
 }

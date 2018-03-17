@@ -688,7 +688,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       if (_context.currentClass != null && findField(currentClassType, node.name) == el) {
         TSExpression tgt;
         if (el.isStatic) {
-          tgt = new TSTypeExpr(_context.typeManager.toTsType(currentClassType), false);
+          tgt = new TSTypeExpr.noTypeParams(_context.typeManager.toTsType(currentClassType));
         } else {
           tgt = TSSimpleExpression.THIS;
         }
@@ -731,7 +731,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
         return new TSInvoke(new TSDotExpression(new TSSimpleExpression(name), 'bind'), [tgt]);
       }
     } else if (node.bestElement is ClassElement) {
-      if (node.parent is MethodInvocation) {
+      if (node.parent is MethodInvocation || node.parent is PropertyAccess || node.parent is PrefixedIdentifier) {
         return new TSTypeExpr.noTypeParams(_context.typeManager.toTsType((node.bestElement as ClassElement).type));
       } else {
         return new TSTypeExpr(_context.typeManager.toTsType((node.bestElement as ClassElement).type));
@@ -1496,6 +1496,7 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
   @override
   void translate() {
     _tsClass = new TSClass(library: _classDeclaration.element.librarySource.uri.toString());
+    _tsClass.isAbstract = _classDeclaration.isAbstract;
     ClassMemberVisitor visitor = new ClassMemberVisitor(this, _tsClass, _declarationMode);
     _tsClass.name = _classDeclaration.name.name;
 
@@ -1872,10 +1873,11 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
       topLevel: topLevel,
       typeParameters: typeParameters,
       asMethod: true,
+      isAbstract: _methodDeclaration.isAbstract,
       isStatic: _methodDeclaration.isStatic,
       isGetter: _methodDeclaration.isGetter,
       isSetter: _methodDeclaration.isSetter,
-      body: body,
+      body: _methodDeclaration.isAbstract ? null : body,
       annotations: annotations,
       withParameterCollector: parameterCollector,
       declared: _declarationMode,

@@ -141,6 +141,8 @@ class TSClass extends TSNode {
   List<TSType> typeParameters;
   List<TSAnnotation> annotations;
 
+  bool isAbstract = false;
+
   TSClass(
       {this.topLevel: true,
       this.isInterface: false,
@@ -166,6 +168,10 @@ class TSClass extends TSNode {
 
     if (declared) {
       printer.write('declare ');
+    }
+
+    if (isAbstract) {
+      printer.write('abstract ');
     }
 
     if (isInterface) {
@@ -512,6 +518,7 @@ class TSFunction extends TSExpression implements TSStatement {
   String prefix;
   bool declared;
   TSType namedParameterType;
+  bool isAbstract;
 
   TSFunction(
     this.tm, {
@@ -531,6 +538,7 @@ class TSFunction extends TSExpression implements TSStatement {
     this.asDefaultConstructor: false,
     this.isSetter: false,
     this.isStatic: false,
+    this.isAbstract: false,
     this.callSuper: false,
     this.nativeSuper: false,
     this.initializers,
@@ -618,6 +626,7 @@ class TSFunction extends TSExpression implements TSStatement {
         printer.write(('[bare.init]'));
       } else {
         if (isStatic) printer.write('static ');
+        if (isAbstract) printer.write('abstract ');
         if (isAsync) {
           printer.write("async ");
         }
@@ -1350,7 +1359,7 @@ class TSForStatement extends TSStatement {
       printer.accept(_init);
     }
     printer.write('; ');
-    printer.accept(_condition);
+    if (_condition != null) printer.accept(_condition);
     printer.write('; ');
     printer.join(_updaters);
     printer.write(')');
