@@ -282,6 +282,63 @@ abstract class Context<T extends TSNode> {
     });
     return res;
   }
+
+  List<TSTypeParameter> methodTypeParameters(ClassMember _methodDeclaration) {
+    List<TSTypeParameter> typeParameters;
+
+    List<TypeParameter> params;
+
+    params = new ExecutableClassMember.fromClassMember(_methodDeclaration)?.typeParameters?.typeParameters;
+
+    if (params != null) {
+      typeParameters =
+          new List.from(params.map((t) => new TSTypeParameter(t.name.name, typeManager.toTsType(t.bound?.type))));
+    } else {
+      typeParameters = null;
+    }
+    return typeParameters;
+  }
+}
+
+abstract class ExecutableClassMember {
+  bool get isStatic;
+
+  TypeParameterList get typeParameters;
+
+  factory ExecutableClassMember.fromClassMember(ClassMember member) =>
+      member.accept(new _ExecutableClassMemberFactory());
+}
+
+class MethodExecutableClassMember implements ExecutableClassMember {
+  MethodDeclaration _method;
+
+  MethodExecutableClassMember(this._method);
+
+  bool get isStatic => _method.isStatic;
+
+  TypeParameterList get typeParameters => _method.typeParameters;
+}
+
+class ConstructorExecutableClassMember implements ExecutableClassMember {
+  ConstructorDeclaration _constructor;
+
+  ConstructorExecutableClassMember(this._constructor);
+
+  bool get isStatic => _constructor.factoryKeyword != null;
+
+  TypeParameterList get typeParameters => (_constructor.parent as ClassDeclaration).typeParameters;
+}
+
+class _ExecutableClassMemberFactory extends GeneralizingAstVisitor<ExecutableClassMember> {
+  @override
+  ExecutableClassMember visitMethodDeclaration(MethodDeclaration node) {
+    return new MethodExecutableClassMember(node);
+  }
+
+  @override
+  ExecutableClassMember visitConstructorDeclaration(ConstructorDeclaration node) {
+    return new ConstructorExecutableClassMember(node);
+  }
 }
 
 class BodyVisitor extends GeneralizingAstVisitor<TSBody> {
@@ -1537,12 +1594,15 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
 
       parentContext.addDeclaration(new TSClass(isInterface: true)
         ..name = '${_classDeclaration.name.name}_${decl.name.name}'
+        ..typeParameters = tsClass.typeParameters
         ..members = [
-          new TSFunction(typeManager,
-              asMethod: true,
-              name: 'new',
-              withParameterCollector: parameterCollector,
-              returnType: new TSSimpleType(_classDeclaration.name.name, true)),
+          new TSFunction(
+            typeManager,
+            asMethod: true,
+            name: 'new',
+            withParameterCollector: parameterCollector,
+            returnType: typeManager.toTsType(_classDeclaration.element.type),
+          )
         ]);
     });
 
@@ -1631,17 +1691,24 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
       FormalParameterCollector collector = new FormalParameterCollector(_context);
       node.parameters.accept(collector);
 
-      TSBody body = _context.processBody(node.body, withBrackets: false, withReturn: true);
+      TSBody body;
+      if (node.redirectedConstructor != null) {
+        body = _redirectingConstructorBody(node, collector);
+      } else {
+        body = _context.processBody(node.body, withBrackets: false, withReturn: true);
+      }
+
       InitializerCollector initializerCollector = new InitializerCollector(_context);
       List<TSStatement> initializers = initializerCollector.processInitializers(node.initializers);
 
       _context.tsClass.members.add(new TSFunction(
         _context.typeManager,
-        name: (node.name?.name?.length ?? 0) > 0 ? node.name.name : 'create',
+        name: (node.name?.name?.length ?? 0) > 0 ? node.name.name : '\$create',
         asMethod: true,
         isStatic: true,
         withParameterCollector: collector,
         body: body,
+        typeParameters: _context.methodTypeParameters(node),
         initializers: initializers,
         returnType: _context.typeManager.toTsType(node.element.enclosingElement.type),
       ));
@@ -1649,7 +1716,7 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
       namedConstructors[node.name.name] = node;
 
       // Create the static
-      _context.tsClass.members.add(_createNamedConstructor(node));
+      _createNamedConstructor(node);
     } else {
       // Create a default constructor
 
@@ -1674,9 +1741,59 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
     }
   }
 
-  TSNode _createNamedConstructor(ConstructorDeclaration node) {
-    TSType ctorType = new TSSimpleType('${_context._classDeclaration.name.name}_${node.name.name}', true);
+  TSBody _redirectingConstructorBody(ConstructorDeclaration node, FormalParameterCollector collector) {
+    TSBody body;
+    TSExpression target;
 
+    if (node.redirectedConstructor.staticElement.isFactory) {
+      String name;
+      if (node.redirectedConstructor.name == null || node.redirectedConstructor.name.name.isEmpty) {
+        name = "\$create";
+      } else {
+        name = node.redirectedConstructor.name.name;
+      }
+      target = new TSStaticRef(_context.typeManager.toTsType(node.redirectedConstructor.type.type), name);
+    } else {
+      if (node.redirectedConstructor.name == null || node.redirectedConstructor.name.name.isEmpty) {
+        target = new TSTypeExpr(_context.typeManager.toTsType(node.redirectedConstructor.type.type));
+      } else {
+        String name;
+        name = node.redirectedConstructor.name.name;
+        target = new TSStaticRef(_context.typeManager.toTsType(node.redirectedConstructor.type.type), name);
+      }
+    }
+
+    // Create arguments
+    List<TSExpression> normalArgs = new List.from(collector.parameters.map((p) => new TSSimpleExpression(p.name)));
+    Map<String, TSExpression> namedArgs;
+    if (collector.namedType != null) {
+      namedArgs =
+          new Map.fromIterable(collector.namedType.fields.keys, key: (k) => k, value: (k) => new TSSimpleExpression(k));
+    } else {
+      namedArgs = null;
+    }
+
+    body = new TSBody(statements: [
+      new TSReturnStatement(new TSInvoke(
+        target,
+        normalArgs,
+        namedArgs,
+      )..asNew = true)
+    ], withBrackets: false);
+    return body;
+  }
+
+  void _createNamedConstructor(ConstructorDeclaration node) {
+    TSType ctorType;
+    var ctorTypeName = '${_context._classDeclaration.name.name}_${node.name.name}';
+    if (_context.currentClass._classDeclaration.typeParameters != null) {
+      ctorType = new TSGenericType(
+          ctorTypeName,
+          new List.generate(
+              (node.parent as ClassDeclaration).typeParameters.typeParameters.length, (i) => new TSSimpleType('any', false)));
+    } else {
+      ctorType = new TSSimpleType(ctorTypeName, true);
+    }
     FormalParameterCollector parameterCollector = _context.collectParameters(node.parameters);
 
     TSBody body = _context.processBody(node.body, withBrackets: false, withReturn: false);
@@ -1732,7 +1849,7 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
       ),
     ];
 
-    return new TSNodes(nodes);
+    _context.tsClass.members.addAll(nodes);
   }
 }
 
@@ -1815,15 +1932,7 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
       return null;
     }
 
-    List<TSTypeParameter> typeParameters;
-    //List<TSNode> result = [];
-
-    if (_methodDeclaration.typeParameters != null) {
-      typeParameters = new List.from(_methodDeclaration.typeParameters.typeParameters
-          .map((t) => new TSTypeParameter(t.name.name, typeManager.toTsType(t.bound?.type))));
-    } else {
-      typeParameters = null;
-    }
+    List<TSTypeParameter> typeParameters = methodTypeParameters(_methodDeclaration);
 
     // arguments
     FormalParameterCollector parameterCollector = new FormalParameterCollector(this);

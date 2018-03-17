@@ -217,6 +217,16 @@ describe('dart2ts', function () {
             });
         });
 
+        it('works with redirecting constructors',async () => {
+            const res = await page.evaluate(() => window.tests.test_strange.test1(31516));
+            expect(res).to.be.equal(31516);
+        });
+
+        it('works with redirecting named constructors with named args',async () => {
+            const res = await page.evaluate(() => window.tests.test_strange.test2(31516));
+            expect(res).to.be.equal(31516);
+        });
+
         it('resolves metadata', async () => {
 
             const meta = await page.evaluate(() => window.tests.testMetadata());
