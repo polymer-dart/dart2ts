@@ -36,6 +36,10 @@ overrides:
          operators:
             "[]" : "get"
             "[]=" : "set"
+      Iterator:
+         to:
+           class: DartIterator
+           from: "module:dart_sdk/collection"
       Iterable:
          to:
            class: DartIterable

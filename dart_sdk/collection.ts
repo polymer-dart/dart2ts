@@ -31,25 +31,92 @@ declare global {
 }
 
 
-export interface DartIterable<T> extends Iterable<T> {
+export abstract class DartIterable<T> implements Iterable<T> {
+    [Symbol.iterator](): Iterator<T> {
+        return new DartIteratorIteratorWrapper(this.$iterator);
+    }
+
     readonly $first: T;
     readonly $last: T;
 
-    $join(separator: string): string;
+    abstract $join(separator: string): string;
 
-    $map<X>(f: (t: T) => X): DartIterable<X>;
+    abstract $map<X>(f: (t: T) => X): DartIterable<X>;
 
-    forEach(f: (x: T) => any): void;
+    abstract forEach(f: (x: T) => any): void;
 
-    $toList(arg?: { growable?: boolean }): DartList<T>;
+    abstract $toList(arg?: { growable?: boolean }): DartList<T>;
 
-    $firstWhere(cond: (t: T) => boolean, opts?: { orElse?: () => T }): T;
+    abstract $firstWhere(cond: (t: T) => boolean, opts?: { orElse?: () => T }): T;
 
-    $where(cond: (t: T) => boolean): DartIterable<T>;
+    abstract $where(cond: (t: T) => boolean): DartIterable<T>;
+
+    abstract readonly $iterator: DartIterator<T>;
 }
+
+
+export class ReturnIterator {
+    private _value: any;
+    get value() {
+        return this._value;
+    }
+
+    constructor(value?: any) {
+        this._value = value;
+    }
+}
+
+export abstract class DartIterator<X> {
+
+    abstract moveNext(): boolean;
+
+    abstract readonly current: X;
+}
+
+export class DartIteratorIteratorWrapper<X> implements Iterator<X> {
+    private _dartIterator: DartIterator<X>;
+
+    constructor(dartIterator: DartIterator<X>) {
+        this._dartIterator = dartIterator;
+    }
+
+    next(value?: any): IteratorResult<X> {
+        return {
+            done: !this._dartIterator.moveNext(),
+            value: this._dartIterator.current
+        };
+    }
+
+}
+
+export class IteratorDartIteratorWrapper<X> extends DartIterator<X> {
+
+    private _iterator: Iterator<X>;
+    private _current: X;
+
+    constructor(i: Iterator<X>) {
+        super();
+        this._iterator = i;
+    }
+
+    get current(): X {
+        return this._current;
+    }
+
+    moveNext(): boolean {
+        let res: IteratorResult<X> = this._iterator.next();
+        this._current = res.value;
+        return !res.done;
+    }
+
+}
+
 
 @DartMetadata({library: 'dart:core'})
 export class DartList<T> extends Array<T> implements DartIterable<T> {
+    get $iterator(): DartIterator<T> {
+        return new IteratorDartIteratorWrapper(this[Symbol.iterator]());
+    }
 
     get $isEmpty(): boolean {
         return this.length == 0;
@@ -141,7 +208,11 @@ export function iter<X>(generator: () => Iterator<X>) {
 
 function toDartIterable<X>(x: Iterable<X>): DartIterable<X> {
     @DartMetadata({library: 'dart:core'})
-    class _ implements DartIterable<X> {
+    class _ extends DartIterable<X> {
+        get $iterator(): DartIterator<X> {
+            return new IteratorDartIteratorWrapper(x[Symbol.iterator]());
+        }
+
         @OverrideMethod('$map', 'map')
         $map<T>(f: (t: X) => T): DartIterable<T> {
             let self = this;
@@ -183,10 +254,6 @@ function toDartIterable<X>(x: Iterable<X>): DartIterable<X> {
                 last = x;
             }
             return last;
-        }
-
-        [Symbol.iterator](): Iterator<X> {
-            return x[Symbol.iterator]();
         }
 
         $toList(arg?: { growable?: boolean }): DartList<X> {

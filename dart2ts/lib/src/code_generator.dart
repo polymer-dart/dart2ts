@@ -25,6 +25,8 @@ part 'package:dart2ts/src/parts/ts_simple_ast.dart';
 
 part 'parts/type_manager.dart';
 
+part 'parts/overrides.dart';
+
 final _P.Context path = new _P.Context(style: _P.Style.posix, current: '/');
 
 /**
@@ -53,7 +55,11 @@ class Dart2TsBuildCommand extends Command<bool> {
     PackageGraph graph = new PackageGraph.forPath(argResults['dir']);
 
     List<BuildAction> actions = [
-      new BuildAction(new Dart2TsBuilder(new Config(modulePrefix: argResults['module-prefix'], moduleSuffix: argResults['module-suffix'])), graph.root.name, inputs: ['lib/**.dart', 'web/**.dart'])
+      new BuildAction(
+          new Dart2TsBuilder(
+              new Config(modulePrefix: argResults['module-prefix'], moduleSuffix: argResults['module-suffix'])),
+          graph.root.name,
+          inputs: ['lib/**.dart', 'web/**.dart'])
     ];
 
     if (argResults['watch'] == true) {
@@ -124,7 +130,7 @@ class Dart2TsBuilder extends _BaseBuilder {
 
     IndentingPrinter printer = new IndentingPrinter();
     Overrides overrides = await Overrides.forCurrentContext();
-    if (_config.overrides!=null) {
+    if (_config.overrides != null) {
       overrides.merge(_config.overrides);
     }
     runWithContext(library.context, () {

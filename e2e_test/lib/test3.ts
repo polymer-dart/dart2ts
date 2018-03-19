@@ -23,3 +23,14 @@ export class My {
         }
     }
 }
+
+
+function makeIndexAwareProxy<X extends object>(claxx: X) {
+    return new Proxy(claxx, {
+        construct(target, args) {
+            return new Proxy(new (target as any)(...args), {
+
+            });
+        }
+    });
+}

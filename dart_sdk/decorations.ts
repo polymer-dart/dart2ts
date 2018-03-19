@@ -10,15 +10,30 @@ export interface IDartMetadata {
 }
 
 export function DartMetadata(m: IDartMetadata): ClassDecorator {
-    return (target) => {
+    return <T extends { new(...any): any }>(target) => {
         getDartMetadata(target).library = m.library;
+
+        return new Proxy(target, {
+            construct(target: T, args) {
+                return new Proxy(new target(...args), {
+                    get(target, prop) {
+                        return target[prop];
+                    },
+
+                    set(target, prop, val): boolean {
+                        target[prop] = val;
+                        return true;
+                    }
+                });
+            }
+        });
     }
 }
 
 export interface IAnnotation {
     library: string;
     type: string;
-    value: any;
+    value?: any;
 }
 
 export interface IAnnotationKey {
