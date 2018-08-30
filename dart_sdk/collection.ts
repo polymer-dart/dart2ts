@@ -1,55 +1,140 @@
 import {Duration} from "./lib/core.js";
-import {extendPrototype} from "./utils.js";
-import {DartMetadata, IDartMetadata, OverrideMethod, OverrideProperty} from "./decorations.js";
+import {extend} from "./utils.js";
+import {DartMetadata, IDartMetadata, OverrideMethod, OverrideProperty, dartMixin, ConstructorOf, dartMixins} from "./decorations.js";
+import * as bare from "./dist/bare";
 
 
 export namespace Symbols {
 }
 
+
+/**
+ * Extend global Array because we want to be able to pass
+ * array to dart function and make them work as a Dart List.
+ */
+
 declare global {
 
-    interface Array<T> extends DartIterable<T> {
-
-        $sublist(from: number, to: number): Array<T>;
-
-        readonly $isEmpty: boolean;
-        readonly $isNotEmpty: boolean;
-
-        $add(e: T): void;
-
-        $remove(e: T): void;
+    interface Array<T> extends DartList<T> {
 
 
     }
 
-    interface ArrayConstructor {
-        $from<T>(source: Iterable<T>): Array<T>;
+    interface ArrayConstructor extends DartListConstructor {
 
-        generate<T>(count: number, generator: (n: number) => T): Array<T>;
     }
 
 }
 
 
+export interface DartList<X> extends DartIterable<X> {
+
+    readonly $isEmpty: boolean;
+    readonly $isNotEmpty: boolean;
+
+    $add(e: X): void;
+
+    $remove(e: X): void;
+
+    readonly $iterator: DartIterator<X>;
+
+    $sublist(from: number, to: number): DartList<X>;
+
+    length: number;
+
+    OPERATOR_INDEX(index: number): X;
+
+    OPERATOR_INDEX_EQ(index: number, value: X): void;
+
+    indexOf(e:X):number;
+
+}
+
+export interface DartListConstructor {
+    $from<T>(source: Iterable<T>): DartList<T>;
+
+    generate<T>(count: number, generator: (n: number) => T): DartList<T>;
+}
+
 export abstract class DartIterable<T> implements Iterable<T> {
+
+
+    constructor(...args: Array<any>) {
+    }
+
     [Symbol.iterator](): Iterator<T> {
         return new DartIteratorIteratorWrapper(this.$iterator);
     }
 
-    readonly $first: T;
-    readonly $last: T;
+    @OverrideMethod('$map', 'map')
+    $map<U>(f: (t: T) => U): DartIterable<U> {
+        let self = this;
 
-    abstract $join(separator: string): string;
+        return toDartIterable<U>({
+            [Symbol.iterator]: function* () {
+                for (let t of self) {
+                    yield f(t);
+                }
+            }
+        });
+    }
 
-    abstract $map<X>(f: (t: T) => X): DartIterable<X>;
+    forEach(f: (x: T) => any): void {
+        for (let _ of this) {
+            f(_);
+        }
+    }
 
-    abstract forEach(f: (x: T) => any): void;
+    @OverrideMethod('$join', 'join')
+    $join(separator: string): string {
+        return Array.from(this).join(separator);
+    }
 
-    abstract $toList(arg?: { growable?: boolean }): DartList<T>;
+    @OverrideProperty('$first', 'first')
+    get $first(): T {
+        let first: T;
+        for (let x of this) {
+            first = x;
+            break;
+        }
+        return first;
+    }
 
-    abstract $firstWhere(cond: (t: T) => boolean, opts?: { orElse?: () => T }): T;
+    @OverrideProperty('$last', 'last')
+    get $last(): T {
+        let last: T;
+        for (let x of this) {
+            last = x;
+        }
+        return last;
+    }
 
-    abstract $where(cond: (t: T) => boolean): DartIterable<T>;
+    $toList(arg?: { growable?: boolean }): Array<T> {
+        return Array.from(this);
+    }
+
+    $firstWhere(cond: (x: T) => boolean, opts?: { orElse?: () => T }): T {
+        for (let x of this) {
+            if (cond(x)) {
+                return x;
+            }
+        }
+        if (opts !== null && opts.orElse !== null) {
+            return opts.orElse();
+        }
+
+        throw "not found any and not or Else";
+    }
+
+    $where(cond: (t: T) => boolean): DartIterable<T> {
+        return iter((function* () {
+            for (let t of this) {
+                if (cond(t)) {
+                    yield t;
+                }
+            }
+        }).bind(this));
+    }
 
     abstract readonly $iterator: DartIterator<T>;
 }
@@ -112,8 +197,28 @@ export class IteratorDartIteratorWrapper<X> extends DartIterator<X> {
 }
 
 
+/**
+ * A native implementation of DartList, levereging the
+ * Array native datatype. It's not exported as it will be mixed in into global array.
+ */
+
+
 @DartMetadata({library: 'dart:core'})
-export class DartList<T> extends Array<T> implements DartIterable<T> {
+class $DartList<T> extends Array<T> implements DartList<T> {
+
+    static $from<T>(source: DartIterable<T>): DartList<T> {
+        return Array.from(source);
+    }
+
+    static generate<T>(count: number, generator: (n: number) => T): Array<T> {
+        return Array.from((function* () {
+            for (let i = 0; i < count; i++) {
+                yield generator(i);
+            }
+        })());
+    }
+
+
     get $iterator(): DartIterator<T> {
         return new IteratorDartIteratorWrapper(this[Symbol.iterator]());
     }
@@ -172,7 +277,7 @@ export class DartList<T> extends Array<T> implements DartIterable<T> {
         });
     }
 
-    $toList(arg?: { growable?: boolean }): DartList<T> {
+    $toList(arg?: { growable?: boolean }): Array<T> {
         return this;
     }
 
@@ -198,7 +303,187 @@ export class DartList<T> extends Array<T> implements DartIterable<T> {
             }
         }).bind(this));
     }
+
+    OPERATOR_INDEX(index: number): T {
+        return this[index];
+    }
+
+    OPERATOR_INDEX_EQ(index: number, value: T): void {
+        this[index] = value;
+    }
 }
+
+/**
+ * A list base should implement the DartList cont
+ */
+export interface ListBase<X> extends DartList<X> {
+
+}
+
+export interface ListBaseConstructor extends DartListConstructor {
+    new<X>(...args: Array<any>): ListBase<X>;
+
+    new<X>(n?: number): ListBase<X>;
+}
+
+@DartMetadata({library: 'dart:core'})
+export abstract class $ListBase<X> implements DartList<X> {
+    $isEmpty: boolean;
+    $isNotEmpty: boolean;
+    $iterator: DartIterator<X>;
+    abstract length: number;
+
+    $add(e: X): void {
+        this.OPERATOR_INDEX_EQ(this.length,e);
+    }
+
+    $remove(e: X): void {
+        this.indexOf(e);
+    }
+
+    $sublist(from: number, to: number): DartList<X> {
+        return undefined;
+    }
+
+    abstract OPERATOR_INDEX(index: number): X ;
+
+    abstract OPERATOR_INDEX_EQ(index: number, value: X): void ;
+
+
+    [Symbol.iterator](): Iterator<X> {
+        return undefined;
+    }
+
+    $map<U>(f: (t: X) => U): DartIterable<U> {
+        return undefined;
+    }
+
+    forEach(f: (x: X) => any): void {
+    }
+
+    $join(separator: string): string {
+        return undefined;
+    }
+
+    $first(): X {
+        return undefined;
+    }
+
+    $last(): X {
+        return undefined;
+    }
+
+    $toList(arg?: { growable?: boolean }): Array<X> {
+        return undefined;
+    }
+
+    $firstWhere(cond: (x: X) => boolean, opts?: { orElse?: () => X }): X {
+        return undefined;
+    }
+
+    $where(cond: (t: X) => boolean): DartIterable<X> {
+        return undefined;
+    }
+    constructor(...args: Array<any>)
+    constructor(n?: number) {
+        super(!isNaN(n) ? n : 0);
+    }
+}
+
+export const ListBase: ListBaseConstructor = $ListBase as ListBaseConstructor;
+
+export interface Pippo {
+    x: string;
+}
+
+export interface PippoConstructor extends ConstructorOf<Pippo> {
+
+}
+
+export class $Pippo {
+    x: string;
+}
+
+export const Pippo: PippoConstructor = $Pippo;
+
+export interface Ciccio {
+    w: string;
+}
+
+export interface CiccioConstructor extends ConstructorOf<Ciccio> {
+
+}
+
+export class $Ciccio {
+    w: string;
+}
+
+export const Ciccio: CiccioConstructor = $Ciccio;
+
+
+/**
+ * How to define a class and a constructor preserving generics and mixin.
+ * Another advantage of this approach is that thirdy party can extend constructors (you got an interface to extend).
+ */
+
+
+// 0. Define a type for the mixins (if any)
+
+export type MyListMixins<X> = Pippo & Ciccio;
+
+// 1. Define an interface extending the base class and the mixins (if any) and interfaces (if any), gathering type arguments and adding props
+export interface MyList<X> extends ListBase<X>, MyListMixins<X> {
+    constructor: MyListConstructor;
+    // new props and methods
+    y: string;
+}
+
+// 2. Define an interface for the constructor with all statics, type arguments will go in the "new" declarations
+export interface MyListConstructor extends ListBaseConstructor {
+    // statics :
+    X: string;
+
+    // constructors :
+    new<X>(...args): MyList<X>;
+}
+
+// 3: Declare a cons whose type is the constructor with the implementation. Mixins will be implemented with the dartMixin function with the bsase class as first, the rest is left as usual
+export const MyList: MyListConstructor = class extends dartMixin(dartMixin(ListBase, Pippo), Ciccio) {
+    $iterator: DartIterator<any>;
+    static X: string = "XXX";
+    y: string;
+
+    constructor(...args) {
+        super(...args);
+    }
+};
+
+
+// You can instantiate with the type argument
+let l: MyList<number> = new MyList<number>();
+let l2 = new l.constructor<string>();
+l2[10] = "ciao";
+
+l.x = "ciao";
+l.y = "ugo";
+l.w = "ciccio";
+console.log(`len : ${l.length}, static : ${MyList.X}`);
+// Type checking is preserved (you'r not alloed assign a string for example)
+l[10] = 15;
+
+
+let n: ListBase<number> = l;
+n[10] = 15;
+
+// Strategy #2 :
+
+class MyList2<X> extends dartMixin(ListBase, Pippo) implements ListBase<X>, Pippo {
+
+}
+
+// Doesn't preserve type checking (you can assign a string)
+let ll: MyList2<number> = new MyList2(1);
+ll[22] = "ciao";
 
 export function iter<X>(generator: () => Iterator<X>) {
     return toDartIterable({
@@ -213,75 +498,6 @@ function toDartIterable<X>(x: Iterable<X>): DartIterable<X> {
             return new IteratorDartIteratorWrapper(x[Symbol.iterator]());
         }
 
-        @OverrideMethod('$map', 'map')
-        $map<T>(f: (t: X) => T): DartIterable<T> {
-            let self = this;
-
-            return toDartIterable<T>({
-                [Symbol.iterator]: function* () {
-                    for (let t of self) {
-                        yield f(t);
-                    }
-                }
-            });
-        }
-
-        forEach(f: (x: X) => any): void {
-            for (let _ of this) {
-                f(_);
-            }
-        }
-
-        @OverrideMethod('$join', 'join')
-        $join(separator: string): string {
-            return Array.from(this).join(separator);
-        }
-
-        @OverrideProperty('$first', 'first')
-        get $first(): X {
-            let first: X;
-            for (let x of this) {
-                first = x;
-                break;
-            }
-            return first;
-        }
-
-        @OverrideProperty('$last', 'last')
-        get $last(): X {
-            let last: X;
-            for (let x of this) {
-                last = x;
-            }
-            return last;
-        }
-
-        $toList(arg?: { growable?: boolean }): DartList<X> {
-            return Array.from(this);
-        }
-
-        $firstWhere(cond: (x: X) => boolean, opts?: { orElse?: () => X }): X {
-            for (let x of this) {
-                if (cond(x)) {
-                    return x;
-                }
-            }
-            if (opts !== null && opts.orElse !== null) {
-                return opts.orElse();
-            }
-
-            throw "not found any and not or Else";
-        }
-
-        $where(cond: (t: X) => boolean): DartIterable<X> {
-            return iter((function* () {
-                for (let t of this) {
-                    if (cond(t)) {
-                        yield t;
-                    }
-                }
-            }).bind(this));
-        }
     }
 
     return new _();
@@ -306,25 +522,8 @@ initCollections() {
 
     inited = true;
 
-    extendPrototype(Array, DartList);
-    extendPrototype(Map, DartMap);
+    extend(Array, $DartList);
+    extend(Map, DartMap);
 
-    Object.defineProperty(Array, "$from", {
-        get() {
-            return function <X>(source: Iterable<X>): Array<X> {
-                return Array.from(source);
-            }
-        }
-    });
-
-    Object.defineProperty(Array, "generate", {
-        get() {
-            return <T>(count: number, generator: (n: number) => T): Array<T> => Array.from((function* () {
-                for (let i = 0; i < count; i++) {
-                    yield generator(i);
-                }
-            })());
-        }
-    });
 
 }

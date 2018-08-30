@@ -1,4 +1,4 @@
-import {extendPrototype} from "./utils.js";
+import {extend} from "./utils.js";
 
 declare global {
 
@@ -85,7 +85,7 @@ abstract class NumberExtension implements Number {
 }
 
 export function initNatives() {
-    extendPrototype(Number, NumberExtension);
-    extendPrototype(String, StringExtension);
-    extendPrototype(Object, ObjectExtension);
+    extend(Number, NumberExtension);
+    extend(String, StringExtension);
+    extend(Object, ObjectExtension);
 }

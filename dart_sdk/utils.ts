@@ -1,15 +1,19 @@
+export function extend(type, other) {
+    copyProps(other.prototype, type.prototype);
+    copyProps(other, type);
+    return type;
+}
 
-export function extendPrototype(type, other) {
-    let object = other.prototype;
-    Object.getOwnPropertyNames(object).forEach(function (n: string) {
-        if (n === 'constructor') {
-            return;
+export function copyProps(from, into) {
+    for (let p in Object.getOwnPropertyNames(from)) {
+        // skip constructor
+        if (p === 'constructor') {
+            continue;
         }
-        let des: PropertyDescriptor = Object.getOwnPropertyDescriptor(object, n);
-        Object.defineProperty(type.prototype, n, des);
-    });
-    Object.getOwnPropertySymbols(object).forEach(function (n: symbol) {
-        let des: PropertyDescriptor = Object.getOwnPropertyDescriptor(object, n);
-        Object.defineProperty(type.prototype, n, des);
-    });
+        Object.defineProperty(into, p, Object.getOwnPropertyDescriptor(from, p));
+    }
+
+    for (let p in Object.getOwnPropertySymbols(from)) {
+        Object.defineProperty(into, p, Object.getOwnPropertyDescriptor(from, p));
+    }
 }

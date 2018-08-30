@@ -6,7 +6,7 @@ import {initAsync} from "./async.js";
 import {initNatives} from "./natives.js";
 import {getDartMetadata, getOperatorKey, IDartMetadata, OperatorType} from "./decorations.js";
 
-export {OperatorType, DartMetadata, OverrideMethod, OverrideProperty, DartOperator, IAnnotation, DartClassAnnotation, DartMethodAnnotation,DartPropertyAnnotation} from "./decorations.js";
+export {OperatorType, DartMetadata, OverrideMethod, OverrideProperty, DartOperator, IAnnotation, DartClassAnnotation, DartMethodAnnotation, DartPropertyAnnotation, dartMixin, ConstructorOf,dartMixins} from "./decorations.js";
 
 /// Init
 initCollections();

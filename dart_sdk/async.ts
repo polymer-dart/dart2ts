@@ -2,7 +2,7 @@
 
 import * as core from './core.js';
 import {Duration} from "./lib/core.js";
-import {extendPrototype} from "./utils.js";
+import {extend} from "./utils.js";
 
 
 declare global {
@@ -69,7 +69,7 @@ export function initAsync() {
     inited = true;
 
 
-    extendPrototype(Promise, DartFuture);
+    extend(Promise, DartFuture);
 
     Object.defineProperty(Promise, 'delayed', {
         "get": function () {

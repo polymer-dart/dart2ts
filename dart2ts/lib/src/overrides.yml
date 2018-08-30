@@ -47,6 +47,7 @@ overrides:
          properties:
            first: "$first"
            last: "$last"
+           iterator: "$iterator"
          methods:
            map: "$map"
            where: "$where"

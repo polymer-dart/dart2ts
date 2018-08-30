@@ -332,16 +332,12 @@ class TypeManager {
 
     return _overrides.checkType(this, p, type, noTypeArgs, orElse: () {
       String actualName;
-      if (isListType(type)) {
-        actualName = "Array";
-      } else if (type == currentContext.typeProvider.numType || type == currentContext.typeProvider.intType) {
+      if (type == currentContext.typeProvider.numType || type == currentContext.typeProvider.intType) {
         actualName = 'number';
       } else if (type == currentContext.typeProvider.stringType) {
         actualName = 'string';
       } else if (type == currentContext.typeProvider.boolType) {
         actualName = 'boolean';
-      } else if (type == getType(currentContext, 'dart:core', 'RegExp')) {
-        actualName = 'RegExpPattern';
       } else {
         actualName = type.name;
       }

@@ -67,7 +67,7 @@ class MyList2<X> extends Object with ListMixin<X> implements List<X> {
   @override
   int get length => this._list.length;
 
-  set length(l) => this._list.length = l;
+  set length(int l) => this._list.length = l;
 
   List<X> _list;
 
