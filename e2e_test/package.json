@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "a test for it",
   "main": "lib/index.html",
-  "flat" : true,
+  "flat": true,
   "scripts": {
     "build": "tsc",
     "serve": "python -m http.server 8000"
@@ -11,10 +11,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "dart_sdk": "file:../dart_sdk/dist",
-    "reflect-metadata": "^0.1.12"
+    "reflect-metadata": "^0.1.12",
+    "typescript_dart": "file:../../../../Dart/typescript_dart/dist"
   },
   "devDependencies": {
-    "typescript": "^2.7.2"
+    "typescript": "^3.0.3"
   }
 }

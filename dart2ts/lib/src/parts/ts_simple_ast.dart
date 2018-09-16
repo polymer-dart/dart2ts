@@ -551,7 +551,7 @@ class TSFunction extends TSExpression implements TSStatement {
       if (isAsync) {
         prefix = tm.namespace(getLibrary(currentContext, 'dart:async'));
       } else {
-        prefix = tm.namespaceFor(uri: 'module:dart_sdk/collection', modulePath: 'dart_sdk/collection');
+        prefix = tm.namespace(getLibrary(currentContext, 'dart:core'));
       }
     }
     if (withParameterCollector != null) {

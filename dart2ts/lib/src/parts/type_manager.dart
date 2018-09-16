@@ -1,5 +1,7 @@
 part of '../code_generator.dart';
 
+const String SDK_LIBRARY = 'typescript_dart';
+
 class TSImport extends TSNode {
   String prefix;
   String path;
@@ -47,7 +49,7 @@ class TypeManager {
   }
 
   TypeManager(this._current, this._overrides, {this.moduleSuffix = '../node_modules/', this.modulePrefix = '.js'}) {
-    _prefixes = {'#NOURI#': _getSdkPath('dart:bare')};
+    _prefixes = {'#NOURI#': _getSdkPath('dart:_common')};
   }
 
   Map<String, TSImport> _prefixes;
@@ -72,7 +74,7 @@ class TypeManager {
   TSImport _getSdkPath(String name, {LibraryElement lib}) {
     name = name.substring(5);
 
-    String p = "dart_sdk/${name}";
+    String p = "${SDK_LIBRARY}/${name}";
 
     // Check if we are in dart_sdk and need relative paths for dart: imports
     DartObject anno = getAnnotation(_current.metadata, isTargetLib);
@@ -157,11 +159,10 @@ class TypeManager {
   TSPath _collectJSPath(Element start) => _elementsFromLibrary(start).fold(new TSPath(), (p, e) {
         DartObject anno = getAnnotation(e.metadata, isJS);
         //if (anno == null) return p;
-        p.isJSAnnotated = p.isJSAnnotated || (e is! LibraryElement && anno!=null);
+        p.isJSAnnotated = p.isJSAnnotated || (e is! LibraryElement && anno != null);
 
         // Collect if metadata
         String name = anno?.getField('name')?.toStringValue();
-
 
         if (name != null && name.isNotEmpty) {
           Match m = NAME_PATTERN.matchAsPrefix(name);

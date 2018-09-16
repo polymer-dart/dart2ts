@@ -3,14 +3,12 @@ overrides:
     classes:
       Future:
          to:
-           class: Promise
-           from: global
+           class: Future
+           from: "module:typescript_dart/async"
       Stream:
          to:
            class: DartStream
-           from: 'dart:async'
-         methods:
-           map: $map
+           from: "module:typescript_dart/async"
  "dart:core":
     classes:
       Expando:
@@ -19,38 +17,17 @@ overrides:
            "[]=" : "$set"
       List:
          to:
-           class: Array
-           from: global
-         constructors:
-           from:
-             name: "$from"
-             factory: true
-         methods:
-           sublist: "$sublist"
-           add: "$add"
-           remove: "$remove"
+           class: DartList
+           from: "module:typescript_dart/core"
       Map:
          to:
            class: DartMap
-           from: "module:dart_sdk/map"
-         operators:
-            "[]" : "get"
-            "[]=" : "set"
+           from: "module:typescript_dart/core"
       Iterator:
          to:
            class: DartIterator
-           from: "module:dart_sdk/collection"
+           from: "module:typescript_dart/core"
       Iterable:
          to:
            class: DartIterable
-           from: "module:dart_sdk/collection"
-         properties:
-           first: "$first"
-           last: "$last"
-           iterator: "$iterator"
-         methods:
-           map: "$map"
-           where: "$where"
-           join: "$join"
-           toList: "$toList"
-           firstWhere: "$firstWhere"
+           from: "module:typescript_dart/core"
