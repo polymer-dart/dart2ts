@@ -8,16 +8,16 @@ class TSImport extends TSNode {
   LibraryElement library;
   List<String> names;
 
-  TSImport({this.prefix, this.path, this.library,this.names});
+  TSImport({this.prefix, this.path, this.library, this.names});
 
   @override
   void writeCode(IndentingPrinter printer) {
     printer.write('import ');
-    if (names==null||names.isEmpty) {
+    if (names == null || names.isEmpty) {
       printer.write('* as ${prefix}');
     } else {
       printer.write('{');
-      printer.joinConsumers(names.map((name)=> (p)=>p.write(name)));
+      printer.joinConsumers(names.map((name) => (p) => p.write(name)));
       printer.write('}');
     }
     printer.writeln(' from "${path}";');
@@ -80,7 +80,7 @@ class TypeManager {
 
   String checkProperty(DartType type, String name) => _overrides.checkProperty(this, type, name);
 
-  TSImport _getSdkPath(String name, {LibraryElement lib,List<String> names}) {
+  TSImport _getSdkPath(String name, {LibraryElement lib, List<String> names}) {
     name = name.substring(5);
 
     String p = "${SDK_LIBRARY}/${name}";
@@ -96,7 +96,7 @@ class TypeManager {
       }
     }
 
-    return new TSImport(prefix: name, path: resolvePath(p), library: lib,names:names);
+    return new TSImport(prefix: name, path: resolvePath(p), library: lib, names: names);
   }
 
   Map<String, TSImport> _importedPaths = {};
@@ -294,7 +294,8 @@ class TypeManager {
         }
       }();
 
-      Iterable<TSType> typeArguments = new List.from(type.typeArguments?.map((t) => toTsType(t)));
+      List<TSTypeParameter> typeArguments =
+          new List.from(type.typeParameters?.map((t) => new TSTypeParameter(t.name, toTsType(t.bound))));
 
       return new TSFunctionType(
           toTsType(type.returnType), new Map.fromIterable(args, key: (p) => p[0], value: (p) => p[1]), typeArguments);

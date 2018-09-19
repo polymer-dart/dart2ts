@@ -295,7 +295,7 @@ class TSThrow extends TSExpression {
 
 class TSFunctionType extends TSType {
   TSType _returnType;
-  List<TSType> _typeArguments;
+  List<TSTypeParameter> _typeArguments;
   Map<String, TSType> _arguments;
   bool _isCtor;
 
@@ -507,7 +507,7 @@ class TSFunction extends TSExpression implements TSStatement {
   String name;
   bool topLevel;
   TSType returnType;
-  Iterable<TSTypeParameter> typeParameters;
+  List<TSTypeParameter> typeParameters;
   List<TSParameter> parameters;
   Map<String, TSType> namedParameters;
   Map<String, TSExpression> defaults;
@@ -691,7 +691,7 @@ class TSFunction extends TSExpression implements TSStatement {
       if (name != null) {
         printer.write('var ${name} : ');
 
-        if (typeParameters != null) {
+        if (typeParameters != null && typeParameters.isNotEmpty) {
           printer.write('<');
           printer.join(typeParameters);
           printer.write('>');
@@ -722,7 +722,7 @@ class TSFunction extends TSExpression implements TSStatement {
       }
     }
 
-    if (typeParameters != null) {
+    if (typeParameters != null&&typeParameters.isNotEmpty) {
       printer.write('<');
       printer.join(typeParameters);
       printer.write('>');

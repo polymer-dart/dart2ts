@@ -1498,6 +1498,24 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
           ? "${node.name.name}"
           : '${node.element.enclosingElement.name}';
 
+      List<TSTypeParameter> typeParams;
+      if (node.element.enclosingElement.typeParameters != null) {
+        typeParams = node.element.enclosingElement.typeParameters
+            .map(
+                (tp) => new TSTypeParameter(tp.name, tp.bound != null ? _context.typeManager.toTsType(tp.bound) : null))
+            .toList();
+
+/*
+      ctorType = new TSGenericType(
+          ctorTypeName,
+          new List.generate(
+              (node.parent as ClassDeclaration).typeParameters.typeParameters.length, (i) => new TSSimpleType('any', false)));*/
+      } else {
+        typeParams = null;
+      }
+
+      TSType returnType = _context.typeManager.toTsType(node.element.enclosingElement.type);
+
       _context.tsClass.members.add(new TSFunction(
         _context.typeManager,
         name: "_${actualName}",
@@ -1507,28 +1525,13 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
         body: body,
         callSuper: (_context._classDeclaration.element.type).superclass != currentContext.typeProvider.objectType,
         constructorType: constructorType,
-        typeParameters: _context.methodTypeParameters(node),
+        typeParameters: typeParams,
         initializers: initializers,
-        returnType: _context.typeManager.toTsType(node.element.enclosingElement.type),
+        returnType: returnType,
       ));
 
       if (constructorType == ConstructorType.NAMED_FACTORY) {
-        List<TSType> typeParams;
-        if (_context.currentClass._classDeclaration.typeParameters != null) {
-          typeParams = new List.generate((node.parent as ClassDeclaration).typeParameters.typeParameters.length,
-              (i) => new TSSimpleType('any', false));
-
-/*
-      ctorType = new TSGenericType(
-          ctorTypeName,
-          new List.generate(
-              (node.parent as ClassDeclaration).typeParameters.typeParameters.length, (i) => new TSSimpleType('any', false)));*/
-        } else {
-          typeParams = null;
-        }
-
-        TSType ctorType = new TSFunctionType(new TSSimpleType((node.parent as ClassDeclaration).name.name, false),
-            collector.asFormalArguments, typeParams, true);
+        TSType ctorType = new TSFunctionType(returnType, collector.asFormalArguments, typeParams, true);
 
         // Add constructor declaration
         _context.tsClass.members.add(new TSVariableDeclarations(
@@ -1611,10 +1614,11 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
   void _createNamedConstructor(ConstructorDeclaration node) {
     TSType ctorType;
     FormalParameterCollector parameterCollector = _context.collectParameters(node.parameters);
-    List<TSType> typeParams;
-    if (_context.currentClass._classDeclaration.typeParameters != null) {
-      typeParams = new List.generate((node.parent as ClassDeclaration).typeParameters.typeParameters.length,
-          (i) => new TSSimpleType('any', false));
+    List<TSTypeParameter> typeParams;
+    if (node.element.enclosingElement.typeParameters != null) {
+      typeParams = node.element.enclosingElement.typeParameters
+          .map((tp) => new TSTypeParameter(tp.name, tp.bound != null ? _context.typeManager.toTsType(tp.bound) : null))
+          .toList();
 
 /*
       ctorType = new TSGenericType(
@@ -1625,8 +1629,9 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
       typeParams = null;
     }
 
-    ctorType = new TSFunctionType(new TSSimpleType((node.parent as ClassDeclaration).name.name, false),
-        parameterCollector.asFormalArguments, typeParams, true);
+    TSType returnType = _context.typeManager.toTsType(node.element.enclosingElement.type);
+
+    ctorType = new TSFunctionType(returnType, parameterCollector.asFormalArguments, typeParams, true);
 
     TSBody body = _context.processBody(node.body, withBrackets: false, withReturn: false);
 
