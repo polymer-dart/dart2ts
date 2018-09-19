@@ -27,6 +27,8 @@ class TSLibrary extends TSNode {
   void writeCode(IndentingPrinter printer) {
     printer.writeln("/** Library ${_name} */");
 
+    //printer.writeln(
+     //   "import {defaultConstructor,namedConstructor,namedFactory,defaultFactory,DartClass,Implements} from '${SDK_LIBRARY}/utils';");
     imports.forEach((i) => printer.accept(i));
     printer.writeln();
     exports.forEach((i) {
@@ -154,7 +156,12 @@ class TSClass extends TSNode {
   @override
   void writeCode(IndentingPrinter printer) {
     if (library != null && !isInterface) {
-      printer.writeln('@bare.DartMetadata({library:\'${this.library}\'})');
+      printer.writeln('@DartClass');
+    }
+    if (implemented != null && implemented.isNotEmpty) {
+      printer.write('@Implements(');
+      printer.joinConsumers(implemented.map((intf) => (p) => new TSTypeExpr.noTypeParams(intf._type).writeCode(p)));
+      printer.writeln(')');
     }
 
     annotations?.forEach((a) {
@@ -290,11 +297,15 @@ class TSFunctionType extends TSType {
   TSType _returnType;
   List<TSType> _typeArguments;
   Map<String, TSType> _arguments;
+  bool _isCtor;
 
-  TSFunctionType(this._returnType, this._arguments, [this._typeArguments]) : super(true);
+  TSFunctionType(this._returnType, this._arguments, [this._typeArguments, this._isCtor = false]) : super(true);
 
   @override
   void writeCode(IndentingPrinter printer) {
+    if (this._isCtor) {
+      printer.write('new');
+    }
     if (_typeArguments?.isNotEmpty ?? false) {
       printer.write('<');
       printer.join(_typeArguments);
@@ -470,6 +481,8 @@ class TSStringLiteral extends TSExpression {
   }
 }
 
+enum ConstructorType { DEFAULT, NAMED, DEFAULT_FACTORY, NAMED_FACTORY }
+
 /**
  * TSFunction
  *
@@ -519,6 +532,8 @@ class TSFunction extends TSExpression implements TSStatement {
   bool declared;
   TSType namedParameterType;
   bool isAbstract;
+  bool namedConstructor;
+  ConstructorType constructorType;
 
   TSFunction(
     this.tm, {
@@ -543,6 +558,8 @@ class TSFunction extends TSExpression implements TSStatement {
     this.nativeSuper: false,
     this.initializers,
     this.isExpression: false,
+    this.namedConstructor: false,
+    this.constructorType,
     this.annotations: const [],
     FormalParameterCollector withParameterCollector,
     this.declared: false,
@@ -601,30 +618,62 @@ class TSFunction extends TSExpression implements TSStatement {
     bool treatAsExpression = isExpression && (!topLevel || (!isGetter && !isSetter));
 
     if (!treatAsExpression) {
-      if (asDefaultConstructor) {
-        printer.writeln('constructor(...args)');
+      if (constructorType==ConstructorType.NAMED) {
+        printer.writeln('@namedConstructor');
+      }
+      if (constructorType==ConstructorType.DEFAULT) {
+        //printer.writeln('constructor()');
+
         printer.write('constructor(');
         printer.join(parameters);
-        printer.writeln(') {');
+        printer.write(')');
+
+        printer.writeln(' {');
         printer.indented((p) {
           if (callSuper) {
-            if (nativeSuper) {
-              p.writeln('super();');
-            } else {
-              p.writeln('super(bare.init);');
-            }
+            //if (nativeSuper) {
+            p.writeln('// @ts-ignore'); // ignore signature stuff here we don't care because it won't be called actually
+            p.writeln('super();');
+            //} else {
+            //  p.writeln('// TODO : WE NEED SIGNATURE HERE, using default for now');
+            //  p.writeln('super();');
+            //}
           }
-          // Call bare init
-          p.write('arguments[0] != bare.init && this[bare.init](');
-          p.joinConsumers(parameters.map((par) => (p) {
-                p.write(par.name);
-              }));
-          p.writeln(');');
         });
+        // Call bare init
         printer.writeln('}');
 
-        printer.write(('[bare.init]'));
+        printer.writeln('@defaultConstructor');
       } else {
+        if (constructorType==ConstructorType.DEFAULT_FACTORY) {
+
+          //printer.writeln('constructor()');
+
+          printer.write('constructor(');
+          printer.join(parameters);
+          printer.write(')');
+
+          printer.writeln(' {');
+          printer.indented((p) {
+            if (callSuper) {
+              //if (nativeSuper) {
+              p.writeln('// @ts-ignore'); // ignore signature stuff here we don't care because it won't be called actually
+              p.writeln('super();');
+              //} else {
+              //  p.writeln('// TODO : WE NEED SIGNATURE HERE, using default for now');
+              //  p.writeln('super();');
+              //}
+            }
+          });
+          // Call bare init
+          printer.writeln('}');
+
+          printer.writeln('@defaultFactory');
+        } else if (constructorType==ConstructorType.NAMED_FACTORY) {
+          printer.writeln('@namedFactory');
+        }
+
+
         if (isStatic) printer.write('static ');
         if (isAbstract) printer.write('abstract ');
         if (isAsync) {
@@ -734,11 +783,8 @@ class TSFunction extends TSExpression implements TSStatement {
           printer.write('let {');
           printer.joinConsumers(namedParameters.keys.map((k) => (p) => p.write(k)));
           printer.write('} = ');
-        }
 
-        if (namedDefaults?.isNotEmpty ?? false) {
           printer.writeln('Object.assign({');
-
           printer.indented((printer) {
             printer.joinConsumers(
                 namedDefaults.keys.map((k) => (p) {
@@ -747,18 +793,19 @@ class TSFunction extends TSExpression implements TSStatement {
                     }),
                 newLine: true);
           });
-
-          printer.write('}, ${NAMED_ARGUMENTS} || {})');
-        } else if (namedParameters?.isNotEmpty ?? false) {
-          printer.write('${NAMED_ARGUMENTS} || {}');
+          printer.writeln('}, ${NAMED_ARGUMENTS} );');
         }
 
+        //} else if (namedParameters?.isNotEmpty ?? false) {
+        //  printer.write('${NAMED_ARGUMENTS} || {}');
+        //}
+/*
         if (namedParameters?.isNotEmpty ?? false) {
           printer.write(' as ');
           printer.accept(namedParameterType);
           printer.writeln(';');
         }
-
+*/
         // Initializers
         if (initializers != null) {
           initializers.forEach((st) {
@@ -1115,6 +1162,7 @@ class TSInvoke extends TSExpression {
   List<TSExpression> _arguments;
   Map<String, TSExpression> _namedArguments;
   bool asNew = false;
+  List<TSType> typeParameters;
 
   TSInvoke(this._target, [this._arguments, this._namedArguments]);
 
@@ -1124,6 +1172,11 @@ class TSInvoke extends TSExpression {
       printer.write("new ");
     }
     printer.accept(_target);
+    if(typeParameters!=null&&typeParameters.length>0) {
+      printer.write('<');
+      printer.join(typeParameters);
+      printer.write('>');
+    }
     writeArguments(printer);
   }
 

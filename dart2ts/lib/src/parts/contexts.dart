@@ -354,8 +354,16 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitListLiteral(ListLiteral node) {
-    return new TSList(new List.from(node.elements.map((e) => _context.processExpression(e))),
-        _context.typeManager.toTsType(node?.typeArguments?.arguments?.first?.type));
+    //new TSGenericType(name, _typeArguments)_context.typeManager.toTsType(getType(currentContext,'dart:core','List'))
+
+    DartType listElementType = node.typeArguments?.arguments?.first?.type;
+    return new TSInvoke(
+        new TSStaticRef(_context.typeManager.toTsType(getType(currentContext, 'dart:core', 'List')), 'literal'),
+        new List.from(node.elements.map((e) => _context.processExpression(e))))
+      ..typeParameters = listElementType != null ? [_context.typeManager.toTsType(listElementType)] : null
+      ..asNew = true;
+    //return new TSList(),
+    //   _context.typeManager.toTsType(node?.bestType));
   }
 
   @override
@@ -714,16 +722,12 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
             _context.typeManager.toTsType(ctor.enclosingElement.type));
       }
 
-      bool asNew = (!ctor.isFactory || ctor.isExternal);
+      bool asNew = true /*(!ctor.isFactory || ctor.isExternal)*/;
 
-      if ((ctor.name?.isEmpty ?? true) && asNew) {
+      if ((ctor.name?.isEmpty ?? true)) {
         target = new TSTypeRef(myType);
       } else {
-        String factoryName = ctor.name ?? "";
-        if (factoryName.isEmpty) {
-          factoryName = r"$create";
-        }
-        target = new TSStaticRef(myType, factoryName);
+        target = new TSStaticRef(myType, ctor.name);
       }
 
       return new TSInvoke(target, collector.arguments, collector.namedArguments)..asNew = asNew;
@@ -985,11 +989,22 @@ class LibraryContext extends TopLevelContext<TSLibrary> {
   void translate() {
     typeManager = new TypeManager(_libraryElement, _overrides,
         modulePrefix: _config.modulePrefix, moduleSuffix: _config.moduleSuffix);
+
     tsLibrary = new TSLibrary(_libraryElement.source.uri.toString());
 
     _libraryElement.units.forEach((cu) => new FileContext(this, cu.computeNode()).translate());
 
-    tsLibrary.imports = new List.from(typeManager.allImports);
+    tsLibrary.imports = new List.from(typeManager.allImports)
+      ..insert(
+          0,
+          typeManager._getSdkPath('FART:utils', names: [
+            'defaultConstructor',
+            'namedConstructor',
+            'namedFactory',
+            'defaultFactory',
+            'DartClass',
+            'Implements',
+          ]));
     tsLibrary.globalContext = _globalContext;
 
     tsLibrary.exports.addAll(typeManager.exports);
@@ -1186,6 +1201,15 @@ class FormalParameterCollector extends GeneralizingAstVisitor {
     }
   }
 
+  Map<String, TSType> get asFormalArguments {
+    Map<String, TSType> res = new Map()
+      ..addAll(new Map.fromIterable(parameters, key: (p) => p.name, value: (p) => p.type));
+    if (namedType != null) {
+      res['_namedArguments?'] = namedType;
+    }
+    return res;
+  }
+
   @override
   visitDefaultFormalParameter(DefaultFormalParameter node) {
     super.visitDefaultFormalParameter(node);
@@ -1322,13 +1346,13 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
     _tsClass.name = _classDeclaration.name.name;
 
     // Add annotations
-    _tsClass.annotations = _classDeclaration.metadata
-        .map(annotationMapper(
-            this,
-            (uri, name, arguments, namedArguments) =>
-                new TSAnnotation.classAnnotation(uri, name, arguments, namedArguments)))
-        .where(notNull)
-        .toList();
+    _tsClass.annotations = new List()
+      ..addAll(_classDeclaration.metadata
+          .map(annotationMapper(
+              this,
+              (uri, name, arguments, namedArguments) =>
+                  new TSAnnotation.classAnnotation(uri, name, arguments, namedArguments)))
+          .where(notNull));
 
     if (_classDeclaration.extendsClause != null) {
       tsClass.superClass = typeManager.toTsType(_classDeclaration.extendsClause.superclass.type);
@@ -1353,6 +1377,8 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
     //_tsClass.members.addAll(_members);
 
     // Create constructor interfaces
+
+    /*
     visitor.namedConstructors.values.forEach((ConstructorDeclaration decl) {
       FormalParameterCollector parameterCollector = collectParameters(decl.parameters);
 
@@ -1368,7 +1394,7 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
             returnType: typeManager.toTsType(_classDeclaration.element.type),
           )
         ]);
-    });
+    });*/
 
     // If exported add as a normal declaration
     String export = getAnnotation(_classDeclaration.element.metadata, isTS)?.getField('export')?.toStringValue();
@@ -1465,17 +1491,52 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
       InitializerCollector initializerCollector = new InitializerCollector(_context);
       List<TSStatement> initializers = initializerCollector.processInitializers(node.initializers);
 
+      ConstructorType constructorType =
+          (node.name?.name?.length ?? 0) > 0 ? ConstructorType.NAMED_FACTORY : ConstructorType.DEFAULT_FACTORY;
+
+      String actualName = constructorType == ConstructorType.NAMED_FACTORY
+          ? "${node.name.name}"
+          : '${node.element.enclosingElement.name}';
+
       _context.tsClass.members.add(new TSFunction(
         _context.typeManager,
-        name: (node.name?.name?.length ?? 0) > 0 ? node.name.name : '\$create',
+        name: "_${actualName}",
         asMethod: true,
         isStatic: true,
         withParameterCollector: collector,
         body: body,
+        callSuper: (_context._classDeclaration.element.type).superclass != currentContext.typeProvider.objectType,
+        constructorType: constructorType,
         typeParameters: _context.methodTypeParameters(node),
         initializers: initializers,
         returnType: _context.typeManager.toTsType(node.element.enclosingElement.type),
       ));
+
+      if (constructorType == ConstructorType.NAMED_FACTORY) {
+        List<TSType> typeParams;
+        if (_context.currentClass._classDeclaration.typeParameters != null) {
+          typeParams = new List.generate((node.parent as ClassDeclaration).typeParameters.typeParameters.length,
+              (i) => new TSSimpleType('any', false));
+
+/*
+      ctorType = new TSGenericType(
+          ctorTypeName,
+          new List.generate(
+              (node.parent as ClassDeclaration).typeParameters.typeParameters.length, (i) => new TSSimpleType('any', false)));*/
+        } else {
+          typeParams = null;
+        }
+
+        TSType ctorType = new TSFunctionType(new TSSimpleType((node.parent as ClassDeclaration).name.name, false),
+            collector.asFormalArguments, typeParams, true);
+
+        // Add constructor declaration
+        _context.tsClass.members.add(new TSVariableDeclarations(
+          [new TSVariableDeclaration(actualName, null, ctorType)],
+          isStatic: true,
+          isField: true,
+        ));
+      }
     } else if (node.name != null) {
       namedConstructors[node.name.name] = node;
 
@@ -1492,16 +1553,16 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
       InitializerCollector initializerCollector = new InitializerCollector(_context);
       List<TSStatement> initializers = initializerCollector.processInitializers(node.initializers);
 
-      _context.tsClass.members.add(new TSFunction(
-        _context.typeManager,
-        asMethod: true,
-        initializers: initializers,
-        asDefaultConstructor: true,
-        callSuper: (_context._classDeclaration.element.type).superclass != currentContext.typeProvider.objectType,
-        nativeSuper: getAnnotation(_context._classDeclaration.element.type.superclass.element.metadata, isJS) != null,
-        withParameterCollector: collector,
-        body: body,
-      ));
+      _context.tsClass.members.add(new TSFunction(_context.typeManager,
+          asMethod: true,
+          initializers: initializers,
+          constructorType: ConstructorType.DEFAULT,
+          asDefaultConstructor: true,
+          callSuper: (_context._classDeclaration.element.type).superclass != currentContext.typeProvider.objectType,
+          nativeSuper: getAnnotation(_context._classDeclaration.element.type.superclass.element.metadata, isJS) != null,
+          withParameterCollector: collector,
+          body: body,
+          name: tsClass.name));
     }
   }
 
@@ -1549,51 +1610,30 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
 
   void _createNamedConstructor(ConstructorDeclaration node) {
     TSType ctorType;
-    var ctorTypeName = '${_context._classDeclaration.name.name}_${node.name.name}';
+    FormalParameterCollector parameterCollector = _context.collectParameters(node.parameters);
+    List<TSType> typeParams;
     if (_context.currentClass._classDeclaration.typeParameters != null) {
+      typeParams = new List.generate((node.parent as ClassDeclaration).typeParameters.typeParameters.length,
+          (i) => new TSSimpleType('any', false));
+
+/*
       ctorType = new TSGenericType(
           ctorTypeName,
           new List.generate(
-              (node.parent as ClassDeclaration).typeParameters.typeParameters.length, (i) => new TSSimpleType('any', false)));
+              (node.parent as ClassDeclaration).typeParameters.typeParameters.length, (i) => new TSSimpleType('any', false)));*/
     } else {
-      ctorType = new TSSimpleType(ctorTypeName, true);
+      typeParams = null;
     }
-    FormalParameterCollector parameterCollector = _context.collectParameters(node.parameters);
+
+    ctorType = new TSFunctionType(new TSSimpleType((node.parent as ClassDeclaration).name.name, false),
+        parameterCollector.asFormalArguments, typeParams, true);
 
     TSBody body = _context.processBody(node.body, withBrackets: false, withReturn: false);
 
     InitializerCollector initializerCollector = new InitializerCollector(_context);
     List<TSStatement> initializers = initializerCollector.processInitializers(node.initializers);
 
-    String metName = '_${node.name.name}';
-
-    TSExpression init = new TSInvoke(
-        new TSBracketExpression(new TSFunction(_context.typeManager,
-            body: new TSBody(statements: [
-              new TSVariableDeclarations([
-                new TSVariableDeclaration(
-                    'ctor',
-                    new TSFunction(_context.typeManager,
-                        parameters: [new TSParameter(name: '...args')],
-                        body: new TSBody(withBrackets: false, statements: [
-                          new TSExpressionStatement(new TSInvoke(
-                              new TSDotExpression(
-                                  new TSDotExpression(
-                                      new TSStaticRef(
-                                          _context.typeManager.toTsType(_context._classDeclaration.element.type),
-                                          'prototype'),
-                                      metName),
-                                  'apply'),
-                              [TSSimpleExpression.THIS, new TSSimpleExpression('args')]))
-                        ])),
-                    null)
-              ]),
-              new TSExpressionStatement(new TSAssignamentExpression(
-                  new TSDotExpression(new TSSimpleExpression('ctor'), 'prototype'),
-                  new TSDotExpression(new TSSimpleExpression(_context._classDeclaration.name.name), 'prototype'))),
-              new TSReturnStatement(new TSAsExpression(new TSSimpleExpression('ctor'), new TSSimpleType('any', false))),
-            ], withBrackets: false))),
-        []);
+    String metName = '${node.name.name}';
 
     List<TSNode> nodes = [
       // actual constructor
@@ -1604,10 +1644,12 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
         body: body,
         asMethod: true,
         initializers: initializers,
+        namedConstructor: true,
+        constructorType: ConstructorType.NAMED,
       ),
       // getter
       new TSVariableDeclarations(
-        [new TSVariableDeclaration(node.name.name, init, ctorType)],
+        [new TSVariableDeclaration(node.name.name, null, ctorType)],
         isStatic: true,
         isField: true,
       ),
@@ -1634,9 +1676,9 @@ class InitializerCollector extends GeneralizingAstVisitor<TSStatement> {
   TSStatement visitSuperConstructorInvocation(SuperConstructorInvocation node) {
     TSExpression target;
     if (node.constructorName == null) {
-      target = new TSSimpleExpression('super[bare.init]');
+      target = new TSSimpleExpression('super.${node.staticElement.enclosingElement.name}');
     } else {
-      target = new TSSimpleExpression('super._${node.constructorName.name}');
+      target = new TSSimpleExpression('super.${node.constructorName.name}');
     }
 
     ArgumentListCollector argumentListCollector = new ArgumentListCollector(_context, node.staticElement)
@@ -1650,9 +1692,13 @@ class InitializerCollector extends GeneralizingAstVisitor<TSStatement> {
   TSStatement visitRedirectingConstructorInvocation(RedirectingConstructorInvocation node) {
     TSExpression target;
     if (node.constructorName == null) {
-      target = new TSSimpleExpression('this[bare.init]');
+      target = new TSSimpleExpression('this.${node.staticElement.enclosingElement.name}');
     } else {
-      target = new TSSimpleExpression('this._${node.constructorName.name}');
+      if ((node.constructorName.bestElement as ConstructorElement).isFactory) {
+        target = new TSSimpleExpression('this._${node.constructorName.name}');
+      } else {
+        target = new TSSimpleExpression('this.${node.constructorName.name}');
+      }
     }
 
     ArgumentListCollector argumentListCollector = new ArgumentListCollector(_context, node.staticElement)

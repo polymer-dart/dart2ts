@@ -6,12 +6,21 @@ class TSImport extends TSNode {
   String prefix;
   String path;
   LibraryElement library;
+  List<String> names;
 
-  TSImport({this.prefix, this.path, this.library});
+  TSImport({this.prefix, this.path, this.library,this.names});
 
   @override
   void writeCode(IndentingPrinter printer) {
-    printer.writeln('import * as ${prefix} from "${path}";');
+    printer.write('import ');
+    if (names==null||names.isEmpty) {
+      printer.write('* as ${prefix}');
+    } else {
+      printer.write('{');
+      printer.joinConsumers(names.map((name)=> (p)=>p.write(name)));
+      printer.write('}');
+    }
+    printer.writeln(' from "${path}";');
   }
 }
 
@@ -71,7 +80,7 @@ class TypeManager {
 
   String checkProperty(DartType type, String name) => _overrides.checkProperty(this, type, name);
 
-  TSImport _getSdkPath(String name, {LibraryElement lib}) {
+  TSImport _getSdkPath(String name, {LibraryElement lib,List<String> names}) {
     name = name.substring(5);
 
     String p = "${SDK_LIBRARY}/${name}";
@@ -87,7 +96,7 @@ class TypeManager {
       }
     }
 
-    return new TSImport(prefix: name, path: resolvePath(p), library: lib);
+    return new TSImport(prefix: name, path: resolvePath(p), library: lib,names:names);
   }
 
   Map<String, TSImport> _importedPaths = {};
