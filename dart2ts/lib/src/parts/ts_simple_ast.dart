@@ -28,7 +28,7 @@ class TSLibrary extends TSNode {
     printer.writeln("/** Library ${_name} */");
 
     //printer.writeln(
-     //   "import {defaultConstructor,namedConstructor,namedFactory,defaultFactory,DartClass,Implements} from '${SDK_LIBRARY}/utils';");
+    //   "import {defaultConstructor,namedConstructor,namedFactory,defaultFactory,DartClass,Implements} from '${SDK_LIBRARY}/utils';");
     imports.forEach((i) => printer.accept(i));
     printer.writeln();
     exports.forEach((i) {
@@ -273,7 +273,7 @@ class TSInstanceOf extends TSExpression {
 
   @override
   void writeCode(IndentingPrinter printer) {
-    printer.write('bare.is(');
+    printer.write('is(');
     printer.accept(_expr);
     printer.write(', ');
     printer.accept(_type);
@@ -593,7 +593,7 @@ class TSFunction extends TSExpression implements TSStatement {
       printer.indented((p) {
         _writeCodeNoInterpolator(p);
         printer.writeln(';');
-        printer.writeln("return ${name}(null,{literals:lits,values:vals});");
+        printer.writeln("return ${name}(null,{literals:lits,values:vals as any});");
       });
       printer.write('}');
     } else {
@@ -617,11 +617,34 @@ class TSFunction extends TSExpression implements TSStatement {
 
     bool treatAsExpression = isExpression && (!topLevel || (!isGetter && !isSetter));
 
+    // Utility function to write the initial signature
+    writePrehamble(bool minimal) {
+      if (minimal) {
+        printer.write("()");
+      } else {
+        if (typeParameters != null && typeParameters.isNotEmpty) {
+          printer.write('<');
+          printer.join(typeParameters);
+          printer.write('>');
+        }
+
+        printer.write('(');
+        if (parameters != null) printer.join(parameters);
+        printer.write(')');
+      }
+    }
+
+
     if (!treatAsExpression) {
-      if (constructorType==ConstructorType.NAMED) {
+      if (isAsync && !isGenerator) {
+        String async = tm.namespace(getLibrary(currentContext, 'dart:async'));
+        printer.writeln('() => new ${async}.Future.fromPromise(async ');
+      }
+
+      if (constructorType == ConstructorType.NAMED) {
         printer.writeln('@namedConstructor');
       }
-      if (constructorType==ConstructorType.DEFAULT) {
+      if (constructorType == ConstructorType.DEFAULT) {
         //printer.writeln('constructor()');
 
         printer.write('constructor(');
@@ -645,8 +668,7 @@ class TSFunction extends TSExpression implements TSStatement {
 
         printer.writeln('@defaultConstructor');
       } else {
-        if (constructorType==ConstructorType.DEFAULT_FACTORY) {
-
+        if (constructorType == ConstructorType.DEFAULT_FACTORY) {
           //printer.writeln('constructor()');
 
           printer.write('constructor(');
@@ -657,7 +679,8 @@ class TSFunction extends TSExpression implements TSStatement {
           printer.indented((p) {
             if (callSuper) {
               //if (nativeSuper) {
-              p.writeln('// @ts-ignore'); // ignore signature stuff here we don't care because it won't be called actually
+              p.writeln(
+                  '// @ts-ignore'); // ignore signature stuff here we don't care because it won't be called actually
               p.writeln('super();');
               //} else {
               //  p.writeln('// TODO : WE NEED SIGNATURE HERE, using default for now');
@@ -669,10 +692,9 @@ class TSFunction extends TSExpression implements TSStatement {
           printer.writeln('}');
 
           printer.writeln('@defaultFactory');
-        } else if (constructorType==ConstructorType.NAMED_FACTORY) {
+        } else if (constructorType == ConstructorType.NAMED_FACTORY) {
           printer.writeln('@namedFactory');
         }
-
 
         if (isStatic) printer.write('static ');
         if (isAbstract) printer.write('abstract ');
@@ -711,30 +733,48 @@ class TSFunction extends TSExpression implements TSStatement {
         if (!declared) {
           printer.write(' = ');
         }
+
+
+        if (isAsync && !isGenerator) {
+          String async = tm.namespace(getLibrary(currentContext, 'dart:async'));
+          writePrehamble(false);
+          printer.write(' => new ${async}.Future.fromPromise(( async ');
+        }
       }
 
       if (declared) {
         return;
       }
 
+      // move this above
+      /*
       if (isAsync && !isGenerator) {
         printer.write('async ');
-      }
+      }*/
     }
 
-    if (typeParameters != null&&typeParameters.isNotEmpty) {
-      printer.write('<');
-      printer.join(typeParameters);
-      printer.write('>');
+    // Extract the first parameter type if there is any or use any
+    // This is needed for future => promise thing
+    TSType t=new TSSimpleType('any', false);
+    if (returnType != null && returnType is TSGenericType) {
+      t = (returnType as TSGenericType)._typeArguments?.first;
     }
 
-    printer.write('(');
-    if (parameters != null) printer.join(parameters);
-    printer.write(')');
+    writePrehamble(isAsync&&!isGenerator);
 
     if (returnType != null && !isSetter) {
       printer.write(" : ");
-      printer.accept(returnType);
+
+      // Replace Future with promise in this case
+      if (isAsync&&!isGenerator) {
+        printer.write("Promise<");
+        printer.accept(t);
+        printer.write(">");
+      } else {
+        printer.accept(returnType);
+      }
+
+
     }
 
     if (treatAsExpression) {
@@ -742,12 +782,7 @@ class TSFunction extends TSExpression implements TSStatement {
     }
 
     if (isGenerator) {
-      TSType t;
-      if (returnType != null && returnType is TSGenericType) {
-        t = (returnType as TSGenericType)._typeArguments.first;
-      } else {
-        t = new TSSimpleType('any', false);
-      }
+
       if (isAsync) {
         printer.write('${prefix}.stream');
 
@@ -822,6 +857,17 @@ class TSFunction extends TSExpression implements TSStatement {
 
     if (isGenerator) {
       printer.write(').call(this))');
+    }
+
+    if (treatAsExpression) {
+      if (isAsync && !isGenerator) {
+        //String async = tm.namespace(getLibrary(currentContext, 'dart:async'));
+        printer.write(')())');
+      }
+    } else {
+      if (isAsync && !isGenerator) {
+        printer.writeln(')()};');
+      }
     }
   }
 
@@ -1172,7 +1218,7 @@ class TSInvoke extends TSExpression {
       printer.write("new ");
     }
     printer.accept(_target);
-    if(typeParameters!=null&&typeParameters.length>0) {
+    if (typeParameters != null && typeParameters.length > 0) {
       printer.write('<');
       printer.join(typeParameters);
       printer.write('>');

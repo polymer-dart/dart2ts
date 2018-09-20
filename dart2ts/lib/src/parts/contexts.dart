@@ -344,7 +344,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
     dartMap = currentContext.typeSystem.instantiateType(dartMap, (node.bestType as ParameterizedType).typeArguments);
 
-    return new TSInvoke(new TSTypeExpr(_context.typeManager.toTsType(dartMap)), [
+    return new TSInvoke(new TSStaticRef(_context.typeManager.toTsType(dartMap), 'literal'), [
       new TSList(node.entries.map((entry) {
         return new TSList([_context.processExpression(entry.key), _context.processExpression(entry.value)]);
       }).toList())
@@ -368,10 +368,19 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitPrefixExpression(PrefixExpression node) {
-    return handlePrefixSuffixExpression(node.operand, node.operator, OperatorType.PREFIX);
+    if (TypeManager.isNativeType(node.operand.bestType)) {
+      return new TSPrefixOperandExpression(node.operator.lexeme, _context.processExpression(node.operand));
+    }
+    return makeOperatorExpression(node.operator.type, [_context.processExpression(node.operand)]);
+    //return handlePrefixSuffixExpression(node.operand, node.operator, OperatorType.PREFIX);
   }
 
-  TSExpression handlePrefixSuffixExpression(Expression operand, Token operator, OperatorType opType) {
+  TSExpression makeOperatorExpression(TokenType operator, List<TSExpression> operands) {
+    return new TSInvoke(new TSSimpleExpression('op'),
+        [new TSSimpleExpression(operatorSymbol(operator, operands.length == 1))]..addAll(operands));
+  }
+
+  /*TSExpression handlePrefixSuffixExpression(Expression operand, Token operator, OperatorType opType) {
     TSExpression expr = _context.processExpression(operand);
 
     if (TypeManager.isNativeType(operand.bestType) || !operator.isUserDefinableOperator) {
@@ -393,11 +402,15 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       new TSSimpleExpression(opType == OperatorType.PREFIX ? 'bare.OperatorType.PREFIX' : 'bare.OperatorType.SUFFIX'),
       expr
     ]);
-  }
+  }*/
 
   @override
   TSExpression visitPostfixExpression(PostfixExpression node) {
-    return handlePrefixSuffixExpression(node.operand, node.operator, OperatorType.SUFFIX);
+    if (TypeManager.isNativeType(node.operand.bestType)) {
+      return new TSPostfixOperandExpression(node.operator.lexeme, _context.processExpression(node.operand));
+    }
+    return makeOperatorExpression(node.operator.type, [_context.processExpression(node.operand)]);
+    //return handlePrefixSuffixExpression(node.operand, node.operator, OperatorType.SUFFIX);
   }
 
   @override
@@ -428,15 +441,20 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       InterfaceType cls = node.leftOperand.bestType as InterfaceType;
       MethodElement method = findMethod(cls, node.operator.lexeme);
       assert(method != null, 'Operator ${node.operator} can be used only if defined in ${cls.name}');
+
+      return makeOperatorExpression(node.operator.type, [leftExpression, rightExpression]);
+      /*
       return new TSInvoke(
           new TSDotExpression(leftExpression, _operatorName(method, node.operator, OperatorType.BINARY)),
-          [rightExpression]);
+          [rightExpression]);*/
     }
 
-    return new TSInvoke(new TSSimpleExpression('bare.invokeBinaryOperand'),
-        [new TSSimpleExpression('"${node.operator.lexeme}"'), leftExpression, rightExpression]);
+    return makeOperatorExpression(node.operator.type, [leftExpression, rightExpression]);
+    /*return new TSInvoke(new TSSimpleExpression('bare.invokeBinaryOperand'),
+        [new TSSimpleExpression('"${node.operator.lexeme}"'), leftExpression, rightExpression]);*/
   }
 
+/*
   String _operatorName(MethodElement method, Token op, OperatorType type) {
     String name;
     switch (type) {
@@ -451,7 +469,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
         break;
     }
     return name;
-  }
+  }*/
 
   @override
   TSExpression visitCascadeExpression(CascadeExpression node) {
@@ -491,12 +509,29 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitIndexExpression(IndexExpression node) {
-    return _context.typeManager.checkIndexedOperator(
-        _context,
-        node.target,
-        node.index,
-        () => _mayWrapInAssignament(node,
-            new TSIndexExpression(_context.processExpression(node.target), _context.processExpression(node.index))));
+    // If not js indexable use default operator
+
+    return _context.typeManager.checkIndexedOperator(_context, node.target, node.index, () {
+      if (((node.target.bestType as InterfaceType)?.interfaces?.any((i) => i.name == 'JSIndexable') ?? false) ||
+          isListType(node.target.bestType) ||
+          TypeManager.isNativeType(node.target.bestType)) {
+        // Use normal operator
+        return _mayWrapInAssignament(node,
+            new TSIndexExpression(_context.processExpression(node.target), _context.processExpression(node.index)));
+      }
+
+      // Use generic op
+      TokenType tk;
+      List<TSExpression> operands = [_context.processExpression(node.target), _context.processExpression(node.index)];
+      if (isAssigningLeftSide(node)) {
+        tk = TokenType.INDEX_EQ;
+        operands.add(_context.processExpression(assigningValue(node)));
+      } else {
+        tk = TokenType.INDEX;
+      }
+
+      return makeOperatorExpression(tk, operands);
+    });
   }
 
   @override
@@ -656,7 +691,10 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
         return _mayWrapInAssignament(identifier.parent, new TSDotExpression(expression, name));
       }
     } else {
+      String name = identifier.name;
+      return _mayWrapInAssignament(identifier.parent, new TSDotExpression(expression, name));
       // Use the property accessor helper
+      /*
       if (isAssigningLeftSide(identifier.parent)) {
         return new TSInvoke(new TSSimpleExpression('bare.writeProperty'), [
           expression,
@@ -666,7 +704,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       } else {
         return new TSInvoke(
             new TSSimpleExpression('bare.readProperty'), [expression, new TSSimpleExpression('"${identifier.name}"')]);
-      }
+      }*/
     }
   }
 
@@ -802,6 +840,14 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
         target = new TSSimpleExpression('null /*topLevl*/');
       }
 
+      TSExpression res = _context.processExpression(node.methodName);
+      if (node.target != null) {
+        res = new TSDotExpression.expr(target, res);
+      }
+
+      //return new TSInvoke(method,)
+      return new TSInvoke(res, collector.arguments, collector.namedArguments);
+      /*
       return new TSInvoke(
           new TSSimpleExpression('bare.invokeMethod'),
           new List()
@@ -812,6 +858,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
             ..addAll(collector.arguments),
           collector.namedArguments)
         ..asNew = false;
+        */
     }
   }
 }
@@ -1004,6 +1051,13 @@ class LibraryContext extends TopLevelContext<TSLibrary> {
             'defaultFactory',
             'DartClass',
             'Implements',
+            'op',
+            'Op',
+          ]))
+      ..insert(
+          0,
+          typeManager._getSdkPath('FART:_common', names: [
+            'is',
           ]));
     tsLibrary.globalContext = _globalContext;
 
@@ -1768,17 +1822,9 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
 
     if (_methodDeclaration.isOperator) {
       TokenType tk = TokenType.all.firstWhere((tt) => tt.lexeme == _methodDeclaration.name.name);
-      if (_methodDeclaration.parameters.parameters.isEmpty) {
-        name = "OPERATOR_PREFIX_${tk.name}";
-      } else {
-        name = 'OPERATOR_${tk.name}';
-      }
-      annotations.add(new TSAnnotation(new TSInvoke(new TSSimpleExpression('bare.DartOperator'), [], {
-        'type': _methodDeclaration.parameters.parameters.isEmpty
-            ? new TSSimpleExpression('bare.OperatorType.PREFIX')
-            : new TSSimpleExpression('bare.OperatorType.BINARY'),
-        'op': new TSSimpleExpression('"${tk.lexeme}"')
-      })));
+      bool unary = _methodDeclaration.parameters.parameters.isEmpty;
+      name="[${operatorMethodSymbol(tk, unary)}]";
+
     }
 
     // Dart Annotations
@@ -1808,3 +1854,65 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
     ));
   }
 }
+
+String operatorSymbol(TokenType tk, bool unary) {
+  if (unary) {
+    return <TokenType, String>{
+      TokenType.MINUS: 'Op.NEG',
+      TokenType.TILDE: 'Op.BITNEG',
+    }[tk];
+  } else {
+    return <TokenType, String>{
+      TokenType.PLUS: 'Op.PLUS',
+      TokenType.MINUS: 'Op.MINUS',
+      TokenType.STAR: 'Op.TIMES',
+      TokenType.SLASH: 'Op.DIVIDE',
+      TokenType.TILDE_SLASH: 'Op.QUOTIENT',
+      TokenType.EQ_EQ: 'Op.EQUALS',
+      TokenType.INDEX: 'Op.INDEX',
+      TokenType.INDEX_EQ: 'Op.INDEX_ASSIGN',
+      TokenType.LT: 'Op.LT',
+      TokenType.GT: 'Op.GT',
+      TokenType.LT_EQ: 'Op.LEQ',
+      TokenType.GT_EQ: 'Op.GEQ',
+      TokenType.CARET: 'Op.XOR',
+      TokenType.BAR: 'Op.BITOR',
+      TokenType.AMPERSAND: 'Op.BITAND',
+      TokenType.GT_GT: 'Op.SHIFTRIGHT',
+      TokenType.LT_LT: 'Op.SHIFTLEFT',
+      TokenType.PERCENT: 'Op.MODULE',
+    }[tk];
+  }
+}
+
+String operatorMethodSymbol(TokenType tk, bool unary) {
+  if (unary) {
+    return <TokenType, String>{
+      TokenType.MINUS: 'OPERATOR_NEG',
+      TokenType.TILDE: 'OPERATOR_BITNEG',
+    }[tk];
+  } else {
+    return <TokenType, String>{
+      TokenType.PLUS: 'OPERATOR_PLUS',
+      TokenType.MINUS: 'OPERATOR_MINUS',
+      TokenType.STAR: 'OPERATOR_TIMES',
+      TokenType.SLASH: 'OPERATOR_DIVIDE',
+      TokenType.TILDE_SLASH: 'OPERATOR_QUOTIENT',
+      TokenType.EQ_EQ: 'EQUALS_OPERATOR',
+      TokenType.INDEX: 'OPERATOR_INDEX',
+      TokenType.INDEX_EQ: 'OPERATOR_INDEX_ASSIGN',
+      TokenType.LT: 'OPERATOR_LT',
+      TokenType.GT: 'OPERATOR_GT',
+      TokenType.LT_EQ: 'OPERATOR_LEQ',
+      TokenType.GT_EQ: 'OPERATOR_GEQ',
+      TokenType.CARET: 'OPERATOR_XOR',
+      TokenType.BAR: 'OPERATOR_BITOR',
+      TokenType.AMPERSAND: 'OPERATOR_BITAND',
+      TokenType.GT_GT: 'OPERATOR_SHIFTRIGHT',
+      TokenType.LT_LT: 'OPERATOR_SHIFTLEFT',
+      TokenType.PERCENT: 'OPERATOR_MODULE',
+    }[tk];
+  }
+}
+
+TSExpression toOperatorSymbolExpression(TokenType tk, bool unary) => new TSStringLiteral(operatorSymbol(tk, unary));

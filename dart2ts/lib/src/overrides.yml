@@ -9,12 +9,19 @@ overrides:
          to:
            class: DartStream
            from: "module:typescript_dart/async"
+      StreamController:
+        to:
+          class: DartStreamController
+          from: "module:typescript_dart/async"
  "dart:core":
     classes:
       Expando:
         to:
           class: DartExpando
           from: "module:typescript_dart/core"
+        operators:
+          "[]": "get"
+          "[]=": "set"
       ListBase:
         to:
           class: DartListBase
@@ -35,3 +42,7 @@ overrides:
          to:
            class: DartIterable
            from: "module:typescript_dart/core"
+      Duration:
+        to:
+          class: DartDuration
+          from: "module:typescript_dart/core"

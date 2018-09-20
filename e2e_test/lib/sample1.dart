@@ -16,7 +16,7 @@ class Metadata {
 }
 
 @JS('getDartMetadata')
-@Module('dart_sdk/decorations')
+@Module('typescript_dart/_common')
 external Metadata getMetadata(Type type);
 
 @TS(stringInterpolation: true)
