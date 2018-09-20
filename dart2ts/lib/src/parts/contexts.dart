@@ -1053,6 +1053,7 @@ class LibraryContext extends TopLevelContext<TSLibrary> {
             'Implements',
             'op',
             'Op',
+
           ]))
       ..insert(
           0,
@@ -1888,29 +1889,29 @@ String operatorSymbol(TokenType tk, bool unary) {
 String operatorMethodSymbol(TokenType tk, bool unary) {
   if (unary) {
     return <TokenType, String>{
-      TokenType.MINUS: 'OPERATOR_NEG',
-      TokenType.TILDE: 'OPERATOR_BITNEG',
+      TokenType.MINUS: 'OperatorMethods.NEGATE',
+      TokenType.TILDE: 'OperatorMethods.COMPLEMENT',
     }[tk];
   } else {
     return <TokenType, String>{
-      TokenType.PLUS: 'OPERATOR_PLUS',
-      TokenType.MINUS: 'OPERATOR_MINUS',
-      TokenType.STAR: 'OPERATOR_TIMES',
-      TokenType.SLASH: 'OPERATOR_DIVIDE',
-      TokenType.TILDE_SLASH: 'OPERATOR_QUOTIENT',
-      TokenType.EQ_EQ: 'EQUALS_OPERATOR',
-      TokenType.INDEX: 'OPERATOR_INDEX',
-      TokenType.INDEX_EQ: 'OPERATOR_INDEX_ASSIGN',
-      TokenType.LT: 'OPERATOR_LT',
-      TokenType.GT: 'OPERATOR_GT',
-      TokenType.LT_EQ: 'OPERATOR_LEQ',
-      TokenType.GT_EQ: 'OPERATOR_GEQ',
-      TokenType.CARET: 'OPERATOR_XOR',
-      TokenType.BAR: 'OPERATOR_BITOR',
-      TokenType.AMPERSAND: 'OPERATOR_BITAND',
-      TokenType.GT_GT: 'OPERATOR_SHIFTRIGHT',
-      TokenType.LT_LT: 'OPERATOR_SHIFTLEFT',
-      TokenType.PERCENT: 'OPERATOR_MODULE',
+      TokenType.PLUS: 'OperatorMethods.PLUS',
+      TokenType.MINUS: 'OperatorMethods.MINUS',
+      TokenType.STAR: 'OperatorMethods.MULTIPLY',
+      TokenType.SLASH: 'OperatorMethods.DIVIDE',
+      TokenType.TILDE_SLASH: 'OperatorMethods.QUOTIENT',
+      TokenType.EQ_EQ: 'OperatorMethods.EQUALS',
+      TokenType.INDEX: 'OperatorMethods.INDEX',
+      TokenType.INDEX_EQ: 'OperatorMethods.INDEX_EQ',
+      TokenType.LT: 'OperatorMethods.LT',
+      TokenType.GT: 'OperatorMethods.GT',
+      TokenType.LT_EQ: 'OperatorMethods.LEQ',
+      TokenType.GT_EQ: 'OperatorMethods.GEQ',
+      TokenType.CARET: 'OperatorMethods.XOR',
+      TokenType.BAR: 'OperatorMethods.BINARY_OR',
+      TokenType.AMPERSAND: 'OperatorMethods.BINARY_AND',
+      TokenType.GT_GT: 'OperatorMethods.SHIFTRIGHT',
+      TokenType.LT_LT: 'OperatorMethods.SHIFTLEFT',
+      TokenType.PERCENT: 'OperatorMethods.MODULE',
     }[tk];
   }
 }

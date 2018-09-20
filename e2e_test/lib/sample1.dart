@@ -10,15 +10,6 @@ import 'dart:async';
 
 part 'test_async.dart';
 
-@JS()
-class Metadata {
-  String library;
-}
-
-@JS('getDartMetadata')
-@Module('typescript_dart/_common')
-external Metadata getMetadata(Type type);
-
 @TS(stringInterpolation: true)
 HTMLDivElement testInterpolate(String _, {List<String> literals, List values}) {
   if (_ != null) {
@@ -133,7 +124,7 @@ void main(List<String> args) {
     });
   });
 
-  printToBody('LIB: ${getMetadata(xy.MySampleClass1).library}');
+  //printToBody('LIB: ${getMetadata(xy.MySampleClass1).library}');
 
   xy.AnotherClass a0 = new xy.AnotherClass(named: 'ciao',num: 0)..count = 5;
   xy.AnotherClass a1 = new xy.AnotherClass(named: 'ciao',num: 1)..count = 10;
