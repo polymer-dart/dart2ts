@@ -12,9 +12,13 @@ overrides:
  "dart:core":
     classes:
       Expando:
-         operators:
-           "[]" : "$get"
-           "[]=" : "$set"
+        to:
+          class: DartExpando
+          from: "module:typescript_dart/core"
+      ListBase:
+        to:
+          class: DartListBase
+          from: "module:typescript_dart/core"
       List:
          to:
            class: DartList
