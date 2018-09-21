@@ -1,7 +1,7 @@
 part of '../code_generator.dart';
 
 const String SDK_LIBRARY = 'typescript_dart';
-const String MODULE_PROPERTIES='properties';
+const String MODULE_PROPERTIES = 'properties';
 
 class TSImport extends TSNode {
   String prefix;
@@ -58,7 +58,7 @@ class TypeManager {
     return "${pp}${moduleSuffix}";
   }
 
-  TypeManager(this._current, this._overrides, {this.moduleSuffix = '../node_modules/', this.modulePrefix = '.js'}) {
+  TypeManager(this._current, this._overrides, {this.moduleSuffix, this.modulePrefix}) {
     _prefixes = {};
     registerModule(String uri, String prefix, String modulePath) {
       TSImport import = new TSImport(prefix: prefix, path: resolvePath(modulePath));

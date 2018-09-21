@@ -1016,7 +1016,7 @@ class Config {
   String moduleSuffix;
   IOverrides overrides;
 
-  Config({this.modulePrefix = '../node_modules/', this.moduleSuffix = '.js', this.overrides});
+  Config({this.modulePrefix = '../node_modules', this.moduleSuffix = '.js', this.overrides});
 }
 
 /**
