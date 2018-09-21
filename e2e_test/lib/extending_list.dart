@@ -24,7 +24,7 @@ class MyIterable<X> extends Iterable<X> {
   Iterator<X> get iterator => new MyIterator<X>(_x);
 }
 
-class MyIterator<X> implements Iterator<X> {
+class MyIterator<X> extends Iterator<X> {
   X _x;
   int _count;
 
@@ -48,22 +48,23 @@ class MyList<X> extends ListBase<X> {
   MyList(this._x);
 
   @override
-  int length = 10;
+  int get length => 10;
 
-  @override
+  set length(int l) {}
+
+
   X operator [](int index) {
     return _x;
   }
 
-  @override
-  void operator []=(int index, X value) {}
+  operator []=(int index, X value) {}
 }
 
 /**
  * Extending the list with the mixin
  */
 
-class MyList2<X> extends Object with ListMixin<X> implements List<X> {
+class MyList2<X> extends ListMixin<X> implements List<X> {
   @override
   int get length => this._list.length;
 
@@ -71,13 +72,14 @@ class MyList2<X> extends Object with ListMixin<X> implements List<X> {
 
   List<X> _list;
 
-  MyList2(this._list);
+  MyList2(this._list):super();
 
-  @override
+
   X operator [](int index) => _list[index];
 
-  @override
-  void operator []=(int index, X value) => _list[index] = value;
+  operator []=(int index, X value) {
+    _list[index] = value;
+  }
 }
 
 /** This things should work */

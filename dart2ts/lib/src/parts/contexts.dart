@@ -1031,7 +1031,9 @@ class LibraryContext extends TopLevelContext<TSLibrary> {
   TSLibrary tsLibrary;
   Config _config;
 
-  LibraryContext(this._libraryElement, this._overrides, this._config) {}
+  LibraryContext(this._libraryElement, this._overrides, this._config) {
+
+  }
 
   void translate() {
     typeManager = new TypeManager(_libraryElement, _overrides,
@@ -1044,7 +1046,7 @@ class LibraryContext extends TopLevelContext<TSLibrary> {
     tsLibrary.imports = new List.from(typeManager.allImports)
       ..insert(
           0,
-          typeManager._getSdkPath('FART:utils', names: [
+          typeManager._getSdkPath('****:utils', names: [
             'defaultConstructor',
             'namedConstructor',
             'namedFactory',
@@ -1053,12 +1055,18 @@ class LibraryContext extends TopLevelContext<TSLibrary> {
             'Implements',
             'op',
             'Op',
-
+            "OperatorMethods",
+            "DartClassAnnotation",
+            "DartMethodAnnotation",
+            "DartPropertyAnnotation",
+            "Abstract",
+            "AbstractProperty"
           ]))
       ..insert(
           0,
-          typeManager._getSdkPath('FART:_common', names: [
+          typeManager._getSdkPath('****:_common', names: [
             'is',
+            'equals',
           ]));
     tsLibrary.globalContext = _globalContext;
 
@@ -1736,7 +1744,8 @@ class InitializerCollector extends GeneralizingAstVisitor<TSStatement> {
   TSStatement visitSuperConstructorInvocation(SuperConstructorInvocation node) {
     TSExpression target;
     if (node.constructorName == null) {
-      target = new TSSimpleExpression('super.${node.staticElement.enclosingElement.name}');
+      TSType superType = _context.typeManager.toTsType(node.staticElement.enclosingElement.type);
+      target = new TSSimpleExpression('super.${superType.name}');
     } else {
       target = new TSSimpleExpression('super.${node.constructorName.name}');
     }
@@ -1824,8 +1833,7 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
     if (_methodDeclaration.isOperator) {
       TokenType tk = TokenType.all.firstWhere((tt) => tt.lexeme == _methodDeclaration.name.name);
       bool unary = _methodDeclaration.parameters.parameters.isEmpty;
-      name="[${operatorMethodSymbol(tk, unary)}]";
-
+      name = "[${operatorMethodSymbol(tk, unary)}]";
     }
 
     // Dart Annotations

@@ -1,48 +1,52 @@
 overrides:
  "dart:async":
+    from: "module:typescript_dart/async"
     classes:
       Future:
          to:
            class: Future
-           from: "module:typescript_dart/async"
       Stream:
          to:
            class: DartStream
-           from: "module:typescript_dart/async"
       StreamController:
         to:
           class: DartStreamController
-          from: "module:typescript_dart/async"
+ "dart:collection":
+   from: "module:typescript_dart/core"
+   classes:
+     ListMixin:
+       to:
+         class: DartListMixin
+     ListBase:
+       to:
+         class: DartListBase
  "dart:core":
+    from: "module:typescript_dart/core"
     classes:
+      Object:
+        to:
+          class: DartObject
       Expando:
         to:
           class: DartExpando
-          from: "module:typescript_dart/core"
         operators:
           "[]": "get"
           "[]=": "set"
-      ListBase:
-        to:
-          class: DartListBase
-          from: "module:typescript_dart/core"
       List:
          to:
            class: DartList
-           from: "module:typescript_dart/core"
       Map:
          to:
            class: DartMap
-           from: "module:typescript_dart/core"
+         operators:
+           "[]": "get"
+           "[]=": "set"
       Iterator:
          to:
            class: DartIterator
-           from: "module:typescript_dart/core"
       Iterable:
          to:
            class: DartIterable
-           from: "module:typescript_dart/core"
       Duration:
         to:
           class: DartDuration
-          from: "module:typescript_dart/core"

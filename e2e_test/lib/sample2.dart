@@ -24,7 +24,7 @@ class AnotherClass {
     this._title = 'uga : ${x}';
   }
 
-  operator ==(Object other) {
+  operator ==(var other) {
     print('Calling equals ${this._title} == ${(other as AnotherClass)._title} ??');
     return this._title == (other as AnotherClass)._title;
   }

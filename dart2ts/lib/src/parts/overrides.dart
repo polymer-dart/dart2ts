@@ -145,18 +145,25 @@ class Overrides extends IOverrides {
         return null;
       }
 
-      return (libOverrides['classes'] ?? {})[type.name];
+      var classOverrides = (libOverrides['classes'] ?? {})[type.name];
+      if (classOverrides==null) {
+        return null;
+      }
+
+      return new Map()
+        ..addAll(classOverrides)
+        ..putIfAbsent('library', () => libOverrides);
     }).firstWhere(notNull, orElse: () => null);
   }
 
   TSType checkType(TypeManager typeManager, String origPrefix, DartType type, bool noTypeArgs, {TSType orElse()}) {
-    var classOverrides = _findClassOverride(type,recursive: false);
+    var classOverrides = _findClassOverride(type, recursive: false);
 
     if (classOverrides == null || classOverrides['to'] == null || (classOverrides['to'] as Map)['class'] == null) {
       return orElse();
     }
 
-    String module = classOverrides['to']['from'];
+    String module = classOverrides['to']['from'] ?? classOverrides['library']['from'];
 
     String p = resolvePrefix(typeManager, module, origPrefix);
     if (p != null && p.isNotEmpty) {

@@ -178,7 +178,8 @@ class TSClass extends TSNode {
     }
 
     if (isAbstract) {
-      printer.write('abstract ');
+      // No more abstact things
+      // printer.write('abstract ');
     }
 
     if (isInterface) {
@@ -222,11 +223,18 @@ abstract class TSType extends TSNode {
 
   bool get isObject => _isObject;
 
+  String get name;
+
   TSType(this._isObject);
 }
 
 class TSSimpleType extends TSType {
+
+  static final RegExp _MYREGEXP = new RegExp(r"([^.]+\.)?(.*)");
+
   String _name;
+
+  String get name => _MYREGEXP.matchAsPrefix(_name).group(2);
 
   TSSimpleType(this._name, bool isObject) : super(isObject);
 
@@ -299,6 +307,8 @@ class TSFunctionType extends TSType {
   Map<String, TSType> _arguments;
   bool _isCtor;
 
+  String get name => "<Function>";
+
   TSFunctionType(this._returnType, this._arguments, [this._typeArguments, this._isCtor = false]) : super(true);
 
   @override
@@ -329,6 +339,8 @@ class TSInterfaceType extends TSType {
   TSInterfaceType({this.fields}) : super(true) {
     fields ??= {};
   }
+
+  String get name=>"<anon>";
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -361,6 +373,8 @@ class TSOptionalType extends TSType {
   TSType _type;
 
   TSOptionalType(this._type) : super(_type.isObject);
+
+  String get name =>_type.name;
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -422,15 +436,15 @@ class TSAnnotation extends TSNode {
 
   TSAnnotation.classAnnotation(
       Uri libUri, String name, List<TSExpression> arguments, Map<String, TSExpression> namedArguments)
-      : this(createClassAnnotationInvoke('bare.DartClassAnnotation', libUri, name, arguments, namedArguments));
+      : this(createClassAnnotationInvoke('DartClassAnnotation', libUri, name, arguments, namedArguments));
 
   TSAnnotation.methodAnnotation(
       Uri libUri, String name, List<TSExpression> arguments, Map<String, TSExpression> namedArguments)
-      : this(createClassAnnotationInvoke('bare.DartMethodAnnotation', libUri, name, arguments, namedArguments));
+      : this(createClassAnnotationInvoke('DartMethodAnnotation', libUri, name, arguments, namedArguments));
 
   TSAnnotation.propertyAnnotation(
       Uri libUri, String name, List<TSExpression> arguments, Map<String, TSExpression> namedArguments)
-      : this(createClassAnnotationInvoke('bare.DartPropertyAnnotation', libUri, name, arguments, namedArguments));
+      : this(createClassAnnotationInvoke('DartPropertyAnnotation', libUri, name, arguments, namedArguments));
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -634,7 +648,6 @@ class TSFunction extends TSExpression implements TSStatement {
       }
     }
 
-
     if (!treatAsExpression) {
       if (isAsync && !isGenerator) {
         String async = tm.namespace(getLibrary(currentContext, 'dart:async'));
@@ -696,8 +709,15 @@ class TSFunction extends TSExpression implements TSStatement {
           printer.writeln('@namedFactory');
         }
 
+        if (isAbstract) {
+          if (isGetter) {
+            printer.writeln('@AbstractProperty');
+          } else if (!isSetter) {
+            printer.writeln('@Abstract');
+          }
+        }
         if (isStatic) printer.write('static ');
-        if (isAbstract) printer.write('abstract ');
+        //if (isAbstract) printer.write('abstract ');
         if (isAsync) {
           printer.write("async ");
         }
@@ -734,7 +754,6 @@ class TSFunction extends TSExpression implements TSStatement {
           printer.write(' = ');
         }
 
-
         if (isAsync && !isGenerator) {
           String async = tm.namespace(getLibrary(currentContext, 'dart:async'));
           writePrehamble(false);
@@ -755,26 +774,24 @@ class TSFunction extends TSExpression implements TSStatement {
 
     // Extract the first parameter type if there is any or use any
     // This is needed for future => promise thing
-    TSType t=new TSSimpleType('any', false);
+    TSType t = new TSSimpleType('any', false);
     if (returnType != null && returnType is TSGenericType) {
       t = (returnType as TSGenericType)._typeArguments?.first;
     }
 
-    writePrehamble(isAsync&&!isGenerator);
+    writePrehamble(isAsync && !isGenerator);
 
     if (returnType != null && !isSetter) {
       printer.write(" : ");
 
       // Replace Future with promise in this case
-      if (isAsync&&!isGenerator) {
+      if (isAsync && !isGenerator) {
         printer.write("Promise<");
         printer.accept(t);
         printer.write(">");
       } else {
         printer.accept(returnType);
       }
-
-
     }
 
     if (treatAsExpression) {
@@ -782,7 +799,6 @@ class TSFunction extends TSExpression implements TSStatement {
     }
 
     if (isGenerator) {
-
       if (isAsync) {
         printer.write('${prefix}.stream');
 
@@ -853,6 +869,8 @@ class TSFunction extends TSExpression implements TSStatement {
         printer.accept(body);
       });
       printer.write("}");
+    } else if (isAbstract) {
+      printer.write("{ throw 'abstract'}");
     }
 
     if (isGenerator) {

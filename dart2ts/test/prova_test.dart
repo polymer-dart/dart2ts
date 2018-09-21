@@ -20,15 +20,9 @@ void main() {
       if (dartTool.existsSync()) {
         await dartTool.delete(recursive: true);
       }
-      BuildResult buildResult = await dart2tsBuild(E2E_TEST_PROJECT_PATH, new Config(overrides: new IOverrides.parse('''
-overrides:
- "dart:async":
-    classes:
-      Future:
-         to:
-           class: Promise
-           from: global      
-      ''')));
+      Config config = new Config(overrides: new IOverrides.parse('''
+      '''));
+      BuildResult buildResult = await dart2tsBuild(E2E_TEST_PROJECT_PATH, config);
       expect(buildResult.status, equals(BuildStatus.success), reason: "Build is ok");
       print("TS Build, now running webpack");
       Process npm = await Process.start('npm', ['run', 'build'], workingDirectory: E2E_TEST_PROJECT_PATH);

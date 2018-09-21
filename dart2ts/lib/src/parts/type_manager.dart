@@ -8,7 +8,9 @@ class TSImport extends TSNode {
   LibraryElement library;
   List<String> names;
 
-  TSImport({this.prefix, this.path, this.library, this.names});
+  TSImport({this.prefix, this.path, this.library, this.names}) {
+
+  }
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -58,7 +60,19 @@ class TypeManager {
   }
 
   TypeManager(this._current, this._overrides, {this.moduleSuffix = '../node_modules/', this.modulePrefix = '.js'}) {
-    _prefixes = {'#NOURI#': _getSdkPath('dart:_common')};
+    registerModule(String uri,String prefix, String modulePath) {
+      TSImport import = new TSImport(prefix: prefix, path: resolvePath(modulePath));
+      _importedPaths[modulePath] = import;
+      _prefixes = {uri: import};
+    }
+
+    registerSdkModule(String name) {
+      registerModule("dart:${name}",name, "${SDK_LIBRARY}/${name}");
+    }
+
+    registerSdkModule('_common');
+    registerSdkModule('core');
+    registerSdkModule('async');
   }
 
   Map<String, TSImport> _prefixes;
@@ -80,8 +94,8 @@ class TypeManager {
 
   String checkProperty(DartType type, String name) => _overrides.checkProperty(this, type, name);
 
-  TSImport _getSdkPath(String name, {LibraryElement lib, List<String> names}) {
-    name = name.substring(5);
+  TSImport _getSdkPath(String _name, {LibraryElement lib, List<String> names}) {
+    String name = _name.substring(5);
 
     String p = "${SDK_LIBRARY}/${name}";
 
@@ -95,8 +109,15 @@ class TypeManager {
         p = path.relative(path.join('/', name), from: my_path);
       }
     }
+    if (names != null) {
+      return new TSImport(prefix: name, path: resolvePath(p), library: lib, names: names);
+    } else {
+      String modulePath = p;
 
-    return new TSImport(prefix: name, path: resolvePath(p), library: lib, names: names);
+      return _importedPaths.putIfAbsent(p, () {
+        return new TSImport(prefix: name, path: resolvePath(p), library: lib);
+      });
+    }
   }
 
   Map<String, TSImport> _importedPaths = {};
@@ -144,6 +165,7 @@ class TypeManager {
       libPath = libPath.replaceAll(path.separator, "/");
 
       // Extract package name and path and produce a nodemodule path
+
       return _importedPaths.putIfAbsent(
           libPath, () => new TSImport(prefix: _nextPrefix(), path: resolvePath(libPath), library: lib));
     }).prefix;
