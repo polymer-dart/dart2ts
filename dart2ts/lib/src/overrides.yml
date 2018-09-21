@@ -1,6 +1,6 @@
 overrides:
  "dart:async":
-    from: "module:typescript_dart/async"
+    from: "module:@dart2ts/dart/async"
     classes:
       Future:
          to:
@@ -12,7 +12,7 @@ overrides:
         to:
           class: DartStreamController
  "dart:collection":
-   from: "module:typescript_dart/core"
+   from: "module:@dart2ts/dart/core"
    classes:
      ListMixin:
        to:
@@ -21,7 +21,7 @@ overrides:
        to:
          class: DartListBase
  "dart:core":
-    from: "module:typescript_dart/core"
+    from: "module:@dart2ts/dart/core"
     classes:
       Object:
         to:

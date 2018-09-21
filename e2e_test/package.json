@@ -11,6 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@dart2ts/dart": "^0.1.0",
     "reflect-metadata": "^0.1.12"
   },
   "devDependencies": {

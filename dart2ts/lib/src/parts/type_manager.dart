@@ -1,6 +1,6 @@
 part of '../code_generator.dart';
 
-const String SDK_LIBRARY = 'typescript_dart';
+const String SDK_LIBRARY = '@dart2ts/dart';
 const String MODULE_PROPERTIES = 'properties';
 
 class TSImport extends TSNode {
