@@ -11,8 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "reflect-metadata": "^0.1.12",
-    "typescript_dart": "file:../../../../Dart/typescript_dart/dist"
+    "reflect-metadata": "^0.1.12"
   },
   "devDependencies": {
     "typescript": "^3.0.3"

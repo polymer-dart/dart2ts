@@ -1,9 +1,9 @@
-import * as s1 from './sample1';
-import * as t1 from './test_cascading';
-import * as t2 from './test_js_anno';
-import * as t3 from './test_anno';
-import * as test_map$ from './test_map';
-import * as test_strange from './test_strange';
+import * as s1 from './sample1.js';
+import * as t1 from './test_cascading.js';
+import * as t2 from './test_js_anno.js';
+import * as t3 from './test_anno.js';
+import * as test_map$ from './test_map.js';
+import * as test_strange from './test_strange.js';
 
 // Can I use a ts namespace to to this ?
 window["tests"] = {
