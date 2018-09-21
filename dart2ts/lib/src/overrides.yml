@@ -2,12 +2,18 @@ overrides:
  "dart:async":
     from: "module:@dart2ts/dart/async"
     classes:
+      Completer:
+         to:
+           class: DartCompleter
       Future:
          to:
            class: Future
       Stream:
          to:
            class: DartStream
+      StreamSink:
+         to:
+           class: DartStreamSink
       StreamController:
         to:
           class: DartStreamController

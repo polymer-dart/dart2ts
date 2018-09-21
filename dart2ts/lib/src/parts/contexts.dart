@@ -293,6 +293,11 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
   }
 
   @override
+  TSExpression visitDoubleLiteral(DoubleLiteral node) {
+    return new TSSimpleExpression(node.value.toString());
+  }
+
+  @override
   TSExpression visitExpression(Expression node) {
     return new TSUnknownExpression(node);
   }
@@ -1031,9 +1036,7 @@ class LibraryContext extends TopLevelContext<TSLibrary> {
   TSLibrary tsLibrary;
   Config _config;
 
-  LibraryContext(this._libraryElement, this._overrides, this._config) {
-
-  }
+  LibraryContext(this._libraryElement, this._overrides, this._config) {}
 
   void translate() {
     typeManager = new TypeManager(_libraryElement, _overrides,
