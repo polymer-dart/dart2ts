@@ -60,7 +60,7 @@ class TSLibrary extends TSNode {
       });
     });
 
-    printer.writeln('export class Module {');
+    printer.writeln('export class _Properties {');
     printer.indented((p) {
       topLevelGetterAndSetters.forEach((n) {
         printer.accept(n);
@@ -68,7 +68,7 @@ class TSLibrary extends TSNode {
       });
     });
     printer.writeln('}');
-    printer.writeln('export var module : Module = new Module();');
+    printer.writeln('export const ${MODULE_PROPERTIES} : _Properties = new _Properties();');
 
     if (onModuleLoad.isNotEmpty) {
       printer.writeln('// On module load');
@@ -229,7 +229,6 @@ abstract class TSType extends TSNode {
 }
 
 class TSSimpleType extends TSType {
-
   static final RegExp _MYREGEXP = new RegExp(r"([^.]+\.)?(.*)");
 
   String _name;
@@ -340,7 +339,7 @@ class TSInterfaceType extends TSType {
     fields ??= {};
   }
 
-  String get name=>"<anon>";
+  String get name => "<anon>";
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -374,7 +373,7 @@ class TSOptionalType extends TSType {
 
   TSOptionalType(this._type) : super(_type.isObject);
 
-  String get name =>_type.name;
+  String get name => _type.name;
 
   @override
   void writeCode(IndentingPrinter printer) {

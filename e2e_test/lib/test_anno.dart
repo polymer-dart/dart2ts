@@ -21,7 +21,7 @@ class JSMap<K, V> {
 
 @JS()
 @anonymous
-@Module('dart_sdk/decorations')
+@Module('typescript_dart/utils')
 class IAnnotationKey {
   String library;
   String type;
@@ -30,28 +30,27 @@ class IAnnotationKey {
 }
 
 @JS()
-@Module('dart_sdk/decorations')
+@Module('typescript_dart/utils')
 class IAnnotation {
   String library;
   String type;
   var value;
 }
 
-@JS()
-@Module('dart_sdk/decorations')
+@JS('Metadata')
+@Module('typescript_dart/utils')
 class IDartMetadata {
-  String library;
   List<IAnnotation> annotations;
-  JSMap<String, JSMap<String, List<dynamic>>> propertyAnnotations;
+  JSMap<String, JSMap<String, dynamic>> propertyAnnotations;
 }
 
-@JS('getDartMetadata')
-@Module('dart_sdk/decorations')
+@JS('getMetadata')
+@Module('typescript_dart/utils')
 external IDartMetadata getMetadata(var tp);
 
 IDartMetadata testMetadata() => getMetadata(MyAnnotatedClass);
 
-List propAnno() => getMetadata(MyAnnotatedClass)
+propAnno() => getMetadata(MyAnnotatedClass)
     .propertyAnnotations
     .GET('myProp')
     .GET('{asset:sample_project/lib/test_anno.dart}#{MyAnnotation}');

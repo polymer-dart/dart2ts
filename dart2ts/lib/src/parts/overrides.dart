@@ -130,6 +130,31 @@ class Overrides extends IOverrides {
     }
   }
 
+  String findLibraryOverride(LibraryElement lib) {
+    if (lib==null) {
+      return null;
+    }
+    Uri fromUri = lib.source?.uri;
+
+    _logger.fine("Checking type for {${fromUri}}");
+    if (fromUri == null) {
+      return null;
+    }
+
+    var libOverrides = _libraryOverrides(fromUri.toString());
+    if (libOverrides == null) {
+      return null;
+    }
+
+    String mod = libOverrides['from'];
+
+    if (mod==null || !mod.startsWith('module:')) {
+      return null;
+    }
+
+    return mod.substring(7);
+  }
+
   _findClassOverride(DartType mainType, {bool recursive: true}) {
     return _visitTypeHierarchy(mainType, recursive: recursive).map((type) {
       LibraryElement from = type?.element?.library;

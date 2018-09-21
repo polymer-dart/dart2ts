@@ -1,6 +1,7 @@
 part of '../code_generator.dart';
 
 const String SDK_LIBRARY = 'typescript_dart';
+const String MODULE_PROPERTIES='properties';
 
 class TSImport extends TSNode {
   String prefix;
@@ -8,9 +9,7 @@ class TSImport extends TSNode {
   LibraryElement library;
   List<String> names;
 
-  TSImport({this.prefix, this.path, this.library, this.names}) {
-
-  }
+  TSImport({this.prefix, this.path, this.library, this.names}) {}
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -60,14 +59,15 @@ class TypeManager {
   }
 
   TypeManager(this._current, this._overrides, {this.moduleSuffix = '../node_modules/', this.modulePrefix = '.js'}) {
-    registerModule(String uri,String prefix, String modulePath) {
+    _prefixes = {};
+    registerModule(String uri, String prefix, String modulePath) {
       TSImport import = new TSImport(prefix: prefix, path: resolvePath(modulePath));
       _importedPaths[modulePath] = import;
-      _prefixes = {uri: import};
+      _prefixes[uri] = import;
     }
 
     registerSdkModule(String name) {
-      registerModule("dart:${name}",name, "${SDK_LIBRARY}/${name}");
+      registerModule("dart:${name}", name, "${SDK_LIBRARY}/${name}");
     }
 
     registerSdkModule('_common');
@@ -123,6 +123,8 @@ class TypeManager {
   Map<String, TSImport> _importedPaths = {};
 
   String namespaceFor({String uri, String modulePath, LibraryElement lib}) {
+    modulePath = modulePath ?? _overrides.findLibraryOverride(lib);
+
     if (modulePath != null && _importedPaths.containsKey(modulePath)) {
       return _importedPaths[modulePath].prefix;
     }
@@ -257,7 +259,7 @@ class TypeManager {
         }
       } else {
         // Use normal prefix + name otherwise , use also module for toplevel properties
-        String m = (element is PropertyAccessorElement) ? "module." : "";
+        String m = (element is PropertyAccessorElement) ? "${MODULE_PROPERTIES}." : "";
         String prefix = namespace(element.library);
         prefix = (prefix == null) ? "" : "${prefix}.";
 

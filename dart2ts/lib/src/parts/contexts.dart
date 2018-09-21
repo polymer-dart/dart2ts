@@ -629,7 +629,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
   @override
   TSExpression visitPropertyAccess(PropertyAccess node) {
     TSExpression tsTarget;
-    ;
+
     if (node.isCascaded) {
       tsTarget = new TSSimpleExpression.cascadingTarget();
     } else {
@@ -659,7 +659,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
       // Handle references to top level external variables or getters and setters
       if (node.identifier.bestElement is PropertyAccessorElement) {
-        prefixStr = "${prefixStr}.module";
+        prefixStr = "${prefixStr}.${MODULE_PROPERTIES}";
       }
 
       return _mayWrapInAssignament(node, new TSDotExpression(new TSSimpleExpression(prefixStr), node.identifier.name));
