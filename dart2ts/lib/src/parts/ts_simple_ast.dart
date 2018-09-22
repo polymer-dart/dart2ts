@@ -648,11 +648,6 @@ class TSFunction extends TSExpression implements TSStatement {
     }
 
     if (!treatAsExpression) {
-      if (isAsync && !isGenerator) {
-        String async = tm.namespace(getLibrary(currentContext, 'dart:async'));
-        printer.writeln('() => new ${async}.Future.fromPromise(async ');
-      }
-
       if (constructorType == ConstructorType.NAMED) {
         printer.writeln('@namedConstructor');
       }
@@ -717,9 +712,7 @@ class TSFunction extends TSExpression implements TSStatement {
         }
         if (isStatic) printer.write('static ');
         //if (isAbstract) printer.write('abstract ');
-        if (isAsync) {
-          printer.write("async ");
-        }
+
         if (!asMethod && !isGetter && !isSetter) printer.write('function ');
         if (isGetter) printer.write('get ');
         if (isSetter) printer.write('set ');
@@ -778,23 +771,63 @@ class TSFunction extends TSExpression implements TSStatement {
       t = (returnType as TSGenericType)._typeArguments?.first;
     }
 
-    writePrehamble(isAsync && !isGenerator);
+    writePrehamble(treatAsExpression && isAsync && !isGenerator);
 
     if (returnType != null && !isSetter) {
       printer.write(" : ");
 
       // Replace Future with promise in this case
-      if (isAsync && !isGenerator) {
+      if (treatAsExpression && isAsync && !isGenerator) {
         printer.write("Promise<");
         printer.accept(t);
         printer.write(">");
       } else {
         printer.accept(returnType);
       }
+    } else if (returnType==null) {
+      if (treatAsExpression&&isAsync&&!isGenerator) {
+        printer.write(" : Promise<");
+        printer.accept(t);
+        printer.write(">");
+      } else {
+        if (isAsync) {
+          printer.write(" : ");
+          if (isGenerator) {
+            printer.write('async.DartStream<');
+            printer.accept(t);
+            printer.write('>');
+          } else {
+            printer.write('async.Future<');
+            printer.accept(t);
+            printer.write('>');
+          }
+        } else if (isGenerator) {
+          printer.write(' : core.DartIterable<');
+          printer.accept(t);
+          printer.write('>');
+        }
+      }
     }
 
     if (treatAsExpression) {
       printer.write(' => ');
+    } else {
+      if (isAsync) {
+        String async = tm.namespace(getLibrary(currentContext, 'dart:async'));
+        if (isGenerator) {
+          printer.writeln(' { ');
+          printer.indent();
+          printer.write('return ');
+        } else {
+          printer.writeln(' { ');
+          printer.indent();
+          printer.write('return new ${async}.Future.fromPromise(( async () => ');
+        }
+      } else if (isGenerator) {
+        printer.writeln(' { ');
+        printer.indent();
+        printer.write('return ');
+      }
     }
 
     if (isGenerator) {
@@ -882,8 +915,21 @@ class TSFunction extends TSExpression implements TSStatement {
         printer.write(')())');
       }
     } else {
-      if (isAsync && !isGenerator) {
-        printer.writeln(')()};');
+      if (isAsync) {
+        String async = tm.namespace(getLibrary(currentContext, 'dart:async'));
+        if (isGenerator) {
+          printer.writeln(';');
+          printer.deindent();
+          printer.writeln('}');
+        } else {
+          printer.writeln(' )());');
+          printer.deindent();
+          printer.writeln('}');
+        }
+      } else if (isGenerator) {
+        printer.writeln(';');
+        printer.deindent();
+        printer.writeln('}');
       }
     }
   }

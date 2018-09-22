@@ -517,7 +517,8 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     // If not js indexable use default operator
 
     return _context.typeManager.checkIndexedOperator(_context, node.target, node.index, () {
-      if (((node.target.bestType as InterfaceType)?.interfaces?.any((i) => i.name == 'JSIndexable') ?? false) ||
+      if ((node.target.bestType is InterfaceType &&
+              ((node.target.bestType as InterfaceType)?.interfaces?.any((i) => i.name == 'JSIndexable') ?? false)) ||
           isListType(node.target.bestType) ||
           TypeManager.isNativeType(node.target.bestType)) {
         // Use normal operator
@@ -1855,6 +1856,7 @@ class MethodContext extends ChildContext<TSClass, ClassContext, TSNode> {
       topLevel: topLevel,
       typeParameters: typeParameters,
       asMethod: true,
+      isGenerator: _methodDeclaration.body.isGenerator,
       isAbstract: _methodDeclaration.isAbstract,
       isStatic: _methodDeclaration.isStatic,
       isGetter: _methodDeclaration.isGetter,
