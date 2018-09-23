@@ -1,6 +1,6 @@
 overrides:
  "dart:async":
-    from: "module:@dart2ts/dart/async"
+    from: "sdk:async"
     classes:
       Completer:
          to:
@@ -18,7 +18,7 @@ overrides:
         to:
           class: DartStreamController
  "dart:collection":
-   from: "module:@dart2ts/dart/core"
+   from: "sdk:core"
    classes:
      ListMixin:
        to:
@@ -27,7 +27,7 @@ overrides:
        to:
          class: DartListBase
  "dart:core":
-    from: "module:@dart2ts/dart/core"
+    from: "sdk:core"
     classes:
       Object:
         to:

@@ -1,6 +1,6 @@
 part of '../code_generator.dart';
 
-const String SDK_LIBRARY = '@dart2ts/dart';
+//const String SDK_LIBRARY = '@dart2ts/dart';
 const String MODULE_PROPERTIES = 'properties';
 
 class TSImport extends TSNode {
@@ -50,24 +50,25 @@ class TypeManager {
 
   String modulePrefix;
   String moduleSuffix;
+  String sdkPrefix;
 
-  String resolvePath(String pp) {
+  String resolvePath(String pp, {bool isSdk: false}) {
     if (!pp.startsWith('./')) {
-      pp = path.normalize(path.join(modulePrefix, pp));
+      pp = path.normalize(path.join(isSdk ? sdkPrefix : modulePrefix, pp));
     }
     return "${pp}${moduleSuffix}";
   }
 
-  TypeManager(this._current, this._overrides, {this.moduleSuffix, this.modulePrefix}) {
+  TypeManager(this._current, this._overrides, {this.moduleSuffix, this.modulePrefix, this.sdkPrefix}) {
     _prefixes = {};
-    registerModule(String uri, String prefix, String modulePath) {
-      TSImport import = new TSImport(prefix: prefix, path: resolvePath(modulePath));
+    registerModule(String uri, String prefix, String modulePath, bool isSdk) {
+      TSImport import = new TSImport(prefix: prefix, path: resolvePath(modulePath, isSdk: true));
       _importedPaths[modulePath] = import;
       _prefixes[uri] = import;
     }
 
     registerSdkModule(String name) {
-      registerModule("dart:${name}", name, "${SDK_LIBRARY}/${name}");
+      registerModule("dart:${name}", name, name, true);
     }
 
     registerSdkModule('_common');
@@ -94,10 +95,10 @@ class TypeManager {
 
   String checkProperty(DartType type, String name) => _overrides.checkProperty(this, type, name);
 
-  TSImport _getSdkPath(String _name, {LibraryElement lib, List<String> names}) {
+  TSImport _getSdkPath(String _name, {LibraryElement lib, List<String> names, String modulePath}) {
     String name = _name.substring(5);
 
-    String p = "${SDK_LIBRARY}/${name}";
+    String p =  "${name}";
 
     // Check if we are in dart_sdk and need relative paths for dart: imports
     DartObject anno = getAnnotation(_current.metadata, isTargetLib);
@@ -110,20 +111,19 @@ class TypeManager {
       }
     }
     if (names != null) {
-      return new TSImport(prefix: name, path: resolvePath(p), library: lib, names: names);
+      return new TSImport(prefix: name, path:  modulePath ?? resolvePath(p, isSdk: true), library: lib, names: names);
     } else {
-      String modulePath = p;
-
       return _importedPaths.putIfAbsent(p, () {
-        return new TSImport(prefix: name, path: resolvePath(p), library: lib);
+        return new TSImport(prefix: name, path: modulePath ?? resolvePath(p, isSdk: true), library: lib);
       });
     }
   }
 
   Map<String, TSImport> _importedPaths = {};
 
-  String namespaceFor({String uri, String modulePath, LibraryElement lib}) {
-    modulePath = modulePath ?? _overrides.findLibraryOverride(lib);
+  String namespaceFor({String uri, String modulePath, LibraryElement lib, bool isSdk: false}) {
+    String overridePath =_overrides.findLibraryOverride(this, lib);
+    modulePath = modulePath ?? overridePath;
 
     if (modulePath != null && _importedPaths.containsKey(modulePath)) {
       return _importedPaths[modulePath].prefix;
@@ -140,13 +140,14 @@ class TypeManager {
 
     return _prefixes.putIfAbsent(uri, () {
       if (lib == null) {
+        assert(modulePath != null);
         return _importedPaths.putIfAbsent(
-            modulePath, () => new TSImport(prefix: _nextPrefix(), path: resolvePath(modulePath)));
+            modulePath, () => new TSImport(prefix: _nextPrefix(), path: resolvePath(modulePath, isSdk: isSdk)));
       }
       if (lib.isInSdk) {
         // Replace with ts_sdk
 
-        return _getSdkPath(lib.name, lib: lib);
+        return _getSdkPath(lib.name, lib: lib, modulePath: overridePath);
       }
 
       // If same package produce a relative path
@@ -253,7 +254,16 @@ class TypeManager {
       // In case of explicit namespaces use it
       if (jspath.isJSAnnotated) {
         if (jspath.modulePathElements.isNotEmpty) {
-          name = namespaceFor(uri: jspath.moduleUri, modulePath: jspath.modulePath) + "." + jspath.name;
+          bool isSdk = false;
+          String modulePath = jspath.modulePath;
+          if (modulePath.startsWith('sdk:')) {
+            modulePath = "${modulePath.substring(4)}";
+            isSdk = true;
+          } else if (modulePath.startsWith('package:')) {
+            modulePath = "${modulePrefix}/${modulePath.substring(8)}";
+          }
+
+          name = namespaceFor(uri: jspath.moduleUri, modulePath: modulePath, isSdk: isSdk) + "." + jspath.name;
         } else {
           name = jspath.name;
         }

@@ -21,7 +21,7 @@ class JSMap<K, V> {
 
 @JS()
 @anonymous
-@Module('@dart2ts/dart/utils')
+@Module('sdk:utils')
 class IAnnotationKey {
   String library;
   String type;
@@ -30,7 +30,7 @@ class IAnnotationKey {
 }
 
 @JS()
-@Module('@dart2ts/dart/utils')
+@Module('sdk:utils')
 class IAnnotation {
   String library;
   String type;
@@ -38,14 +38,14 @@ class IAnnotation {
 }
 
 @JS('Metadata')
-@Module('@dart2ts/dart/utils')
+@Module('sdk:utils')
 class IDartMetadata {
   List<IAnnotation> annotations;
   JSMap<String, JSMap<String, dynamic>> propertyAnnotations;
 }
 
 @JS('getMetadata')
-@Module('@dart2ts/dart/utils')
+@Module('sdk:utils')
 external IDartMetadata getMetadata(var tp);
 
 IDartMetadata testMetadata() => getMetadata(MyAnnotatedClass);

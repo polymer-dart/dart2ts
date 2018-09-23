@@ -1020,9 +1020,10 @@ abstract class ChildContext<A extends TSNode, P extends Context<A>, E extends TS
 class Config {
   String modulePrefix;
   String moduleSuffix;
+  String sdkPrefix;
   IOverrides overrides;
 
-  Config({this.modulePrefix = '../node_modules', this.moduleSuffix = '.js', this.overrides});
+  Config({this.modulePrefix = '@dart2ts.packages', this.moduleSuffix = '', this.overrides,this.sdkPrefix='@dart2ts/dart'});
 }
 
 /**
@@ -1041,7 +1042,7 @@ class LibraryContext extends TopLevelContext<TSLibrary> {
 
   void translate() {
     typeManager = new TypeManager(_libraryElement, _overrides,
-        modulePrefix: _config.modulePrefix, moduleSuffix: _config.moduleSuffix);
+        modulePrefix: _config.modulePrefix, moduleSuffix: _config.moduleSuffix,sdkPrefix: _config.sdkPrefix);
 
     tsLibrary = new TSLibrary(_libraryElement.source.uri.toString());
 

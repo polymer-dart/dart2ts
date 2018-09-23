@@ -1,10 +1,10 @@
 /** Library asset:sample_project/lib/index.dart */
-import {is,equals} from "../node_modules/@dart2ts/dart/_common.js";
-import {defaultConstructor,namedConstructor,namedFactory,defaultFactory,DartClass,Implements,op,Op,OperatorMethods,DartClassAnnotation,DartMethodAnnotation,DartPropertyAnnotation,Abstract,AbstractProperty} from "../node_modules/@dart2ts/dart/utils.js";
-import * as _common from "../node_modules/@dart2ts/dart/_common.js";
-import * as core from "../node_modules/@dart2ts/dart/core.js";
-import * as async from "../node_modules/@dart2ts/dart/async.js";
-import * as lib3 from "./sample1.js";
+import {is,equals} from "@dart2ts/dart/_common";
+import {defaultConstructor,namedConstructor,namedFactory,defaultFactory,DartClass,Implements,op,Op,OperatorMethods,DartClassAnnotation,DartMethodAnnotation,DartPropertyAnnotation,Abstract,AbstractProperty} from "@dart2ts/dart/utils";
+import * as _common from "@dart2ts/dart/_common";
+import * as core from "@dart2ts/dart/core";
+import * as async from "@dart2ts/dart/async";
+import * as lib3 from "./sample1";
 
 export var index : () => void = () : void =>  {
     lib3.main(new core.DartList.literal('ciao','ciao','bambina'));

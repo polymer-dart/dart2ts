@@ -6,6 +6,7 @@
     "declaration": true,
     "rootDir":"./",
     "experimentalDecorators" :true,
+    "moduleResolution": "node",
     "strict": true,
     /* Enable all strict type-checking options. */
     "noImplicitAny": false,                 /* Raise error on expressions and declarations with an implied 'any' type. */
@@ -20,9 +21,6 @@
       "esnext.asynciterable"
     ]
   },
-  "exclude": [
-    "node_modules"
-  ],
   "include": [
     "lib/**/*.ts"
   ]

@@ -45,7 +45,10 @@ class Overrides extends IOverrides {
     } else if (module != null) {
       if (module.startsWith('module:')) {
         return m.namespaceFor(uri: module, modulePath: module.substring(7));
-      } else if (module.startsWith('dart:') || module.startsWith('package:')) {
+      } else if (module.startsWith('sdk:')) {
+        return m.namespaceFor(uri: module, modulePath: module.substring(4),isSdk: true);
+      }
+      if (module.startsWith('dart:') || module.startsWith('package:')) {
         return m.namespace(getLibrary(currentContext, module));
       }
     } else {
@@ -130,8 +133,8 @@ class Overrides extends IOverrides {
     }
   }
 
-  String findLibraryOverride(LibraryElement lib) {
-    if (lib==null) {
+  String findLibraryOverride(TypeManager tm, LibraryElement lib) {
+    if (lib == null) {
       return null;
     }
     Uri fromUri = lib.source?.uri;
@@ -148,10 +151,13 @@ class Overrides extends IOverrides {
 
     String mod = libOverrides['from'];
 
-    if (mod==null || !mod.startsWith('module:')) {
+    if (mod == null || !mod.startsWith('module:') && !mod.startsWith('sdk:')) {
       return null;
     }
 
+    if (mod.startsWith('sdk:')) {
+      return "${tm.sdkPrefix}/${mod.substring(4)}";
+    }
     return mod.substring(7);
   }
 
@@ -171,7 +177,7 @@ class Overrides extends IOverrides {
       }
 
       var classOverrides = (libOverrides['classes'] ?? {})[type.name];
-      if (classOverrides==null) {
+      if (classOverrides == null) {
         return null;
       }
 
