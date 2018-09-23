@@ -35,6 +35,10 @@ overrides:
  "dart:core":
     from: "sdk:core"
     classes:
+      Uri:
+        to:
+          class: Uri
+          from: "sdk:uri"
       StringBuffer:
         to:
           class: DartStringBuffer

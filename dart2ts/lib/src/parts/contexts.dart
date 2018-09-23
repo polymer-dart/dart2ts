@@ -807,6 +807,12 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitMethodInvocation(MethodInvocation node) {
+    // Handle special case for string JS
+    if (node.methodName.name=='JS'&&node.argumentList.arguments.length>1&&node.argumentList.arguments[1] is StringLiteral) {
+      return _handleJSTemplate(node);
+    }
+
+
     // Handle special case for string interpolators
 
     DartObject tsMeta = getAnnotation(node.methodName?.bestElement?.metadata, isTS);
@@ -893,6 +899,38 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
         ..asNew = false;
         */
     }
+  }
+
+  TSExpression _handleJSTemplate(MethodInvocation node) {
+    String pattern = (node.argumentList.arguments[1] as StringLiteral).stringValue;
+    List<String> pieces = pattern.split('#');
+    List<TSExpression> expr = [];
+    for (int i=2;i<node.argumentList.arguments.length;i++) {
+      expr.add(_context.processExpression(node.argumentList.arguments[i]));
+    }
+    return new TSNativeJs(node.toString(),pieces,expr);
+  }
+}
+
+class TSNativeJs extends TSExpression {
+  String orig;
+  List<String> pieces;
+  List<TSExpression> expr;
+
+  TSNativeJs(this.orig,this.pieces,this.expr);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    int i;
+    for (i=0;i<pieces.length;i++) {
+      printer.write(pieces[i]);
+      if (i<expr.length) {
+        printer.accept(expr[i]);
+      }
+    }
+
+    printer.write("/* ${orig} */");
+
   }
 }
 
