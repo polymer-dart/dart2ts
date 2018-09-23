@@ -168,6 +168,17 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
     return new TSExpressionStatement(new TSSimpleExpression('break'));
   }
 
+
+  @override
+  TSStatement visitLabeledStatement(LabeledStatement node) {
+    return new TSLabeledStatement(node.labels.map((l)=>l.label.name).toList(),node.statement.accept(this));
+  }
+
+  @override
+  TSStatement visitContinueStatement(ContinueStatement node) {
+    return new TSExpressionStatement(new TSSimpleExpression('continue'));
+  }
+
   @override
   TSStatement visitFunctionDeclarationStatement(FunctionDeclarationStatement node) {
     FunctionDeclarationContext functionDeclarationContext =
@@ -259,6 +270,7 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
         _context.typeManager.toTsType(node.variables.type?.type)))));
   }
 }
+
 
 enum OperatorType { BINARY, PREFIX, SUFFIX }
 
@@ -498,6 +510,11 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
   }
 
   @override
+  TSExpression visitSuperExpression(SuperExpression node) {
+    return TSSimpleExpression.SUPER;
+  }
+
+  @override
   TSExpression visitFunctionExpressionInvocation(FunctionExpressionInvocation node) {
     ArgumentListCollector collector = new ArgumentListCollector(_context, node.bestElement);
     collector.processArgumentList(node.argumentList);
@@ -517,18 +534,28 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     // If not js indexable use default operator
 
     return _context.typeManager.checkIndexedOperator(_context, node.target, node.index, () {
-      if ((node.target.bestType is InterfaceType &&
-              ((node.target.bestType as InterfaceType)?.interfaces?.any((i) => i.name == 'JSIndexable') ?? false)) ||
-          isListType(node.target.bestType) ||
-          TypeManager.isNativeType(node.target.bestType)) {
-        // Use normal operator
-        return _mayWrapInAssignament(node,
-            new TSIndexExpression(_context.processExpression(node.target), _context.processExpression(node.index)));
+      TSExpression target;
+      Expression tgt;
+      if (node.target == null && node.isCascaded) {
+        target = new TSSimpleExpression.cascadingTarget();
+        tgt = findCascadeExpression(node);
+      } else {
+        target = _context.processExpression(node.target);
+        tgt = node.target;
+      }
+      if (tgt != null) {
+        if ((tgt?.bestType is InterfaceType &&
+                ((tgt?.bestType as InterfaceType)?.interfaces?.any((i) => i.name == 'JSIndexable') ?? false)) ||
+            isListType(tgt?.bestType) ||
+            TypeManager.isNativeType(tgt?.bestType)) {
+          // Use normal operator
+          return _mayWrapInAssignament(node, new TSIndexExpression(target, _context.processExpression(node.index)));
+        }
       }
 
       // Use generic op
       TokenType tk;
-      List<TSExpression> operands = [_context.processExpression(node.target), _context.processExpression(node.index)];
+      List<TSExpression> operands = [target, _context.processExpression(node.index)];
       if (isAssigningLeftSide(node)) {
         tk = TokenType.INDEX_EQ;
         operands.add(_context.processExpression(assigningValue(node)));
@@ -1023,7 +1050,11 @@ class Config {
   String sdkPrefix;
   IOverrides overrides;
 
-  Config({this.modulePrefix = '@dart2ts.packages', this.moduleSuffix = '', this.overrides,this.sdkPrefix='@dart2ts/dart'});
+  Config(
+      {this.modulePrefix = '@dart2ts.packages',
+      this.moduleSuffix = '',
+      this.overrides,
+      this.sdkPrefix = '@dart2ts/dart'});
 }
 
 /**
@@ -1042,7 +1073,7 @@ class LibraryContext extends TopLevelContext<TSLibrary> {
 
   void translate() {
     typeManager = new TypeManager(_libraryElement, _overrides,
-        modulePrefix: _config.modulePrefix, moduleSuffix: _config.moduleSuffix,sdkPrefix: _config.sdkPrefix);
+        modulePrefix: _config.modulePrefix, moduleSuffix: _config.moduleSuffix, sdkPrefix: _config.sdkPrefix);
 
     tsLibrary = new TSLibrary(_libraryElement.source.uri.toString());
 

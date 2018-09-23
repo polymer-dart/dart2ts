@@ -17,6 +17,12 @@ overrides:
       StreamController:
         to:
           class: DartStreamController
+      StreamTransformer:
+        to:
+          class: DartStreamTransformer
+      EventSink:
+        to:
+          class: DartEventSink
  "dart:collection":
    from: "sdk:core"
    classes:
@@ -29,6 +35,12 @@ overrides:
  "dart:core":
     from: "sdk:core"
     classes:
+      StringBuffer:
+        to:
+          class: DartStringBuffer
+      StringSink:
+        to:
+          class: DartStringSink
       Object:
         to:
           class: DartObject
@@ -56,3 +68,6 @@ overrides:
       Duration:
         to:
           class: DartDuration
+      Sink:
+        to:
+          class: DartSink

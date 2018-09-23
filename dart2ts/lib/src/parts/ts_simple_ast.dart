@@ -784,8 +784,8 @@ class TSFunction extends TSExpression implements TSStatement {
       } else {
         printer.accept(returnType);
       }
-    } else if (returnType==null) {
-      if (treatAsExpression&&isAsync&&!isGenerator) {
+    } else if (returnType == null) {
+      if (treatAsExpression && isAsync && !isGenerator) {
         printer.write(" : Promise<");
         printer.accept(t);
         printer.write(">");
@@ -1611,6 +1611,23 @@ class TSVariableDeclarations extends TSStatement {
   }
 }
 
+class TSLabeledStatement extends TSStatement {
+  List<String> labels;
+  TSStatement statement;
+
+  TSLabeledStatement(this.labels, this.statement);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    labels.forEach((lbl) {
+      printer.writeln("${lbl}:");
+    });
+    printer.indented((p) {
+      p.accept(statement);
+    });
+  }
+}
+
 class TSExpressionStatement extends TSStatement {
   TSExpression _expression;
 
@@ -1653,6 +1670,7 @@ class TSParameter extends TSNode {
 class TSSimpleExpression extends TSExpression {
   static final _cascadingTarget = new TSSimpleExpression('_');
   static final THIS = new TSSimpleExpression('this');
+  static final SUPER = new TSSimpleExpression('super');
 
   String _expression;
 

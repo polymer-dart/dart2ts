@@ -212,7 +212,7 @@ class Overrides extends IOverrides {
 
   TSExpression checkIndexedOperator(
       Context<TSNode> context, Expression target, Expression index, TSExpression orElse()) {
-    var classOverrides = _findClassOverride(target.bestType);
+    var classOverrides = _findClassOverride(target?.bestType);
 
     if (classOverrides == null) return orElse();
 

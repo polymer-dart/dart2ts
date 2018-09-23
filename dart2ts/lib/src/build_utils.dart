@@ -20,7 +20,7 @@ npm([List<String> args = const ['run', 'build']]) async {
 }
 
 tsc({String basePath: '.'}) async {
-  Process npm = await Process.start('tsc', [], workingDirectory: basePath);
+  Process npm = await Process.start('npm run build', [], workingDirectory: basePath);
   stdout.addStream(npm.stdout);
   stderr.addStream(npm.stderr);
   int exitCode = await npm.exitCode;

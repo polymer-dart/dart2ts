@@ -45,8 +45,9 @@ class Dart2TsBuildCommand extends Command<bool> {
   Dart2TsBuildCommand() {
     this.argParser
       ..addOption('dir', defaultsTo: '.', abbr: 'd', help: 'the base path of the package to process')
-      ..addOption('module-prefix', defaultsTo: '../node_modules/', help: 'The absolute module prefix')
-      ..addOption('module-suffix', defaultsTo: '.js', help: 'The modules suffix')
+      ..addOption('sdk-prefix', defaultsTo: '@dart2ts/dart', help: 'The absolute module prefix')
+      ..addOption('module-prefix', defaultsTo: '@dart2ts.packages', help: 'The absolute module prefix')
+      ..addOption('module-suffix', defaultsTo: '', help: 'The modules suffix')
       ..addFlag('watch', abbr: 'w', defaultsTo: false, help: 'watch for changes');
   }
 
@@ -56,8 +57,10 @@ class Dart2TsBuildCommand extends Command<bool> {
 
     List<BuildAction> actions = [
       new BuildAction(
-          new Dart2TsBuilder(
-              new Config(modulePrefix: argResults['module-prefix'], moduleSuffix: argResults['module-suffix'])),
+          new Dart2TsBuilder(new Config(
+              modulePrefix: argResults['module-prefix'],
+              moduleSuffix: argResults['module-suffix'],
+              sdkPrefix: argResults['sdk-prefix'])),
           graph.root.name,
           inputs: ['lib/**.dart', 'web/**.dart'])
     ];
@@ -192,7 +195,7 @@ class IndentingPrinter {
     _newLine = true;
   }
 
-  void accept(PrinterWriter w) => w.writeCode(this);
+  void accept(PrinterWriter w) => w == null ? this.write('/* ??? */') : w.writeCode(this);
 
   void join(Iterable<PrinterWriter> writers, {String delim = ',', bool newLine = false}) {
     joinConsumers(
