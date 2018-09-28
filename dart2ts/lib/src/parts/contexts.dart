@@ -168,10 +168,9 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
     return new TSExpressionStatement(new TSSimpleExpression('break'));
   }
 
-
   @override
   TSStatement visitLabeledStatement(LabeledStatement node) {
-    return new TSLabeledStatement(node.labels.map((l)=>l.label.name).toList(),node.statement.accept(this));
+    return new TSLabeledStatement(node.labels.map((l) => l.label.name).toList(), node.statement.accept(this));
   }
 
   @override
@@ -271,7 +270,6 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
   }
 }
 
-
 enum OperatorType { BINARY, PREFIX, SUFFIX }
 
 bool isAssigningLeftSide(AstNode node) => (node.parent is AssignmentExpression) && (node != assigningValue(node));
@@ -336,8 +334,8 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitIsExpression(IsExpression node) {
-    return new TSInstanceOf(
-        node.expression.accept(this), new TSTypeExpr(_context.typeManager.toTsType(node.type.type), false));
+    return new TSInstanceOf(node.expression.accept(this),
+        new TSTypeExpr(_context.typeManager.toTsType(node.type.type), false), node.notOperator == null);
   }
 
   @override
@@ -808,10 +806,11 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
   @override
   TSExpression visitMethodInvocation(MethodInvocation node) {
     // Handle special case for string JS
-    if (node.methodName.name=='JS'&&node.argumentList.arguments.length>1&&node.argumentList.arguments[1] is StringLiteral) {
+    if (node.methodName.name == 'JS' &&
+        node.argumentList.arguments.length > 1 &&
+        node.argumentList.arguments[1] is StringLiteral) {
       return _handleJSTemplate(node);
     }
-
 
     // Handle special case for string interpolators
 
@@ -905,10 +904,10 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     String pattern = (node.argumentList.arguments[1] as StringLiteral).stringValue;
     List<String> pieces = pattern.split('#');
     List<TSExpression> expr = [];
-    for (int i=2;i<node.argumentList.arguments.length;i++) {
+    for (int i = 2; i < node.argumentList.arguments.length; i++) {
       expr.add(_context.processExpression(node.argumentList.arguments[i]));
     }
-    return new TSNativeJs(node.toString(),pieces,expr);
+    return new TSNativeJs(node.toString(), pieces, expr);
   }
 }
 
@@ -917,20 +916,19 @@ class TSNativeJs extends TSExpression {
   List<String> pieces;
   List<TSExpression> expr;
 
-  TSNativeJs(this.orig,this.pieces,this.expr);
+  TSNativeJs(this.orig, this.pieces, this.expr);
 
   @override
   void writeCode(IndentingPrinter printer) {
     int i;
-    for (i=0;i<pieces.length;i++) {
+    for (i = 0; i < pieces.length; i++) {
       printer.write(pieces[i]);
-      if (i<expr.length) {
+      if (i < expr.length) {
         printer.accept(expr[i]);
       }
     }
 
     printer.write("/* ${orig} */");
-
   }
 }
 
@@ -1140,6 +1138,7 @@ class LibraryContext extends TopLevelContext<TSLibrary> {
           0,
           typeManager._getSdkPath('****:_common', names: [
             'is',
+            'isNot',
             'equals',
           ]));
     tsLibrary.globalContext = _globalContext;

@@ -275,12 +275,17 @@ class TSTypeExpr extends TSExpression {
 class TSInstanceOf extends TSExpression {
   TSExpression _expr;
   TSTypeExpr _type;
+  bool negate;
 
-  TSInstanceOf(this._expr, this._type);
+  TSInstanceOf(this._expr, this._type,this.negate);
 
   @override
   void writeCode(IndentingPrinter printer) {
-    printer.write('is(');
+    if (negate) {
+      printer.write('isNot(');
+    } else {
+      printer.write('is(');
+    }
     printer.accept(_expr);
     printer.write(', ');
     printer.accept(_type);
