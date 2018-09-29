@@ -1535,6 +1535,18 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
     _classDeclaration.members.forEach((m) {
       m.accept(visitor);
     });
+
+    // Add initializers to each constructor.
+
+    List<TSStatement> thisInitializers = _tsClass.extractAllInitializerExpressions();
+
+    if (thisInitializers.isNotEmpty) {
+      // TODO : VISIT ALL MEMBERS AND ADD INITIALIZERS
+      tsClass.members.where((m)=>m is TSFunction && m.constructorType!=null).forEach((c){
+        (c as TSFunction).initializers.insertAll(0,thisInitializers);
+      });
+    }
+
     //List<TSNode> _members =
     //   new List.from(_classDeclaration.members.map((m) => m.accept(visitor)).where((m) => m != null));
     //_tsClass.members.addAll(_members);
@@ -1626,9 +1638,11 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
                 new TSAnnotation.propertyAnnotation(uri, name, arguments, namedArguments)))
         .where(notNull)
         .toList();
+
+
     _context.tsClass.members.add(new TSVariableDeclarations(
       new List.from(node.fields.variables.map((v) => new TSVariableDeclaration(variableName(v),
-          _context.processExpression(v.initializer), _context.typeManager.toTsType(node.fields.type?.type)))),
+          _context.processExpression(v.initializer), _context.typeManager.toTsType(node.fields.type?.type),isField:true))),
       isField: true,
       isStatic: node.isStatic,
       annotations: dartAnno,

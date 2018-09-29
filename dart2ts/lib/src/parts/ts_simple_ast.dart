@@ -153,6 +153,18 @@ class TSClass extends TSNode {
       this.declared: false,
       this.typeParameters});
 
+  List<TSStatement> extractAllInitializerExpressions([bool statics = false]) {
+    return new List.from(members
+        .where((m) => m is TSVariableDeclarations && m.isStatic == statics)
+        .expand((vd) => (vd as TSVariableDeclarations)._declarations)
+        .where((v) => v._initializer != null)
+        .map((v) => new TSAssignamentExpression(
+            statics
+                ? new TSStaticRef(new TSSimpleType(name, true), v._name)
+                : new TSDotExpression(TSSimpleExpression.THIS, v._name),
+            v._initializer)));
+  }
+
   @override
   void writeCode(IndentingPrinter printer) {
     if (library != null && !isInterface) {
@@ -215,6 +227,12 @@ class TSClass extends TSNode {
         });
       });
     printer.writeln('}');
+
+    // Add all static initializers
+    extractAllInitializerExpressions(true).forEach((staticInit){
+      printer.accept(staticInit);
+      printer.writeln(";");
+    });
   }
 }
 
@@ -277,7 +295,7 @@ class TSInstanceOf extends TSExpression {
   TSTypeExpr _type;
   bool negate;
 
-  TSInstanceOf(this._expr, this._type,this.negate);
+  TSInstanceOf(this._expr, this._type, this.negate);
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -1407,8 +1425,9 @@ class TSVariableDeclaration extends TSNode {
   String _name;
   TSExpression _initializer;
   TSType _type;
+  bool isField;
 
-  TSVariableDeclaration(this._name, this._initializer, this._type);
+  TSVariableDeclaration(this._name, this._initializer, this._type,{this.isField:false});
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -1417,7 +1436,8 @@ class TSVariableDeclaration extends TSNode {
       printer.write(" : ");
       printer.accept(_type);
     }
-    if (_initializer != null) {
+    // Field initializers are handler differently (see extractFieldInitializers in TSClass)
+    if (_initializer != null&&!isField) {
       printer.write(' = ');
       printer.accept(_initializer);
     }
