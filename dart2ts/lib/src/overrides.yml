@@ -17,6 +17,9 @@ overrides:
       StreamController:
         to:
           class: DartStreamController
+      StreamSubscription:
+        to:
+          class: DartStreamSubscription
       StreamTransformer:
         to:
           class: DartStreamTransformer
@@ -32,9 +35,15 @@ overrides:
      ListBase:
        to:
          class: DartListBase
+     HashMap:
+       to:
+         class: DartHashMap
  "dart:core":
     from: "sdk:core"
     classes:
+      DateTime:
+        to:
+          class: DartDateTime
       Uri:
         to:
           class: Uri
@@ -48,6 +57,12 @@ overrides:
       Object:
         to:
           class: DartObject
+      RegExp:
+        to:
+          class: DartRegExp
+      Pattern:
+        to:
+          class: DartPattern
       Expando:
         to:
           class: DartExpando
