@@ -1,5 +1,5 @@
 /** Library asset:sample_project/lib/index.dart */
-import {is,equals} from "@dart2ts/dart/_common";
+import {is,isNot,equals} from "@dart2ts/dart/_common";
 import {defaultConstructor,namedConstructor,namedFactory,defaultFactory,DartClass,Implements,op,Op,OperatorMethods,DartClassAnnotation,DartMethodAnnotation,DartPropertyAnnotation,Abstract,AbstractProperty} from "@dart2ts/dart/utils";
 import * as _common from "@dart2ts/dart/_common";
 import * as core from "@dart2ts/dart/core";

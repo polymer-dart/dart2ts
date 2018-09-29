@@ -661,13 +661,16 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
   TSExpression visitPropertyAccess(PropertyAccess node) {
     TSExpression tsTarget;
 
+    DartType targetType;
     if (node.isCascaded) {
       tsTarget = new TSSimpleExpression.cascadingTarget();
+      targetType = findCascadeExpression(node)?.bestType;
     } else {
       tsTarget = _context.processExpression(node.target);
+      targetType = node.target?.bestType;
     }
 
-    return asFieldAccess(tsTarget, node.propertyName);
+    return asFieldAccess(_maybeWrapNativeCall(targetType, tsTarget), node.propertyName);
   }
 
   CascadeExpression findCascadeExpression(AstNode node) {
@@ -695,7 +698,8 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
       return _mayWrapInAssignament(node, new TSDotExpression(new TSSimpleExpression(prefixStr), node.identifier.name));
     }
-    return asFieldAccess(_context.processExpression(node.prefix), node.identifier);
+    return asFieldAccess(
+        _maybeWrapNativeCall(node.prefix?.bestType, _context.processExpression(node.prefix)), node.identifier);
   }
 
   TSExpression _mayWrapInAssignament(AstNode node, TSExpression expre) {
@@ -803,6 +807,23 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     });
   }
 
+  TSExpression _maybeWrapNativeCall(DartType targetType, TSExpression tsTarget) {
+    String wrapper;
+    if (currentContext.typeProvider.numType == targetType) {
+      wrapper = "core.DartNumber";
+    } else if (currentContext.typeProvider.intType == targetType) {
+      wrapper = "core.DartInt";
+    } else if (currentContext.typeProvider.doubleType == targetType) {
+      wrapper = 'core.DartDouble';
+    } else if (currentContext.typeProvider.stringType == targetType) {
+      wrapper = 'core.DartString';
+    } else {
+      return tsTarget;
+    }
+
+    return new TSInvoke(new TSSimpleExpression(wrapper), [tsTarget])..asNew = true;
+  }
+
   @override
   TSExpression visitMethodInvocation(MethodInvocation node) {
     // Handle special case for string JS
@@ -838,14 +859,16 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     Element elem = node.methodName.bestElement;
 
     if (elem != null) {
-      TSExpression target;
       TSExpression method;
       if (node.isCascaded) {
+        TSExpression target;
         target = new TSSimpleExpression.cascadingTarget();
         Expression cascadeTarget = findCascadeTarget(node);
         method = _context.typeManager.checkMethod(cascadeTarget.bestType, node.methodName.name, target,
-            orElse: () => new TSDotExpression(target, _context.typeManager.toTsName(elem)));
+            orElse: () => new TSDotExpression(
+                _maybeWrapNativeCall(cascadeTarget.bestType, target), _context.typeManager.toTsName(elem)));
       } else if (!TypeManager.isTopLevel(elem) && (elem.enclosingElement is ClassElement)) {
+        TSExpression target;
         DartType targetType = node.target?.bestType ?? (elem.enclosingElement as ClassElement).type;
         target = _context.processExpression(node.target) ??
             ((elem as ExecutableElement).isStatic
@@ -856,12 +879,11 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
         method = _context.typeManager.checkMethod(targetType, node.methodName.name, target, orElse: () {
           TSExpression res = _context.processExpression(node.methodName);
           if (node.target != null) {
-            res = new TSDotExpression.expr(target, res);
+            res = new TSDotExpression.expr(_maybeWrapNativeCall(node.target?.bestType, target), res);
           }
           return res;
         });
       } else {
-        target = new TSSimpleExpression('null /*topLevl*/');
         method = _context.processExpression(node.methodName);
       }
 
@@ -869,10 +891,12 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       return new TSInvoke(method, collector.arguments, collector.namedArguments);
     } else {
       TSExpression target;
+      Expression targetExpression = node.target;
       if (node.isCascaded) {
+        targetExpression = findCascadeExpression(node);
         target = new TSSimpleExpression.cascadingTarget();
-      } else if (node.target != null &&
-          !(node.target is SimpleIdentifier && ((node.target as SimpleIdentifier)).bestElement is PrefixElement)) {
+      } else if (targetExpression != null &&
+          !(targetExpression is SimpleIdentifier && targetExpression.bestElement is PrefixElement)) {
         target = _context.processExpression(node.target);
       } else {
         target = new TSSimpleExpression('null /*topLevl*/');
@@ -880,7 +904,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
       TSExpression res = _context.processExpression(node.methodName);
       if (node.target != null) {
-        res = new TSDotExpression.expr(target, res);
+        res = new TSDotExpression.expr(_maybeWrapNativeCall(targetExpression.bestType, target), res);
       }
 
       //return new TSInvoke(method,)
@@ -1132,7 +1156,10 @@ class LibraryContext extends TopLevelContext<TSLibrary> {
             "DartMethodAnnotation",
             "DartPropertyAnnotation",
             "Abstract",
-            "AbstractProperty"
+            "AbstractProperty",
+            "int",
+            "bool",
+            "double",
           ]))
       ..insert(
           0,
