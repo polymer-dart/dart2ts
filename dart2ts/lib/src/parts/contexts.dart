@@ -1541,9 +1541,12 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
     List<TSStatement> thisInitializers = _tsClass.extractAllInitializerExpressions();
 
     if (thisInitializers.isNotEmpty) {
-      // TODO : VISIT ALL MEMBERS AND ADD INITIALIZERS
-      tsClass.members.where((m)=>m is TSFunction && m.constructorType!=null).forEach((c){
-        (c as TSFunction).initializers.insertAll(0,thisInitializers);
+      tsClass.members
+          .where((m) =>
+              m is TSFunction &&
+              (m.constructorType == ConstructorType.NAMED || m.constructorType == ConstructorType.DEFAULT))
+          .forEach((c) {
+        (c as TSFunction).initializers.insertAll(0, thisInitializers);
       });
     }
 
@@ -1639,10 +1642,10 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
         .where(notNull)
         .toList();
 
-
     _context.tsClass.members.add(new TSVariableDeclarations(
       new List.from(node.fields.variables.map((v) => new TSVariableDeclaration(variableName(v),
-          _context.processExpression(v.initializer), _context.typeManager.toTsType(node.fields.type?.type),isField:true))),
+          _context.processExpression(v.initializer), _context.typeManager.toTsType(node.fields.type?.type),
+          isField: true))),
       isField: true,
       isStatic: node.isStatic,
       annotations: dartAnno,
