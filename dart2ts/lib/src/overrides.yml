@@ -38,6 +38,9 @@ overrides:
      HashMap:
        to:
          class: DartHashMap
+     HashSet:
+       to:
+         class: DartHashSet
  "dart:core":
     from: "sdk:core"
     classes:
@@ -72,6 +75,9 @@ overrides:
       List:
          to:
            class: DartList
+      Set:
+        to:
+          class: DartSet
       Map:
          to:
            class: DartMap

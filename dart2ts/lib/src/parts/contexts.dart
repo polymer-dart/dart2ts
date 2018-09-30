@@ -155,7 +155,7 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
   @override
   TSStatement visitCatchClause(CatchClause node) {
     return new TSCatchStatement(
-        node.exceptionParameter.name, _context.typeManager.toTsType(node.exceptionType?.type), node.body.accept(this));
+        node.exceptionParameter.name, _context.typeManager.toTsType(node.exceptionType?.type), node.body.accept(this),stack:node.stackTraceParameter?.name);
   }
 
   @override
@@ -335,7 +335,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
   @override
   TSExpression visitIsExpression(IsExpression node) {
     return new TSInstanceOf(node.expression.accept(this),
-        new TSTypeExpr(_context.typeManager.toTsType(node.type.type), false), node.notOperator == null);
+        new TSTypeExpr(_context.typeManager.toTsType(node.type.type), false), node.notOperator != null);
   }
 
   @override
@@ -1698,7 +1698,7 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
 
       _context.tsClass.members.add(new TSFunction(
         _context.typeManager,
-        name: "_${actualName}",
+        name: "\$${actualName}",
         asMethod: true,
         isStatic: true,
         withParameterCollector: collector,
@@ -1881,7 +1881,7 @@ class InitializerCollector extends GeneralizingAstVisitor<TSStatement> {
       target = new TSSimpleExpression('this.${node.staticElement.enclosingElement.name}');
     } else {
       if ((node.constructorName.bestElement as ConstructorElement).isFactory) {
-        target = new TSSimpleExpression('this._${node.constructorName.name}');
+        target = new TSSimpleExpression('this.\$${node.constructorName.name}');
       } else {
         target = new TSSimpleExpression('this.${node.constructorName.name}');
       }

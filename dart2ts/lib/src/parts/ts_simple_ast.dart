@@ -229,7 +229,7 @@ class TSClass extends TSNode {
     printer.writeln('}');
 
     // Add all static initializers
-    extractAllInitializerExpressions(true).forEach((staticInit){
+    extractAllInitializerExpressions(true).forEach((staticInit) {
       printer.accept(staticInit);
       printer.writeln(";");
     });
@@ -959,6 +959,10 @@ class TSFunction extends TSExpression implements TSStatement {
 
   @override
   bool get needsSeparator => true;
+  @override
+  TSStatement inject(TSStatement statement) {
+    throw "not implemented";
+  }
 }
 
 class TSPostfixOperandExpression extends TSExpression {
@@ -1040,6 +1044,10 @@ class TSList extends TSExpression {
 
 abstract class TSStatement extends TSNode {
   bool get needsSeparator => true;
+
+  TSStatement inject(TSStatement statement) {
+    return new TSBody(statements: [statement, this], withBrackets: true);
+  }
 }
 
 class TSReturnStatement extends TSStatement {
@@ -1090,14 +1098,23 @@ class TSUnknownStatement extends TSStatement {
 
 class TSBody extends TSStatement {
   bool withBrackets;
-  Iterable<TSStatement> statements;
+  List<TSStatement> statements;
 
   bool newLine;
 
   @override
   bool get needsSeparator => false;
 
-  TSBody({this.statements, this.withBrackets: true, this.newLine: true});
+  TSBody({Iterable<TSStatement> statements, this.withBrackets: true, this.newLine: true})
+      : statements = new List.from(statements);
+
+  @override
+  TSStatement inject(TSStatement statement) {
+    return new TSBody(
+        statements: new List.from(statements)..insert(0, statement),
+        withBrackets: this.withBrackets,
+        newLine: this.newLine);
+  }
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -1232,13 +1249,25 @@ class TSCatchStatement extends TSStatement {
   String _exceptionName;
   TSType _exceptionType;
   TSStatement _body;
+  String stack;
 
-  TSCatchStatement(this._exceptionName, this._exceptionType, this._body);
+  TSCatchStatement(this._exceptionName, this._exceptionType, this._body, {this.stack: null});
 
   @override
   void writeCode(IndentingPrinter printer) {
     printer.write(' catch (${_exceptionName}) ');
-    printer.accept(_body);
+    TSStatement actualBody = _body;
+    if (this.stack != null) {
+      actualBody = _body.inject(new TSVariableDeclarations([
+        new TSVariableDeclaration(
+            stack,
+            new TSInvoke(new TSStaticRef(new TSSimpleType("core.DartStackTrace", true), "fromError"),
+                [new TSSimpleExpression(_exceptionName)])
+              ..asNew = true,
+            new TSSimpleType("core.DartStackTrace", true))
+      ]));
+    }
+    printer.accept(actualBody);
   }
 }
 
@@ -1427,7 +1456,7 @@ class TSVariableDeclaration extends TSNode {
   TSType _type;
   bool isField;
 
-  TSVariableDeclaration(this._name, this._initializer, this._type,{this.isField:false});
+  TSVariableDeclaration(this._name, this._initializer, this._type, {this.isField: false});
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -1437,7 +1466,7 @@ class TSVariableDeclaration extends TSNode {
       printer.accept(_type);
     }
     // Field initializers are handler differently (see extractFieldInitializers in TSClass)
-    if (_initializer != null&&!isField) {
+    if (_initializer != null && !isField) {
       printer.write(' = ');
       printer.accept(_initializer);
     }
