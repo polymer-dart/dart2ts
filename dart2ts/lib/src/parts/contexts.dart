@@ -155,7 +155,8 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
   @override
   TSStatement visitCatchClause(CatchClause node) {
     return new TSCatchStatement(
-        node.exceptionParameter.name, _context.typeManager.toTsType(node.exceptionType?.type), node.body.accept(this),stack:node.stackTraceParameter?.name);
+        node.exceptionParameter.name, _context.typeManager.toTsType(node.exceptionType?.type), node.body.accept(this),
+        stack: node.stackTraceParameter?.name);
   }
 
   @override
@@ -935,27 +936,6 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
   }
 }
 
-class TSNativeJs extends TSExpression {
-  String orig;
-  List<String> pieces;
-  List<TSExpression> expr;
-
-  TSNativeJs(this.orig, this.pieces, this.expr);
-
-  @override
-  void writeCode(IndentingPrinter printer) {
-    int i;
-    for (i = 0; i < pieces.length; i++) {
-      printer.write(pieces[i]);
-      if (i < expr.length) {
-        printer.accept(expr[i]);
-      }
-    }
-
-    printer.write("/* ${orig} */");
-  }
-}
-
 class ArgumentListCollector extends GeneralizingAstVisitor {
   Context _context;
 
@@ -1262,8 +1242,45 @@ class TopLevelDeclarationVisitor extends GeneralizingAstVisitor<Context> {
   }
 
   @override
+  Context visitEnumDeclaration(EnumDeclaration node) {
+    return new EnumContext(_fileContext, node);
+  }
+
+  @override
   Context visitTopLevelVariableDeclaration(TopLevelVariableDeclaration node) {
     return new TopLevelVariableContext(_fileContext, node);
+  }
+}
+
+class EnumContext extends ChildContext<TSFile, FileContext, TSEnumDeclaration> {
+  EnumDeclaration enumDeclaration;
+  TSEnumDeclaration tsEnumDeclaration;
+
+  EnumContext(FileContext parentContext, this.enumDeclaration) : super(parentContext);
+
+  @override
+  void translate() {
+    tsEnumDeclaration = new TSEnumDeclaration(enumDeclaration.name.name);
+
+    EnumDeclarationVisitor visitor = new EnumDeclarationVisitor(this);
+    enumDeclaration.accept(visitor);
+
+    parentContext.addDeclaration(tsEnumDeclaration);
+  }
+
+  void addEnumConstant(String name) {
+    tsEnumDeclaration.addConstant(name);
+  }
+}
+
+class EnumDeclarationVisitor extends GeneralizingAstVisitor {
+  EnumContext context;
+
+  EnumDeclarationVisitor(this.context);
+
+  @override
+  visitEnumConstantDeclaration(EnumConstantDeclaration node) {
+    context.addEnumConstant(node.name.name);
   }
 }
 

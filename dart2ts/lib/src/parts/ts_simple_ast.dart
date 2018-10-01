@@ -1245,6 +1245,27 @@ class TSDoWhileStatement extends TSStatement {
   }
 }
 
+class TSNativeJs extends TSExpression {
+  String orig;
+  List<String> pieces;
+  List<TSExpression> expr;
+
+  TSNativeJs(this.orig, this.pieces, this.expr);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    int i;
+    for (i = 0; i < pieces.length; i++) {
+      printer.write(pieces[i]);
+      if (i < expr.length) {
+        printer.accept(expr[i]);
+      }
+    }
+
+    printer.write("/* ${orig} */");
+  }
+}
+
 class TSCatchStatement extends TSStatement {
   String _exceptionName;
   TSType _exceptionType;
@@ -1268,6 +1289,31 @@ class TSCatchStatement extends TSStatement {
       ]));
     }
     printer.accept(actualBody);
+  }
+}
+
+class TSEnumDeclaration extends TSStatement {
+  List<String> constants = [];
+  String name;
+
+  TSEnumDeclaration(this.name);
+
+
+  @override
+  bool get needsSeparator => false;
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    printer.writeln("export enum ${name} {");
+    printer.indented((IndentingPrinter p) {
+      p.joinConsumers(constants.map((c) => (pw) => pw.write(c)), newLine: true);
+    });
+    printer.writeln();
+    printer.writeln("}");
+  }
+
+  void addConstant(String name) {
+    constants.add(name);
   }
 }
 
