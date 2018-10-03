@@ -1529,7 +1529,8 @@ class TSVariableDeclaration extends TSNode {
     }
   }
 
-  TSLazyVariableDeclaration asLazy([bool isStatic = true]) => new TSLazyVariableDeclaration(this, isStatic);
+  TSLazyVariableDeclaration asLazy({bool isStatic: true, bool isReadonly: false}) =>
+      new TSLazyVariableDeclaration(this, isStatic, isReadonly);
 
 // bool get needsSeparator => _initializer is! TSFunction;
 }
@@ -1537,8 +1538,9 @@ class TSVariableDeclaration extends TSNode {
 class TSLazyVariableDeclaration extends TSNode {
   static const PREFIX = r'__$';
   bool isStatic;
+  bool isReadonly;
   TSVariableDeclaration _decl;
-  TSLazyVariableDeclaration(this._decl, [this.isStatic = true]);
+  TSLazyVariableDeclaration(this._decl, [this.isStatic = true, this.isReadonly = false]);
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -1574,19 +1576,21 @@ class TSLazyVariableDeclaration extends TSNode {
     });
     printer.writeln("}");
 
-    printer.write("${st}set ${_decl._name}(${PREFIX}value");
-    if (_decl._type != null) {
-      printer.write(" : ");
-      printer.accept(_decl._type);
-    } else {
-      printer.write(" : any");
-    }
+    if (!isReadonly) {
+      printer.write("${st}set ${_decl._name}(${PREFIX}value");
+      if (_decl._type != null) {
+        printer.write(" : ");
+        printer.accept(_decl._type);
+      } else {
+        printer.write(" : any");
+      }
 
-    printer.writeln(")  { ");
-    printer.indented((printer) {
-      printer.writeln("this.${PREFIX}${_decl._name} = ${PREFIX}value;");
-    });
-    printer.writeln("}");
+      printer.writeln(")  { ");
+      printer.indented((printer) {
+        printer.writeln("this.${PREFIX}${_decl._name} = ${PREFIX}value;");
+      });
+      printer.writeln("}");
+    }
   }
 }
 
