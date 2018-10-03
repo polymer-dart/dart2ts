@@ -168,7 +168,7 @@ class TSClass extends TSNode {
             statics
                 ? new TSStaticRef(new TSSimpleType(name, true), v._name)
                 : new TSDotExpression(TSSimpleExpression.THIS, v._name),
-            v._initializer)));
+            v._initializer,"=")));
   }
 
   @override
@@ -630,7 +630,7 @@ class TSFunction extends TSExpression implements TSStatement {
       namedParameterType = withParameterCollector.namedType;
       initializers.addAll(withParameterCollector.fields?.map((f) => new TSExpressionStatement(
           new TSAssignamentExpression(
-              new TSDotExpression(new TSSimpleExpression('this'), f), new TSSimpleExpression(f)))));
+              new TSDotExpression(new TSSimpleExpression('this'), f), new TSSimpleExpression(f),"="))));
     }
   }
 
@@ -1464,13 +1464,14 @@ class TSBracketExpression extends TSExpression {
 class TSAssignamentExpression extends TSExpression {
   TSExpression _target;
   TSExpression _value;
+  String operator;
 
-  TSAssignamentExpression(this._target, this._value);
+  TSAssignamentExpression(this._target, this._value,this.operator);
 
   @override
   void writeCode(IndentingPrinter printer) {
     printer.accept(_target);
-    printer.write(' = ');
+    printer.write(' ${operator} ');
     printer.accept(_value);
   }
 }

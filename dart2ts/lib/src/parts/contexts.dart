@@ -277,6 +277,8 @@ bool isAssigningLeftSide(AstNode node) => (node.parent is AssignmentExpression) 
 
 Expression assigningValue(AstNode node) => (node.parent as AssignmentExpression).rightHandSide;
 
+TokenType assigningOp(AstNode node) => (node.parent as AssignmentExpression).operator.type;
+
 abstract class ExpressionVisitor implements AstVisitor<TSExpression> {
   factory ExpressionVisitor(Context context) => new CachingExpressionVisitor(context);
 }
@@ -705,7 +707,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   TSExpression _mayWrapInAssignament(AstNode node, TSExpression expre) {
     if (isAssigningLeftSide(node)) {
-      return new TSAssignamentExpression(expre, _context.processExpression(assigningValue(node)));
+      return new TSAssignamentExpression(expre, _context.processExpression(assigningValue(node)),assigningOp(node).lexeme);
     } else {
       return expre;
     }
@@ -1562,6 +1564,9 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
 
       _classDeclaration.withClause.mixinTypes.forEach((tn) {
         InterfaceType intf = tn.type;
+        if (intf==null || intf is! InterfaceType) {
+          return;
+        }
         intf.methods.forEach((me) {
           MethodElement lookedUp =
               _classDeclaration.element.methods.firstWhere((m) => m.name == me.name, orElse: () => null);
@@ -1958,7 +1963,7 @@ class InitializerCollector extends GeneralizingAstVisitor<TSStatement> {
   @override
   TSStatement visitConstructorFieldInitializer(ConstructorFieldInitializer node) {
     return new TSExpressionStatement(new TSAssignamentExpression(
-        new TSSimpleExpression('this.${node.fieldName.name}'), _context.processExpression(node.expression)));
+        new TSSimpleExpression('this.${node.fieldName.name}'), _context.processExpression(node.expression),"="));
   }
 }
 
