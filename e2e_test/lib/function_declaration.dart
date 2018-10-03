@@ -26,6 +26,8 @@ Function get topLevelSetter => null;
 
 Function topLevelVar;
 
+String topLevelWithInit = "ciao ${topLevelVar()}";
+
 functionInsideFunctions() {
   insideIt(x) {
     return 10;

@@ -60,15 +60,18 @@ class TSLibrary extends TSNode {
       });
     });
 
-    printer.writeln('export class _Properties {');
+    printer.writeln('export class ${MODULE_PROPERTIES} {');
     printer.indented((p) {
       topLevelGetterAndSetters.forEach((n) {
+        if (n is TSFunction) {
+          n.isStatic = true;
+        }
         printer.accept(n);
         printer.writeln();
       });
     });
     printer.writeln('}');
-    printer.writeln('export const ${MODULE_PROPERTIES} : _Properties = new _Properties();');
+    // printer.writeln('export const ${MODULE_PROPERTIES} : _Properties = new _Properties();');
 
     if (onModuleLoad.isNotEmpty) {
       printer.writeln('// On module load');
@@ -1526,7 +1529,65 @@ class TSVariableDeclaration extends TSNode {
     }
   }
 
+  TSLazyVariableDeclaration asLazy([bool isStatic = true]) => new TSLazyVariableDeclaration(this, isStatic);
+
 // bool get needsSeparator => _initializer is! TSFunction;
+}
+
+class TSLazyVariableDeclaration extends TSNode {
+  static const PREFIX = r'__$';
+  bool isStatic;
+  TSVariableDeclaration _decl;
+  TSLazyVariableDeclaration(this._decl, [this.isStatic = true]);
+
+  @override
+  void writeCode(IndentingPrinter printer) {
+    String st = isStatic ? "static " : "";
+    // First declare the internal property
+    printer.write("private ${st}${PREFIX}${_decl._name}");
+    if (_decl._type != null) {
+      printer.write(" : ");
+      printer.accept(_decl._type);
+    }
+    printer.writeln(";");
+
+    // Then the getter and setter
+    printer.write("${st}get ${_decl._name}()");
+    if (_decl._type != null) {
+      printer.write(" : ");
+      printer.accept(_decl._type);
+    }
+
+    printer.writeln(" { ");
+    printer.indented((printer) {
+      if (_decl._initializer != null) {
+        printer.writeln("if (this.${PREFIX}${_decl._name}===undefined) {");
+        printer.indented((printer) {
+          printer.write("this.${PREFIX}${_decl._name} = ");
+          printer.accept(_decl._initializer);
+          printer.writeln(";");
+        });
+
+        printer.writeln("}");
+      }
+      printer.writeln("return this.${PREFIX}${_decl._name};");
+    });
+    printer.writeln("}");
+
+    printer.write("${st}set ${_decl._name}(${PREFIX}value");
+    if (_decl._type != null) {
+      printer.write(" : ");
+      printer.accept(_decl._type);
+    } else {
+      printer.write(" : any");
+    }
+
+    printer.writeln(")  { ");
+    printer.indented((printer) {
+      printer.writeln("this.${PREFIX}${_decl._name} = ${PREFIX}value;");
+    });
+    printer.writeln("}");
+  }
 }
 
 class TSNodes extends TSNode {
@@ -1712,8 +1773,12 @@ class TSVariableDeclarations extends TSStatement {
     if (!isField) {
       printer.write('let ');
     }
-    printer.join(_declarations);
-    if (isField) {
+    if (isTopLevel) {
+      printer.join(_declarations.map((v) => v.asLazy(isTopLevel)));
+    } else {
+      printer.join(_declarations);
+    }
+    if (isField && !isTopLevel) {
       printer.write(';');
     }
   }

@@ -9,9 +9,8 @@ import * as lib3 from "./sample1";
 export var index : () => void = () : void =>  {
     lib3.main(new core.DartList.literal('ciao','ciao','bambina'));
 };
-export class _Properties {
+export class properties {
 }
-export const properties : _Properties = new _Properties();
 // On module load
 
 index();
