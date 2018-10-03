@@ -137,7 +137,7 @@ class TSClass extends TSNode {
   TSType superClass;
   bool topLevel;
   bool isInterface;
-  Iterable<TSTypeExpr> implemented;
+  List<TSTypeExpr> implemented = [];
   String library;
   bool declared;
   List<TSType> typeParameters;
@@ -145,13 +145,16 @@ class TSClass extends TSNode {
 
   bool isAbstract = false;
 
+  List<TSTypeExpr> mixins = [];
+
   TSClass(
       {this.topLevel: true,
       this.isInterface: false,
-      this.implemented,
+      implemented,
       this.library,
       this.declared: false,
-      this.typeParameters});
+      this.typeParameters})
+      : implemented = implemented ?? [];
 
   List<TSStatement> extractAllInitializerExpressions([bool statics = false]) {
     return new List.from(members
@@ -173,6 +176,12 @@ class TSClass extends TSNode {
     if (implemented != null && implemented.isNotEmpty) {
       printer.write('@Implements(');
       printer.joinConsumers(implemented.map((intf) => (p) => new TSTypeExpr.noTypeParams(intf._type).writeCode(p)));
+      printer.writeln(')');
+    }
+
+    if (mixins != null && mixins.isNotEmpty) {
+      printer.write('@With(');
+      printer.joinConsumers(mixins.map((intf) => (p) => new TSTypeExpr.noTypeParams(intf._type).writeCode(p)));
       printer.writeln(')');
     }
 
@@ -211,9 +220,9 @@ class TSClass extends TSNode {
       printer.write(' extends ');
       printer.accept(superClass);
     }
-    if (implemented != null && implemented.isNotEmpty) {
+    if (implemented.isNotEmpty || mixins.isNotEmpty) {
       printer.write(' implements ');
-      printer.join(implemented);
+      printer.join(new List.from([implemented, mixins].expand((i) => i)));
     }
     printer.writeln(' {');
     if (members != null)
@@ -1297,7 +1306,6 @@ class TSEnumDeclaration extends TSStatement {
   String name;
 
   TSEnumDeclaration(this.name);
-
 
   @override
   bool get needsSeparator => false;

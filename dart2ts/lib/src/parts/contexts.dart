@@ -603,7 +603,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
         }
       }
 
-      if (_context.currentClass != null && findMethod(currentClassType, node.name) == el && !hasTarget) {
+      if (_context.currentClass != null && findMethod(currentClassType, node.name) != null && !hasTarget) {
         if (el.isStatic) {
           tgt = new TSTypeExpr.noTypeParams(_context.typeManager.toTsType(currentClassType));
         } else {
@@ -1034,10 +1034,14 @@ MethodElement findMethod(InterfaceType tp, String methodName) {
   }
 
   if (tp.interfaces != null) {
-    return tp.interfaces.map((i) => findMethod(i, methodName)).firstWhere((m) => m != null, orElse: () => null);
+    m = tp.interfaces.map((i) => findMethod(i, methodName)).firstWhere((m) => m != null, orElse: () => null);
   }
 
-  return null;
+  if (m == null && tp.mixins != null) {
+    m = tp.mixins.map((i) => findMethod(i, methodName)).firstWhere((m) => m != null, orElse: () => null);
+  }
+
+  return m;
 }
 
 FieldElement findField(InterfaceType tp, String fieldName) {
@@ -1057,11 +1061,16 @@ FieldElement findField(InterfaceType tp, String fieldName) {
     }
   }
 
+  FieldElement fe;
   if (tp.interfaces != null) {
-    return tp.interfaces.map((i) => findField(i, fieldName)).firstWhere((m) => m != null, orElse: () => null);
+    fe = tp.interfaces.map((i) => findField(i, fieldName)).firstWhere((m) => m != null, orElse: () => null);
   }
 
-  return null;
+  if (fe == null && tp.mixins != null) {
+    fe = tp.mixins.map((i) => findField(i, fieldName)).firstWhere((m) => m != null, orElse: () => null);
+  }
+
+  return fe;
 }
 
 abstract class TopLevelContext<E extends TSNode> extends Context<E> {
@@ -1129,6 +1138,7 @@ class LibraryContext extends TopLevelContext<TSLibrary> {
             'defaultFactory',
             'DartClass',
             'Implements',
+            'With',
             'op',
             'Op',
             "OperatorMethods",
@@ -1524,6 +1534,7 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
     _tsClass.isAbstract = _classDeclaration.isAbstract;
     ClassMemberVisitor visitor = new ClassMemberVisitor(this, _tsClass, _declarationMode);
     _tsClass.name = _classDeclaration.name.name;
+    _tsClass.members = new List();
 
     // Add annotations
     _tsClass.annotations = new List()
@@ -1539,8 +1550,40 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
     }
 
     if (_classDeclaration.implementsClause != null) {
-      tsClass.implemented =
-          _classDeclaration.implementsClause.interfaces.map((t) => new TSTypeExpr(typeManager.toTsType(t.type)));
+      tsClass.implemented = new List.from(
+          _classDeclaration.implementsClause.interfaces.map((t) => new TSTypeExpr(typeManager.toTsType(t.type))));
+    }
+
+    if (_classDeclaration.withClause != null) {
+      tsClass.mixins = new List.from(
+          _classDeclaration.withClause.mixinTypes.map((t) => new TSTypeExpr(typeManager.toTsType(t.type))));
+
+      // Synthetize abstract methods and properties for mixins
+
+      _classDeclaration.withClause.mixinTypes.forEach((tn) {
+        InterfaceType intf = tn.type;
+        intf.methods.forEach((me) {
+          MethodElement lookedUp =
+              _classDeclaration.element.methods.firstWhere((m) => m.name == me.name, orElse: () => null);
+          if (lookedUp == null) {
+            // Add the missing abstract method
+            FormalParameterCollector parameterCollector = new FormalParameterCollector(this);
+            (me.computeNode().parameters?.parameters ?? []).forEach((p) {
+              p.accept(parameterCollector);
+            });
+
+            _tsClass.members.add(new TSFunction(typeManager,
+                name: me.name,
+                withParameterCollector: parameterCollector,
+                isAbstract: true,
+                asMethod: true,
+                returnType: typeManager.toTsType(me.returnType),
+                body: new TSBody(
+                    statements: [new TSExpressionStatement(new TSThrow(new TSStringLiteral("from mixin")))],
+                    withBrackets: false)));
+          }
+        });
+      });
     }
 
     if (_classDeclaration.typeParameters != null) {
@@ -1548,7 +1591,6 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
           .map((tp) => new TSTypeParameter(tp.name.name, typeManager.toTsType(tp.bound?.type))));
     }
 
-    _tsClass.members = new List();
     _classDeclaration.members.forEach((m) {
       m.accept(visitor);
     });

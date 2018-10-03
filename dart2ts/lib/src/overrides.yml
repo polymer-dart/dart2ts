@@ -26,6 +26,9 @@ overrides:
       EventSink:
         to:
           class: DartEventSink
+      Zone:
+        to:
+          class: DartZone
  "dart:collection":
    from: "sdk:core"
    classes:
@@ -41,9 +44,18 @@ overrides:
      HashSet:
        to:
          class: DartHashSet
+     UnmodifiableMapView:
+       to:
+         class: DartUnmodifiableMapView
  "dart:core":
     from: "sdk:core"
     classes:
+      StackTrace:
+        to:
+          class: DartStackTrace
+      Comparable:
+        to:
+          class: DartComparable
       DateTime:
         to:
           class: DartDateTime
