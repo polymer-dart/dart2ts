@@ -1704,7 +1704,7 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
     _context.tsClass.members.add(new TSVariableDeclarations(
       new List.from(node.fields.variables.map((v) => new TSVariableDeclaration(variableName(v),
           _context.processExpression(v.initializer), _context.typeManager.toTsType(node.fields.type?.type),
-          isField: true))),
+          isField: true, isConst: v.isConst))),
       isField: true,
       isStatic: node.isStatic,
       annotations: dartAnno,
@@ -1777,6 +1777,7 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
           [new TSVariableDeclaration(actualName, null, ctorType)],
           isStatic: true,
           isField: true,
+          isConstructor:true,
         ));
       }
     } else if (node.name != null) {
@@ -1896,6 +1897,7 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
         [new TSVariableDeclaration(node.name.name, null, ctorType)],
         isStatic: true,
         isField: true,
+        isConstructor:true
       ),
     ];
 

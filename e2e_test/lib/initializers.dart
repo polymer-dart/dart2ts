@@ -1,5 +1,5 @@
 class WithInit {
-  static String CONST="ciao";
+  static const String CONST="ciao";
   String field1= "ciao";
   int field2 = 2;
 

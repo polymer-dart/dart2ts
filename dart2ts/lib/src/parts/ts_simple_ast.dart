@@ -241,10 +241,12 @@ class TSClass extends TSNode {
     printer.writeln('}');
 
     // Add all static initializers
+    // NO MORE NEEDED IF WE USE LAZY :
+    /*
     extractAllInitializerExpressions(true).forEach((staticInit) {
       printer.accept(staticInit);
       printer.writeln(";");
-    });
+    });*/
   }
 }
 
@@ -1512,8 +1514,9 @@ class TSVariableDeclaration extends TSNode {
   TSExpression _initializer;
   TSType _type;
   bool isField;
+  bool isConst;
 
-  TSVariableDeclaration(this._name, this._initializer, this._type, {this.isField: false});
+  TSVariableDeclaration(this._name, this._initializer, this._type, {this.isField: false, this.isConst: false});
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -1529,8 +1532,7 @@ class TSVariableDeclaration extends TSNode {
     }
   }
 
-  TSLazyVariableDeclaration asLazy({bool isStatic: true, bool isReadonly: false}) =>
-      new TSLazyVariableDeclaration(this, isStatic, isReadonly);
+  TSLazyVariableDeclaration asLazy({bool isStatic: true}) => new TSLazyVariableDeclaration(this, isStatic, isConst);
 
 // bool get needsSeparator => _initializer is! TSFunction;
 }
@@ -1742,16 +1744,20 @@ class TSVariableDeclarations extends TSStatement {
   bool isConst;
   bool readonly;
   bool declared;
+  bool isConstructor;
   final List<TSAnnotation> annotations;
 
-  TSVariableDeclarations(this._declarations,
-      {this.isStatic: false,
-      this.isField: false,
-      this.isTopLevel: false,
-      this.isConst: false,
-      this.readonly: false,
-      this.declared: false,
-      this.annotations});
+  TSVariableDeclarations(
+    this._declarations, {
+    this.isStatic: false,
+    this.isField: false,
+    this.isTopLevel: false,
+    this.isConst: false,
+    this.readonly: false,
+    this.declared: false,
+    this.annotations,
+    this.isConstructor: false,
+  });
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -1762,28 +1768,32 @@ class TSVariableDeclarations extends TSStatement {
       });
     }
 
-    if (isStatic) {
-      printer.write('static ');
-    }
+    bool lazy = !isConstructor && (isTopLevel || (isStatic && isField));
 
-    if (readonly) {
-      printer.write('readonly ');
-    }
+    if (!lazy) {
+      if (isStatic) {
+        printer.write('static ');
+      }
 
-    if (isConst) {
-      printer.write('const ');
-    }
+      if (readonly) {
+        printer.write('readonly ');
+      }
 
-    if (!isField) {
-      printer.write('let ');
-    }
-    if (isTopLevel) {
-      printer.join(_declarations.map((v) => v.asLazy(isTopLevel)));
-    } else {
+      if (isConst) {
+        printer.write('const ');
+      }
+
+      if (!isField) {
+        printer.write('let ');
+      }
+
       printer.join(_declarations);
-    }
-    if (isField && !isTopLevel) {
-      printer.write(';');
+
+      if (isField) {
+        printer.write(';');
+      }
+    } else {
+      printer.join(_declarations.map((v) => v.asLazy()));
     }
   }
 }
