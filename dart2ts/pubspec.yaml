@@ -2,7 +2,7 @@ name: dart2ts
 author: Vittorio Ballestra <vittorio.ballestra@gmail.com>
 homepage: https://github.com/orgs/polymer-dart
 description: A better interface for TS
-version: 0.9.1-dev
+version: 1.0.0-rc.1
 dependencies:
   build: ">=0.11.2"
   build_runner: ">=0.6.1"
