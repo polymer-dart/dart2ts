@@ -20,7 +20,13 @@ The stronger it is the better dart2ts can understand it and translate it.
 
 # Details
 
-*Dart2TS* is a new approach of developing with Dart. You can write actual dart code and have
+*Dart2TS* is a new approach of developing with Dart. You can write actual dart code and have it translated
+to effective typescript code. From there you can continue writing in dart or switch to typescript.
+
+The main advantages of using dart2ts instead of the traditional `dart2js` or `dartdevc` compilers is a
+better integration with the javascript / typescript / nodejs ecosystem.
+
+You can end up writing nodejs packages or webpack application using dart.
 
 # What is working
 
@@ -38,6 +44,8 @@ If you want to help you're welcome. These are some of the things that needs some
 
  - improve code coverage
  - test
+ - improve incremental building
+ - port to dart2.0
 
 # Dart core libraries
 
