@@ -25,7 +25,7 @@ void main() {
       BuildResult buildResult = await dart2tsBuild(E2E_TEST_PROJECT_PATH, config);
       expect(buildResult.status, equals(BuildStatus.success), reason: "Build is ok");
       print("TS Build, now running webpack");
-      Process npm = await Process.start('npm', ['run', 'build'], workingDirectory: E2E_TEST_PROJECT_PATH);
+      Process npm = await Process.start('npm', ['run', 'dist'], workingDirectory: E2E_TEST_PROJECT_PATH);
       stdout.addStream(npm.stdout);
       stderr.addStream(npm.stderr);
       int exitCode = await npm.exitCode;

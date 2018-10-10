@@ -5,6 +5,7 @@
     "sourceMap": true,
     "declaration": true,
     "rootDir":"./",
+    "outDir":"./dist",
     "experimentalDecorators" :true,
     "moduleResolution": "node",
     "strict": true,
