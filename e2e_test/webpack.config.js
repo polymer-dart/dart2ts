@@ -11,11 +11,12 @@ module.exports = {
             'webpack-dev-server/client?http://localhost:9000',
             './lib/index'
         ],
-	test: [
+        test: [
             'webpack-dev-server/client?http://localhost:9000',
-	   './lib/exports'
-	]
-	
+            /*'./lib/exports'*/
+            'expose-loader?tests!./lib/exports'
+        ]
+
     },
     devtool: 'inline-source-map',
     devServer: {
@@ -26,8 +27,8 @@ module.exports = {
     output: {
         filename: '[name].js',
         chunkFilename: '[name].bundle.js',
-        
-        path: path.resolve(__dirname,  'dist')
+
+        path: path.resolve(__dirname, 'dist')
     },
     optimization: {
         splitChunks: {
@@ -46,14 +47,7 @@ module.exports = {
                 test: /\.ts?$/,
                 use: 'ts-loader',
                 exclude: /node_modules/
-            }/* to use marked as an exposed lib,
-            {
-                test: require.resolve('marked'),
-                use: [{
-                    loader: 'expose-loader',
-                    options: 'marked'
-                }]
-            }*/
+            }
         ]
     },
     resolve: {
@@ -63,16 +57,15 @@ module.exports = {
         new CleanWebpackPlugin(['dist'], { verbose: false, root: path.resolve(__dirname) }),
         new HtmlWebpackPlugin({
             template: './lib/tests.html',
-	    filename: "tests.html",
-            chunks: ['test','vendors~app~test'],
+            filename: "tests.html",
+            chunks: ['test', 'vendors~app~test'],
             inject: "body"
         }),
         new HtmlWebpackPlugin({
             template: './lib/index.html',
-            chunks: ['app','vendors~app~test'],
+            chunks: ['app', 'vendors~app~test'],
             inject: "body"
         }),
-        new webpack.IgnorePlugin(/vertx/),
         new webpack.HotModuleReplacementPlugin(),
     ]
 };

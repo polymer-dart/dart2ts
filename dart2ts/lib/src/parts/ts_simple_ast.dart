@@ -168,7 +168,8 @@ class TSClass extends TSNode {
             statics
                 ? new TSStaticRef(new TSSimpleType(name, true), v._name)
                 : new TSDotExpression(TSSimpleExpression.THIS, v._name),
-            v._initializer,"=")));
+            v._initializer,
+            "=")));
   }
 
   @override
@@ -630,7 +631,7 @@ class TSFunction extends TSExpression implements TSStatement {
       namedParameterType = withParameterCollector.namedType;
       initializers.addAll(withParameterCollector.fields?.map((f) => new TSExpressionStatement(
           new TSAssignamentExpression(
-              new TSDotExpression(new TSSimpleExpression('this'), f), new TSSimpleExpression(f),"="))));
+              new TSDotExpression(new TSSimpleExpression('this'), f), new TSSimpleExpression(f), "="))));
     }
   }
 
@@ -1383,21 +1384,43 @@ class TSInvoke extends TSExpression {
   Map<String, TSExpression> _namedArguments;
   bool asNew = false;
   List<TSType> typeParameters;
+  TSExpression methodTarget;
+  bool safeAccess;
+  TSExpression safeTarget;
 
-  TSInvoke(this._target, [this._arguments, this._namedArguments]);
+  TSInvoke(this._target, [this._arguments, this._namedArguments, this.methodTarget = null, this.safeAccess = false,this.safeTarget]);
 
   @override
   void writeCode(IndentingPrinter printer) {
-    if (asNew) {
-      printer.write("new ");
+    if (safeAccess) {
+      printer.write('((');
+      printer.accept(safeTarget);
+      printer.write(')=>');
+      printer.write('(!!');
+      printer.accept(safeTarget);
+      printer.write(")?");
+      printer.accept(_target);
+      if (typeParameters != null && typeParameters.length > 0) {
+        printer.write('<');
+        printer.join(typeParameters);
+        printer.write('>');
+      }
+      writeArguments(printer);
+      printer.write(":null)(");
+      printer.accept(methodTarget);
+      printer.write(")");
+    } else {
+      if (asNew) {
+        printer.write("new ");
+      }
+      printer.accept(_target);
+      if (typeParameters != null && typeParameters.length > 0) {
+        printer.write('<');
+        printer.join(typeParameters);
+        printer.write('>');
+      }
+      writeArguments(printer);
     }
-    printer.accept(_target);
-    if (typeParameters != null && typeParameters.length > 0) {
-      printer.write('<');
-      printer.join(typeParameters);
-      printer.write('>');
-    }
-    writeArguments(printer);
   }
 
   void writeArguments(IndentingPrinter printer) {
@@ -1420,16 +1443,26 @@ class TSInvoke extends TSExpression {
 class TSDotExpression extends TSExpression {
   TSExpression _expression;
   TSExpression _name;
+  bool safeAccess = false;
 
-  TSDotExpression(TSExpression expression, String name) : this.expr(expression, new TSSimpleExpression(name));
+  TSDotExpression(TSExpression expression, String name, {safeAccess: false})
+      : this.expr(expression, new TSSimpleExpression(name), safeAccess: safeAccess);
 
-  TSDotExpression.expr(this._expression, this._name);
+  TSDotExpression.expr(this._expression, this._name, {this.safeAccess: false});
 
   @override
   void writeCode(IndentingPrinter printer) {
-    printer.accept(_expression);
-    printer.write('.');
-    printer.accept(_name);
+    if (safeAccess) {
+      printer.write('((t)=>(!!t)?t.');
+      printer.accept(_name);
+      printer.write(':null)(');
+      printer.accept(_expression);
+      printer.write(')');
+    } else {
+      printer.accept(_expression);
+      printer.write('.');
+      printer.accept(_name);
+    }
   }
 }
 
@@ -1466,10 +1499,20 @@ class TSAssignamentExpression extends TSExpression {
   TSExpression _value;
   String operator;
 
-  TSAssignamentExpression(this._target, this._value,this.operator);
+  TSAssignamentExpression(this._target, this._value, this.operator);
 
   @override
   void writeCode(IndentingPrinter printer) {
+    if (operator == '??=') {
+      printer.accept(_target);
+      printer.write(' = ( ');
+      printer.accept(_target);
+      printer.write(' ) || ( ');
+      printer.accept(_value);
+      printer.write(' )');
+      return;
+    }
+
     printer.accept(_target);
     printer.write(' ${operator} ');
     printer.accept(_value);

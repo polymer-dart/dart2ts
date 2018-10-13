@@ -1,13 +1,11 @@
 @TestOn('vm')
 library my_test;
 
-import 'dart:convert';
 import 'package:build_runner/build_runner.dart';
 import 'package:test/test.dart';
 import 'package:dart2ts/dart2ts.dart';
 import 'dart:io';
 import 'package:path/path.dart' as path;
-import 'package:yaml/yaml.dart';
 
 final String E2E_TEST_PROJECT_PATH = path.canonicalize(path.absolute(path.joinAll(['..', 'e2e_test'])));
 

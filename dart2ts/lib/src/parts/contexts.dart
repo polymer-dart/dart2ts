@@ -447,7 +447,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
         (TypeManager.isNativeType(node.leftOperand.bestType) || !node.operator.isUserDefinableOperator)) {
       String op;
       if (node.operator.type == TokenType.QUESTION_QUESTION) {
-        op = '||';
+        return new TSBracketExpression(new TSBinaryExpression(leftExpression, '||', rightExpression));
       } else {
         op = node.operator.lexeme.toString();
       }
@@ -673,7 +673,9 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       targetType = node.target?.bestType;
     }
 
-    return asFieldAccess(_maybeWrapNativeCall(targetType, tsTarget), node.propertyName);
+    bool safeAccess = node.operator.type == TokenType.QUESTION_PERIOD;
+
+    return asFieldAccess(_maybeWrapNativeCall(targetType, tsTarget), node.propertyName, safeAccess: safeAccess);
   }
 
   CascadeExpression findCascadeExpression(AstNode node) {
@@ -701,19 +703,21 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
       return _mayWrapInAssignament(node, new TSDotExpression(new TSSimpleExpression(prefixStr), node.identifier.name));
     }
+
     return asFieldAccess(
         _maybeWrapNativeCall(node.prefix?.bestType, _context.processExpression(node.prefix)), node.identifier);
   }
 
   TSExpression _mayWrapInAssignament(AstNode node, TSExpression expre) {
     if (isAssigningLeftSide(node)) {
-      return new TSAssignamentExpression(expre, _context.processExpression(assigningValue(node)),assigningOp(node).lexeme);
+      return new TSAssignamentExpression(
+          expre, _context.processExpression(assigningValue(node)), assigningOp(node).lexeme);
     } else {
       return expre;
     }
   }
 
-  TSExpression asFieldAccess(TSExpression expression, SimpleIdentifier identifier) {
+  TSExpression asFieldAccess(TSExpression expression, SimpleIdentifier identifier, {bool safeAccess: false}) {
     // If it's actually a property
     if (identifier.bestElement != null) {
       // Check if we can apply an override
@@ -726,11 +730,11 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       if (identifier.bestElement is MethodElement) {
         return new TSInvoke(new TSDotExpression(new TSDotExpression(expression, name), 'bind'), [expression]);
       } else {
-        return _mayWrapInAssignament(identifier.parent, new TSDotExpression(expression, name));
+        return _mayWrapInAssignament(identifier.parent, new TSDotExpression(expression, name, safeAccess: safeAccess));
       }
     } else {
       String name = identifier.name;
-      return _mayWrapInAssignament(identifier.parent, new TSDotExpression(expression, name));
+      return _mayWrapInAssignament(identifier.parent, new TSDotExpression(expression, name, safeAccess: safeAccess));
       // Use the property accessor helper
       /*
       if (isAssigningLeftSide(identifier.parent)) {
@@ -827,6 +831,9 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     return new TSInvoke(new TSSimpleExpression(wrapper), [tsTarget])..asNew = true;
   }
 
+  static int _safeTargetCount = 1;
+  static TSExpression _newSafeTarget() => new TSSimpleExpression("_${_safeTargetCount++}_");
+
   @override
   TSExpression visitMethodInvocation(MethodInvocation node) {
     // Handle special case for string JS
@@ -861,17 +868,21 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     node.argumentList.accept(collector);
     Element elem = node.methodName.bestElement;
 
+    bool safeAccess = node.operator?.type == TokenType.QUESTION_PERIOD;
+    TSExpression safeTarget = safeAccess ? _newSafeTarget() : null;
+
+    // If we know the method element we can do a better job ...
     if (elem != null) {
       TSExpression method;
+      TSExpression target;
       if (node.isCascaded) {
-        TSExpression target;
         target = new TSSimpleExpression.cascadingTarget();
         Expression cascadeTarget = findCascadeTarget(node);
         method = _context.typeManager.checkMethod(cascadeTarget.bestType, node.methodName.name, target,
             orElse: () => new TSDotExpression(
-                _maybeWrapNativeCall(cascadeTarget.bestType, target), _context.typeManager.toTsName(elem)));
+                _maybeWrapNativeCall(cascadeTarget.bestType, safeAccess ? safeTarget : target),
+                _context.typeManager.toTsName(elem)));
       } else if (!TypeManager.isTopLevel(elem) && (elem.enclosingElement is ClassElement)) {
-        TSExpression target;
         DartType targetType = node.target?.bestType ?? (elem.enclosingElement as ClassElement).type;
         target = _context.processExpression(node.target) ??
             ((elem as ExecutableElement).isStatic
@@ -879,10 +890,12 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
                 : TSSimpleExpression.THIS);
 
         // Check for method substitution
-        method = _context.typeManager.checkMethod(targetType, node.methodName.name, target, orElse: () {
+        method = _context.typeManager.checkMethod(targetType, node.methodName.name, safeAccess ? safeTarget : target,
+            orElse: () {
           TSExpression res = _context.processExpression(node.methodName);
           if (node.target != null) {
-            res = new TSDotExpression.expr(_maybeWrapNativeCall(node.target?.bestType, target), res);
+            res = new TSDotExpression.expr(
+                _maybeWrapNativeCall(node.target?.bestType, safeAccess ? safeTarget : target), res);
           }
           return res;
         });
@@ -891,7 +904,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       }
 
       // Invoke normal method / function
-      return new TSInvoke(method, collector.arguments, collector.namedArguments);
+      return new TSInvoke(method, collector.arguments, collector.namedArguments, target, safeAccess, safeTarget);
     } else {
       TSExpression target;
       Expression targetExpression = node.target;
@@ -907,11 +920,12 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
       TSExpression res = _context.processExpression(node.methodName);
       if (node.target != null) {
-        res = new TSDotExpression.expr(_maybeWrapNativeCall(targetExpression.bestType, target), res);
+        res = new TSDotExpression.expr(
+            _maybeWrapNativeCall(targetExpression.bestType, safeAccess ? safeTarget : target), res);
       }
 
       //return new TSInvoke(method,)
-      return new TSInvoke(res, collector.arguments, collector.namedArguments);
+      return new TSInvoke(res, collector.arguments, collector.namedArguments, target, safeAccess, safeTarget);
       /*
       return new TSInvoke(
           new TSSimpleExpression('bare.invokeMethod'),
@@ -1564,7 +1578,7 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
 
       _classDeclaration.withClause.mixinTypes.forEach((tn) {
         InterfaceType intf = tn.type;
-        if (intf==null || intf is! InterfaceType) {
+        if (intf == null || intf is! InterfaceType) {
           return;
         }
         intf.methods.forEach((me) {
@@ -1782,7 +1796,7 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
           [new TSVariableDeclaration(actualName, null, ctorType)],
           isStatic: true,
           isField: true,
-          isConstructor:true,
+          isConstructor: true,
         ));
       }
     } else if (node.name != null) {
@@ -1898,12 +1912,8 @@ class ClassMemberVisitor extends GeneralizingAstVisitor {
         constructorType: ConstructorType.NAMED,
       ),
       // getter
-      new TSVariableDeclarations(
-        [new TSVariableDeclaration(node.name.name, null, ctorType)],
-        isStatic: true,
-        isField: true,
-        isConstructor:true
-      ),
+      new TSVariableDeclarations([new TSVariableDeclaration(node.name.name, null, ctorType)],
+          isStatic: true, isField: true, isConstructor: true),
     ];
 
     _context.tsClass.members.addAll(nodes);
@@ -1963,7 +1973,7 @@ class InitializerCollector extends GeneralizingAstVisitor<TSStatement> {
   @override
   TSStatement visitConstructorFieldInitializer(ConstructorFieldInitializer node) {
     return new TSExpressionStatement(new TSAssignamentExpression(
-        new TSSimpleExpression('this.${node.fieldName.name}'), _context.processExpression(node.expression),"="));
+        new TSSimpleExpression('this.${node.fieldName.name}'), _context.processExpression(node.expression), "="));
   }
 }
 
@@ -2062,6 +2072,7 @@ String operatorSymbol(TokenType tk, bool unary) {
       TokenType.SLASH: 'Op.DIVIDE',
       TokenType.TILDE_SLASH: 'Op.QUOTIENT',
       TokenType.EQ_EQ: 'Op.EQUALS',
+      TokenType.BANG_EQ: 'Op.NOT_EQUALS',
       TokenType.INDEX: 'Op.INDEX',
       TokenType.INDEX_EQ: 'Op.INDEX_ASSIGN',
       TokenType.LT: 'Op.LT',
@@ -2092,6 +2103,7 @@ String operatorMethodSymbol(TokenType tk, bool unary) {
       TokenType.SLASH: 'OperatorMethods.DIVIDE',
       TokenType.TILDE_SLASH: 'OperatorMethods.QUOTIENT',
       TokenType.EQ_EQ: 'OperatorMethods.EQUALS',
+      TokenType.BANG_EQ: 'OperatorMethods.NOT_EQUALS',
       TokenType.INDEX: 'OperatorMethods.INDEX',
       TokenType.INDEX_EQ: 'OperatorMethods.INDEX_EQ',
       TokenType.LT: 'OperatorMethods.LT',

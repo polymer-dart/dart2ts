@@ -5,8 +5,7 @@ import * as t3 from './test_anno';
 import * as test_map$ from './test_map';
 import * as test_strange from './test_strange';
 
-// Can I use a ts namespace to to this ?
-window["tests"] = {
+export default {
     testAsync: s1.testAsync,
     testCascading: t1.testCascading,
     test_js_anno: t2,
@@ -14,5 +13,4 @@ window["tests"] = {
     propAnno: t3.propAnno,
     test_map: test_map$,
     test_strange: test_strange
-
-};
+}
