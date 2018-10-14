@@ -784,11 +784,12 @@ class TSFunction extends TSExpression implements TSStatement {
           printer.write(' = ');
         }
 
-        if (isAsync && !isGenerator) {
-          String async = tm.namespace(getLibrary(currentContext, 'dart:async'));
-          writePrehamble(false);
-          printer.write(' => new ${async}.Future.fromPromise(( async ');
-        }
+      }
+
+      if (isAsync && !isGenerator) {
+        String async = tm.namespace(getLibrary(currentContext, 'dart:async'));
+        writePrehamble(false);
+        printer.write(' => new ${async}.Future.fromPromise(( async ');
       }
 
       if (declared) {

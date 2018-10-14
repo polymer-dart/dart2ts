@@ -1,4 +1,4 @@
-const { expect, assert } = require('chai');
+const {expect, assert} = require('chai');
 const puppeteer = require('puppeteer');
 const express = require('express');
 
@@ -228,32 +228,32 @@ describe('dart2ts', function () {
         });
 
         it('knows how to deal with nulls', async () => {
-            const reassigned = await page.evaluate(()=> window.tests.default.test_strange.test3());
+            const reassigned = await page.evaluate(() => window.tests.default.test_strange.test3());
             expect(reassigned).to.equal('value1');
         });
 
         it('knows how to deal with null objects', async () => {
-            const def = await page.evaluate(()=> window.tests.default.test_strange.test4(null));
+            const def = await page.evaluate(() => window.tests.default.test_strange.test4(null));
             expect(def).to.equal(-1);
         });
 
         it('knows how to deal with null objects two times', async () => {
-            const def = await page.evaluate(()=> window.tests.default.test_strange.test5(null));
+            const def = await page.evaluate(() => window.tests.default.test_strange.test5(null));
             expect(def).to.equal(-1);
         });
 
         it('knows how to deal with null that aren not null', async () => {
-            const def = await page.evaluate(()=> window.tests.default.test_strange.test5('hi'));
+            const def = await page.evaluate(() => window.tests.default.test_strange.test5('hi'));
             expect(def).to.equal(2);
         });
 
         it('knows how to deal with null objects two times2', async () => {
-            const def = await page.evaluate(()=> window.tests.default.test_strange.test6(null,null));
+            const def = await page.evaluate(() => window.tests.default.test_strange.test6(null, null));
             expect(def).to.be.null;
         });
 
         it('knows how to deal with null objects two times3', async () => {
-            const def = await page.evaluate(()=> window.tests.default.test_strange.test7(null,null));
+            const def = await page.evaluate(() => window.tests.default.test_strange.test7(null, null));
             expect(def).to.be.null;
         });
 
@@ -299,6 +299,19 @@ describe('dart2ts', function () {
             assert.isArray(testAwait);
             expect(testAwait).to.deep.equal([0, 1, 2, 3, 4]);
 
+        });
+
+        it('works with closures', async () => {
+            const result = await page.evaluate(() => window.tests.default.test_async_closure.doAsync('Ciao', 'Pippo'));
+
+            expect(result).to.equal("Ciao Pippo");
+        });
+
+        it('works with closures stream', async function () {
+            this.timeout(3500);
+            const result = await page.evaluate(() => window.tests.default.test_async_closure.testStream());
+
+            expect(result).to.equal("Hi Jhon,Hi Jhon,Hi Jhon");
         });
 
         it('test cascading', async () => {
@@ -372,7 +385,7 @@ describe('dart2ts', function () {
 
             //console.log('waiting for end of work');
 
-            await page.waitForSelector('div.endofwork', { timeout: 20000 });
+            await page.waitForSelector('div.endofwork', {timeout: 20000});
 
             let logs_snapshot = collected_logs.slice();
             expect(logs_snapshot).to.deep.equal(expected_logs);
@@ -383,7 +396,7 @@ describe('dart2ts', function () {
             //console.log('executing task');
             expect(createdTask).to.equal("finished");
 
-            await page.screenshot({ path: 'test/screens/item.png', fullscreen: true });
+            await page.screenshot({path: 'test/screens/item.png', fullscreen: true});
 
         });
 
