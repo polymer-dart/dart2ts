@@ -21,3 +21,10 @@ mini_html.ts
 *.js.map
 *.d.ts
 test_*.ts
+assign_op.ts
+async_methods.ts
+catch_with_stack.ts
+enum.ts
+initializers.ts
+mixin.ts
+nativewrapper.ts

@@ -1,7 +1,0 @@
-name: dart_sdk
-description: Dart2TS version of the dart_sdk
-version: 0.0.1
-dependencies:
- js: any
- dart2ts:
-  path: ../dart2ts
