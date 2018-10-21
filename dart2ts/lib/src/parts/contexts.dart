@@ -154,8 +154,9 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
 
   @override
   TSStatement visitCatchClause(CatchClause node) {
+
     return new TSCatchStatement(
-        node.exceptionParameter.name, _context.typeManager.toTsType(node.exceptionType?.type), node.body.accept(this),
+        node.exceptionParameter?.name, _context.typeManager.toTsType(node.exceptionType?.type), node.body.accept(this),
         stack: node.stackTraceParameter?.name);
   }
 

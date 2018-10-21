@@ -783,7 +783,6 @@ class TSFunction extends TSExpression implements TSStatement {
         if (!declared) {
           printer.write(' = ');
         }
-
       }
 
       if (isAsync && !isGenerator) {
@@ -1292,19 +1291,30 @@ class TSCatchStatement extends TSStatement {
 
   @override
   void writeCode(IndentingPrinter printer) {
-    printer.write(' catch (${_exceptionName}) ');
+    printer.writeln();
+    if (_exceptionType != null) {
+      printer.write('if (is(__error__,');
+      printer.accept(_exceptionType);
+      printer.write('))');
+    }
     TSStatement actualBody = _body;
+
+    if (_exceptionName != null) {
+      actualBody = _body.inject(new TSVariableDeclarations(
+          [new TSVariableDeclaration(_exceptionName, new TSSimpleExpression('__error__'), _exceptionType)]));
+    }
     if (this.stack != null) {
-      actualBody = _body.inject(new TSVariableDeclarations([
+      actualBody = actualBody.inject(new TSVariableDeclarations([
         new TSVariableDeclaration(
             stack,
             new TSInvoke(new TSStaticRef(new TSSimpleType("core.DartStackTrace", true), "fromError"),
-                [new TSSimpleExpression(_exceptionName)])
+                [new TSSimpleExpression('__error__')])
               ..asNew = true,
             new TSSimpleType("core.DartStackTrace", true))
       ]));
     }
     printer.accept(actualBody);
+    printer.writeln();
   }
 }
 
@@ -1344,7 +1354,12 @@ class TSTryStatement extends TSStatement {
     printer.write('try ');
     printer.accept(_body);
 
-    _catches.forEach((c) => printer.accept(c));
+    if (_catches != null && _catches.isNotEmpty) {
+      printer.writeln(' catch (__error__) {');
+
+      printer.indented((IndentingPrinter p) => p.join(_catches, delim: '', newLine: true));
+      printer.write('}');
+    }
 
     if (_finallyBlock != null) {
       printer.write((' finally '));
@@ -1389,7 +1404,8 @@ class TSInvoke extends TSExpression {
   bool safeAccess;
   TSExpression safeTarget;
 
-  TSInvoke(this._target, [this._arguments, this._namedArguments, this.methodTarget = null, this.safeAccess = false,this.safeTarget]);
+  TSInvoke(this._target,
+      [this._arguments, this._namedArguments, this.methodTarget = null, this.safeAccess = false, this.safeTarget]);
 
   @override
   void writeCode(IndentingPrinter printer) {

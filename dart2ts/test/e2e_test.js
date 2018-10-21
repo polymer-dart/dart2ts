@@ -336,6 +336,30 @@ describe('dart2ts', function () {
             expect(testCascading).equals('Hi');
         });
 
+        it('try_catch', async () => {
+            const x = await page.evaluate(() => {
+                return {
+                    t1: window.tests.default.try_catch.doSomethingBad(),
+                    t1f: window.tests.default.try_catch.properties.doSomethingBadFinally,
+                    t2: window.tests.default.try_catch.doSomethingBad('a'),
+                    t2f: window.tests.default.try_catch.properties.doSomethingBadFinally,
+                    t3: window.tests.default.try_catch.doSomethingElseNoCatch(),
+                    t3f: window.tests.default.try_catch.properties.doSomethingElseNoCatchFinally,
+                    t4: window.tests.default.try_catch.doSomethingElseNoCatch('a'),
+                    t4f: window.tests.default.try_catch.properties.doSomethingElseNoCatchFinally
+                };
+            });
+
+            expect(x.t1).equal('Null string cannot be accessed:');
+            expect(x.t1f).equal(1);
+            expect(x.t2).equal('1');
+            expect(x.t2f).equal(2);
+            expect(x.t3).equal(-2);
+            expect(x.t3f).equal(1);
+            expect(x.t4).equal(1);
+            expect(x.t4f).equal(2);
+        });
+
         xit('test js anno', async () => {
             const MyClass = await page.evaluate(() => {
                 return window.tests.default.test_js_anno.MyClass;

@@ -18,6 +18,7 @@ import 'package:path/path.dart' as _P;
 import 'package:resource/resource.dart' as res;
 import 'package:source_gen/source_gen.dart';
 import 'package:yaml/yaml.dart';
+import 'dart:io' as io;
 
 part 'package:dart2ts/src/parts/contexts.dart';
 
@@ -48,6 +49,7 @@ class Dart2TsBuildCommand extends Command<bool> {
       ..addOption('sdk-prefix', defaultsTo: '@dart2ts/dart', help: 'The absolute module prefix')
       ..addOption('module-prefix', defaultsTo: '@dart2ts.packages', help: 'The absolute module prefix')
       ..addOption('module-suffix', defaultsTo: '', help: 'The modules suffix')
+      ..addOption('with-overrides', abbr: 'o', help: 'Overrides file to use')
       ..addFlag('watch', abbr: 'w', defaultsTo: false, help: 'watch for changes');
   }
 
@@ -55,11 +57,20 @@ class Dart2TsBuildCommand extends Command<bool> {
   run() {
     PackageGraph graph = new PackageGraph.forPath(argResults['dir']);
 
+    Overrides overrides;
+    if (argResults['with-overrides'] != null) {
+      YamlDocument doc = loadYamlDocument(new io.File(argResults['sdk-prefix']).readAsStringSync());
+      overrides = new Overrides(doc);
+    } else {
+      overrides = null;
+    }
+
     List<BuildAction> actions = [
       new BuildAction(
           new Dart2TsBuilder(new Config(
               modulePrefix: argResults['module-prefix'],
               moduleSuffix: argResults['module-suffix'],
+              overrides: overrides,
               sdkPrefix: argResults['sdk-prefix'])),
           graph.root.name,
           inputs: ['lib/**.dart', 'web/**.dart'])

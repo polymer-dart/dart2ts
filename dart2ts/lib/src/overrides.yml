@@ -29,30 +29,201 @@ overrides:
       Zone:
         to:
           class: DartZone
+      ZoneSpecification:
+        to:
+          class: DartZoneSpecification
+      Timer:
+        to:
+          class: DartTimer
  "dart:collection":
    from: "sdk:core"
    classes:
-     ListMixin:
-       to:
-         class: DartListMixin
-     ListBase:
-       to:
-         class: DartListBase
-     HashMap:
-       to:
-         class: DartHashMap
-     HashSet:
-       to:
-         class: DartHashSet
-     UnmodifiableMapView:
+      ListMixin:
+         to:
+           class: DartListMixin
+      ListBase:
+         to:
+           class: DartListBase
+      HashMap:
+         to:
+           class: DartHashMap
+      HashSet:
+         to:
+           class: DartHashSet
+      UnmodifiableMapView:
        to:
          class: DartUnmodifiableMapView
+      EfficientLengthIterable:
+        to:
+          class: DartEfficientLengthIterable
+      SetMixin:
+        to:
+          class: DartSetMixin
+      AbstractMap:
+        to:
+          class: AbstractDartMap
+      ConstantMap:
+        to:
+          class: DartConstantMap
+      LinkedHashSet:
+        to:
+          class: DartLinkedHashSet
+      LinkedHashMap:
+        to:
+          class: DartLinkedHashMap
+      ArrayIterator:
+        to:
+          class: DartArrayIterator
+      ConstantMapView:
+        to:
+          class: DartConstantMapView
+      EfficientLengthMappedIterable:
+        to:
+          class: DartEfficientLengthMappedIterable
+      Error:
+        to:
+          class: DartError
+      Es6LinkedHashMap:
+        to:
+          class: DartEs6LinkedHashMap
+      ExpandIterable:
+        to:
+          class: DartExpandIterable
+      ExpandIterator:
+        to:
+          class: DartExpandIterator
+      IterableBase:
+        to:
+          class: DartIterableBase
+      IterableMixin:
+        to:
+          class: DartIterableMixin
+      JsLinkedHashMap:
+        to:
+          class: DartJsLinkedHashMap
+      LinkedHashMapKeyIterable:
+        to:
+          class: DartLinkedHashMapKeyIterable
+      LinkedHashMapKeyIterator:
+        to:
+          class: DartLinkedHashMapKeyIterator
+      ListIterator:
+        to:
+          class: DartListIterator
+      ListMapView:
+        to:
+          class: DartListMapView
+      MapBase:
+        to:
+          class: DartMapBase
+      MapMixin:
+        to:
+          class: DartMapMixin
+      MappedIterable:
+        to:
+          class: DartMappedIterable
+      MappedListIterable:
+        to:
+          class: DartMappedListIterable
+      Primitives:
+        to:
+          class: DartPrimitives
+      Random:
+        to:
+          class: DartRandom
+      ReversedListIterable:
+        to:
+          class: DartReversedListIterable
+      FixedLengthListMixin:
+        to:
+          class: DartFixedLengthListMixin
+      SetBase:
+        to:
+          class: DartSetBase
+      SkipIterable:
+        to:
+          class: DartSkipIterable
+      SkipWhileIterable:
+        to:
+          class: DartSkipWhileIterable
+      Sort:
+        to:
+          class: DartSort
+      SubListIterable:
+        to:
+          class: DartSubListIterable
+      TakeIterable:
+        to:
+          class: DartTakeIterable
+      TakeWhileIterable:
+        to:
+          class: DartTakeWhileIterable
+      UnmodifiableListBase:
+        to:
+          class: DartUnmodifiableListBase
+      UnmodifiableListMixin:
+        to:
+          class: DartUnmodifiableListMixin
+      WhereIterable:
+        to:
+          class: DartWhereIterable
+      WhereIterator:
+        to:
+          class: DartWhereIterator
+      Object:
+        to:
+          class: DartObject
+      IntegerDivisionByZeroException:
+        to:
+          class: DartIntegerDivisionByZeroException
+      Stopwatch:
+        to:
+          class: DartStopwatch
+      Match:
+        to:
+          class: DartMatch
+      BidirectionalIterator:
+        to:
+          class: DartBidirectionalIterator
+      String:
+        to:
+          class: DartString
+      StringMatch:
+        to:
+          class: DartStringMatch
+      Runes:
+        to:
+          class: DartRunes
+      RuneIterator:
+        to:
+          class: DartRuneIterator
+      CodeUnits:
+        to:
+          class: DartCodeUnits
+      Number:
+        to:
+          class: DartNumber
+      Int:
+        to:
+          class: DartInt
+      Double:
+        to:
+          class: DartDouble
+      toIterable:
+        to:
+          class: toDartIterable
+      MapView:
+        to:
+          class: DartMapView
  "dart:core":
     from: "sdk:core"
     classes:
       StackTrace:
         to:
           class: DartStackTrace
+      ExceptionAndStackTrace:
+        to:
+          class: DartExceptionAndStackTrace
       Comparable:
         to:
           class: DartComparable
@@ -108,3 +279,157 @@ overrides:
       Sink:
         to:
           class: DartSink
+
+      EfficientLengthIterable:
+        to:
+          class: DartEfficientLengthIterable
+      SetMixin:
+        to:
+          class: DartSetMixin
+      AbstractMap:
+        to:
+          class: AbstractDartMap
+      ConstantMap:
+        to:
+          class: DartConstantMap
+      HashSet:
+        to:
+          class: DartHashSet
+      LinkedHashSet:
+        to:
+          class: DartLinkedHashSet
+      LinkedHashMap:
+        to:
+          class: DartLinkedHashMap
+      ArrayIterator:
+        to:
+          class: DartArrayIterator
+      ConstantMapView:
+        to:
+          class: DartConstantMapView
+      EfficientLengthMappedIterable:
+        to:
+          class: DartEfficientLengthMappedIterable
+      Error:
+        to:
+          class: DartError
+      Es6LinkedHashMap:
+        to:
+          class: DartEs6LinkedHashMap
+      ExpandIterable:
+        to:
+          class: DartExpandIterable
+      ExpandIterator:
+        to:
+          class: DartExpandIterator
+      IterableBase:
+        to:
+          class: DartIterableBase
+      IterableMixin:
+        to:
+          class: DartIterableMixin
+      JsLinkedHashMap:
+        to:
+          class: DartJsLinkedHashMap
+      LinkedHashMapKeyIterable:
+        to:
+          class: DartLinkedHashMapKeyIterable
+      LinkedHashMapKeyIterator:
+        to:
+          class: DartLinkedHashMapKeyIterator
+      ListIterator:
+        to:
+          class: DartListIterator
+      ListMapView:
+        to:
+          class: DartListMapView
+      MapBase:
+        to:
+          class: DartMapBase
+      MapMixin:
+        to:
+          class: DartMapMixin
+      MappedIterable:
+        to:
+          class: DartMappedIterable
+      MappedListIterable:
+        to:
+          class: DartMappedListIterable
+      Primitives:
+        to:
+          class: DartPrimitives
+      Random:
+        to:
+          class: DartRandom
+      ReversedListIterable:
+        to:
+          class: DartReversedListIterable
+      FixedLengthListMixin:
+        to:
+          class: DartFixedLengthListMixin
+      SetBase:
+        to:
+          class: DartSetBase
+      SkipIterable:
+        to:
+          class: DartSkipIterable
+      SkipWhileIterable:
+        to:
+          class: DartSkipWhileIterable
+      Sort:
+        to:
+          class: DartSort
+      SubListIterable:
+        to:
+          class: DartSubListIterable
+      TakeIterable:
+        to:
+          class: DartTakeIterable
+      TakeWhileIterable:
+        to:
+          class: DartTakeWhileIterable
+      UnmodifiableListBase:
+        to:
+          class: DartUnmodifiableListBase
+      UnmodifiableListMixin:
+        to:
+          class: DartUnmodifiableListMixin
+      UnmodifiableMapView:
+        to:
+          class: DartUnmodifiableMapView
+      WhereIterable:
+        to:
+          class: DartWhereIterable
+      WhereIterator:
+        to:
+          class: DartWhereIterator
+      IntegerDivisionByZeroException:
+        to:
+          class: DartIntegerDivisionByZeroException
+      Stopwatch:
+        to:
+          class: DartStopwatch
+      Match:
+        to:
+          class: DartMatch
+      BidirectionalIterator:
+        to:
+          class: DartBidirectionalIterator
+      StringMatch:
+        to:
+          class: DartStringMatch
+      Runes:
+        to:
+          class: DartRunes
+      RuneIterator:
+        to:
+          class: DartRuneIterator
+      CodeUnits:
+        to:
+          class: DartCodeUnits
+      toIterable:
+        to:
+          class: toDartIterable
+      MapView:
+        to:
+          class: DartMapView

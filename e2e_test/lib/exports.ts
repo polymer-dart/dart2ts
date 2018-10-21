@@ -5,6 +5,7 @@ import * as t3 from './test_anno';
 import * as test_map$ from './test_map';
 import * as test_strange from './test_strange';
 import * as test_async_closure from './test_async_closure';
+import * as try_catch from './try_catch';
 
 export default {
     testAsync: s1.testAsync,
@@ -14,5 +15,6 @@ export default {
     propAnno: t3.propAnno,
     test_map: test_map$,
     test_strange: test_strange,
-    test_async_closure: test_async_closure
+    test_async_closure: test_async_closure,
+    try_catch: try_catch
 }
