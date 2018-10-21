@@ -17,6 +17,7 @@ field_array.ts
 test_stream.ts
 method_ref.ts
 mini_html.ts
+try_catch.ts
 *.js
 *.js.map
 *.d.ts
