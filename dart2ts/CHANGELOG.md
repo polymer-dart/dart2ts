@@ -1,3 +1,6 @@
+### v0.9.13
+ - fixed string escape nasty bug
+
 ### v0.9.12
  - better support for try catch with type clause
  - completed dart type name mapping
