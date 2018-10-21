@@ -525,7 +525,7 @@ class TSStringLiteral extends TSExpression {
   @override
   void writeCode(IndentingPrinter printer) {
     String q = isSingleQuoted ? "'" : '"';
-    String v = isSingleQuoted ? stringValue.replaceAll('\'', '\\') : stringValue.replaceAll('"', '\\"');
+    String v = isSingleQuoted ? stringValue.replaceAll('\'', '\\\'') : stringValue.replaceAll('"', '\\"');
     printer.write(q);
     printer.write(v);
     printer.write(q);
@@ -1041,6 +1041,7 @@ class TSIndexExpression extends TSExpression {
 class TSList extends TSExpression {
   final List<TSExpression> _elements;
   final TSType _tsType;
+  bool indent=false;
 
   TSList(this._elements, [this._tsType]);
 
@@ -1052,7 +1053,12 @@ class TSList extends TSExpression {
       printer.write('>');
     }
     printer.write('[');
-    printer.join(_elements);
+    if (indent) {
+      printer.writeln();
+      printer.indented((IndentingPrinter p)=>p.join(_elements,newLine:true));
+    } else {
+      printer.join(_elements);
+    }
     printer.write(']');
   }
 }

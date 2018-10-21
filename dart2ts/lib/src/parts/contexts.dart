@@ -366,7 +366,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     return new TSInvoke(new TSStaticRef(_context.typeManager.toTsType(dartMap), 'literal'), [
       new TSList(node.entries.map((entry) {
         return new TSList([_context.processExpression(entry.key), _context.processExpression(entry.value)]);
-      }).toList())
+      }).toList())..indent=true
     ])
       ..asNew = true;
   }

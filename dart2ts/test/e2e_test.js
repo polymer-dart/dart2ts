@@ -102,7 +102,7 @@ const expected_logs = [
     'INDEX> (do) I = 7',
     'INDEX> (do) I = 8',
     'INDEX> (do) I = 9',
-    'INDEX> Its CIAO!',
+    'INDEX> It\'s CIAO!',
     'INDEX> PI : [3]',
     'INDEX> PI : [1]',
     'INDEX> PI : [4]',
@@ -358,6 +358,19 @@ describe('dart2ts', function () {
             expect(x.t3f).equal(1);
             expect(x.t4).equal(1);
             expect(x.t4f).equal(2);
+        });
+
+        it('unicode',async () => {
+            const prop1 = await page.evaluate(() => {
+                return window.tests.default.test_unicode.properties.string4
+            });
+            const prop3 = await page.evaluate(() => {
+                return window.tests.default.test_unicode.properties.string3
+            });
+
+            expect(prop1).equal('HH \'h\' mm \'min\' ss \'s\' zzzz');
+            expect(prop3).equal('\u09E6');
+
         });
 
         xit('test js anno', async () => {
