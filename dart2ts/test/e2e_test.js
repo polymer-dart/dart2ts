@@ -336,6 +336,14 @@ describe('dart2ts', function () {
             expect(testCascading).equals('Hi');
         });
 
+        it('works with init', async () => {
+            const r = await page.evaluate(()=> {
+                return window.tests.default.test_init.properties.x.met();
+            });
+
+            expect(r).to.equal(7);
+        });
+
         it('try_catch', async () => {
             const x = await page.evaluate(() => {
                 return {

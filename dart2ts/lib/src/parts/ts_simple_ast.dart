@@ -224,9 +224,9 @@ class TSClass extends TSNode {
       printer.write(' extends ');
       printer.accept(superClass);
     }
-    if (implemented.isNotEmpty || mixins.isNotEmpty) {
+    if (implemented.isNotEmpty /* || mixins.isNotEmpty*/) {
       printer.write(' implements ');
-      printer.join(new List.from([implemented, mixins].expand((i) => i)));
+      printer.join(new List.from([implemented/*, mixins*/].expand((i) => i)));
     }
     printer.writeln(' {');
     if (members != null)
@@ -1838,26 +1838,41 @@ class TSVariableDeclarations extends TSStatement {
     bool lazy = !isConstructor && (isTopLevel || (isStatic && isField));
 
     if (!lazy) {
-      if (isStatic) {
-        printer.write('static ');
-      }
 
-      if (readonly) {
-        printer.write('readonly ');
-      }
-
-      if (isConst) {
-        printer.write('const ');
-      }
 
       if (!isField) {
         printer.write('let ');
       }
 
-      printer.join(_declarations);
+      String comma="";
 
-      if (isField) {
-        printer.write(';');
+      for (TSVariableDeclaration e in _declarations) {
+        if (isStatic) {
+          printer.write('static ');
+        }
+
+        if (readonly) {
+          printer.write('readonly ');
+        }
+
+        if (isConst) {
+          printer.write('const ');
+        }
+
+
+        if (!isField) {
+          printer.write(comma);
+          comma=", ";
+        }
+
+        printer.accept(e);
+
+
+        //printer.join(_declarations, delim: isField ? ';' : ',', newLine: isField);
+
+        if (isField) {
+          printer.writeln(';');
+        }
       }
     } else {
       printer.join(_declarations.map((v) => v.asLazy()));

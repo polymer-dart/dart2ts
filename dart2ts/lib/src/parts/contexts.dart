@@ -154,7 +154,6 @@ class StatementVisitor extends GeneralizingAstVisitor<TSStatement> {
 
   @override
   TSStatement visitCatchClause(CatchClause node) {
-
     return new TSCatchStatement(
         node.exceptionParameter?.name, _context.typeManager.toTsType(node.exceptionType?.type), node.body.accept(this),
         stack: node.stackTraceParameter?.name);
@@ -366,7 +365,8 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     return new TSInvoke(new TSStaticRef(_context.typeManager.toTsType(dartMap), 'literal'), [
       new TSList(node.entries.map((entry) {
         return new TSList([_context.processExpression(entry.key), _context.processExpression(entry.value)]);
-      }).toList())..indent=true
+      }).toList())
+        ..indent = true
     ])
       ..asNew = true;
   }
@@ -1618,6 +1618,18 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
     // Add initializers to each constructor.
 
     List<TSStatement> thisInitializers = _tsClass.extractAllInitializerExpressions();
+
+    if (!_declarationMode&&!tsClass.members.any((m) => m is TSFunction && m.constructorType != null)) {
+      // Add default constructor if not defined
+      tsClass.members.add(new TSFunction(typeManager,
+          name: tsClass.name,
+          constructorType: ConstructorType.DEFAULT,
+          initializers: [],
+          parameters: [],
+          namedParameters: {},
+          body: new TSBody(statements: [], withBrackets: false),
+          callSuper: _classDeclaration.extendsClause!=null /* (_classDeclaration.element.type).superclass != currentContext.typeProvider.objectType*/));
+    }
 
     if (thisInitializers.isNotEmpty) {
       tsClass.members
