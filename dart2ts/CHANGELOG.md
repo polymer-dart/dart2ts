@@ -4,6 +4,7 @@
  - better ordering of emitted declaration
  - missing not operator
  - better handling of constructors for native types (string)
+ - prefix and postfix operator not user definable
 
 ### v0.9.13
  - fixed string escape nasty bug

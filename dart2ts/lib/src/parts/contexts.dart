@@ -427,7 +427,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitPostfixExpression(PostfixExpression node) {
-    if (TypeManager.isNativeType(node.operand.bestType)) {
+    if (TypeManager.isNativeType(node.operand.bestType) || true /*postfix op not user definable */) {
       return new TSPostfixOperandExpression(node.operator.lexeme, _context.processExpression(node.operand));
     }
     return makeOperatorExpression(node.operator.type, [_context.processExpression(node.operand)]);
