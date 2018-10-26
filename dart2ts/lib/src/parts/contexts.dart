@@ -387,10 +387,12 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitPrefixExpression(PrefixExpression node) {
-    if (TypeManager.isNativeType(node.operand.bestType)) {
+    if (TypeManager.isNativeType(node.operand.bestType) || true /* <- Prefix ops aren't user definables */) {
       return new TSPrefixOperandExpression(node.operator.lexeme, _context.processExpression(node.operand));
     }
-    return makeOperatorExpression(node.operator.type, [_context.processExpression(node.operand)]);
+    TSExpression base = _context.processExpression(node.operand);
+    return new TSBracketExpression(
+        new TSAssignamentExpression(base, makeOperatorExpression(node.operator.type, [base]), '='));
     //return handlePrefixSuffixExpression(node.operand, node.operator, OperatorType.PREFIX);
   }
 
@@ -808,11 +810,25 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       if ((ctor.name?.isEmpty ?? true)) {
         target = new TSTypeRef(myType);
       } else {
-        target = new TSStaticRef(myType, ctor.name);
+        TSExpression tgt =
+            _maybeWrapNativeCall(ctor.enclosingElement.type, new TSTypeExpr.noTypeParams(myType), isStatic: true);
+        target = new TSDotExpression(tgt, ctor.name);
       }
 
-      return new TSInvoke(target, collector.arguments, collector.namedArguments)..asNew = asNew;
+      TSExpression fin = new TSInvoke(target, collector.arguments, collector.namedArguments)..asNew = asNew;
+      // Native types constructor should return a native type (i.e. : call valueOf after creation)
+      if (_needValueOf(ctor.enclosingElement.type)) {
+        fin = new TSInvoke(new TSDotExpression(fin, 'valueOf'), []);
+      }
+      return fin;
     });
+  }
+
+  static bool _needValueOf(DartType targetType) {
+    return ((currentContext.typeProvider.numType == targetType) ||
+        (currentContext.typeProvider.intType == targetType) ||
+        (currentContext.typeProvider.doubleType == targetType) ||
+        (currentContext.typeProvider.stringType == targetType));
   }
 
   TSExpression _maybeWrapNativeCall(DartType targetType, TSExpression tsTarget, {bool isStatic: false}) {
@@ -2119,6 +2135,7 @@ String operatorSymbol(TokenType tk, bool unary) {
       TokenType.MINUS: 'Op.NEG',
       TokenType.TILDE: 'Op.BITNEG',
       TokenType.BANG: 'Op.NOT',
+      TokenType.PLUS_PLUS: "Op.INCR"
     }[tk];
   } else {
     return <TokenType, String>{
