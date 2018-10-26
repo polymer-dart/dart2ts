@@ -2118,6 +2118,7 @@ String operatorSymbol(TokenType tk, bool unary) {
     return <TokenType, String>{
       TokenType.MINUS: 'Op.NEG',
       TokenType.TILDE: 'Op.BITNEG',
+      TokenType.BANG: 'Op.NOT',
     }[tk];
   } else {
     return <TokenType, String>{
@@ -2149,6 +2150,7 @@ String operatorMethodSymbol(TokenType tk, bool unary) {
     return <TokenType, String>{
       TokenType.MINUS: 'OperatorMethods.NEGATE',
       TokenType.TILDE: 'OperatorMethods.COMPLEMENT',
+      TokenType.BANG: 'OperatorMethods.NOT',
     }[tk];
   } else {
     return <TokenType, String>{

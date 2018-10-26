@@ -12,7 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@dart2ts/dart": "^0.1.17",
+    "@dart2ts/dart": "^0.1.18",
     "reflect-metadata": "^0.1.12"
   },
   "devDependencies": {
