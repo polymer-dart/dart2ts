@@ -21,7 +21,9 @@ class TSLibrary extends TSNode {
 
   Set<String> exports = new Set();
 
-  TSLibrary(this._name) {}
+  int Function(TSNode n1, TSNode n2) order;
+
+  TSLibrary(this._name, {this.order}) {}
 
   @override
   void writeCode(IndentingPrinter printer) {
@@ -41,8 +43,10 @@ class TSLibrary extends TSNode {
 
     List<String> exported = [];
     List<TSNode> topLevelGetterAndSetters = [];
-    _children.forEach((f) {
-      f._declarations.forEach((d) {
+
+    new List.from(_children.expand((f) => f._declarations))
+      ..sort(order)
+      ..forEach((d) {
         if ((d is TSFunction && (d.isGetter || d.isSetter)) || d is TSVariableDeclarations) {
           topLevelGetterAndSetters.add(d);
         } else {
@@ -58,7 +62,6 @@ class TSLibrary extends TSNode {
           exported.add(d.name);
         }
       });
-    });
 
     printer.writeln('export class ${MODULE_PROPERTIES} {');
     printer.indented((p) {
@@ -226,7 +229,7 @@ class TSClass extends TSNode {
     }
     if (implemented.isNotEmpty /* || mixins.isNotEmpty*/) {
       printer.write(' implements ');
-      printer.join(new List.from([implemented/*, mixins*/].expand((i) => i)));
+      printer.join(new List.from([implemented /*, mixins*/].expand((i) => i)));
     }
     printer.writeln(' {');
     if (members != null)
@@ -1041,7 +1044,7 @@ class TSIndexExpression extends TSExpression {
 class TSList extends TSExpression {
   final List<TSExpression> _elements;
   final TSType _tsType;
-  bool indent=false;
+  bool indent = false;
 
   TSList(this._elements, [this._tsType]);
 
@@ -1055,7 +1058,7 @@ class TSList extends TSExpression {
     printer.write('[');
     if (indent) {
       printer.writeln();
-      printer.indented((IndentingPrinter p)=>p.join(_elements,newLine:true));
+      printer.indented((IndentingPrinter p) => p.join(_elements, newLine: true));
     } else {
       printer.join(_elements);
     }
@@ -1838,13 +1841,11 @@ class TSVariableDeclarations extends TSStatement {
     bool lazy = !isConstructor && (isTopLevel || (isStatic && isField));
 
     if (!lazy) {
-
-
       if (!isField) {
         printer.write('let ');
       }
 
-      String comma="";
+      String comma = "";
 
       for (TSVariableDeclaration e in _declarations) {
         if (isStatic) {
@@ -1859,14 +1860,12 @@ class TSVariableDeclarations extends TSStatement {
           printer.write('const ');
         }
 
-
         if (!isField) {
           printer.write(comma);
-          comma=", ";
+          comma = ", ";
         }
 
         printer.accept(e);
-
 
         //printer.join(_declarations, delim: isField ? ';' : ',', newLine: isField);
 

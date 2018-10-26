@@ -815,7 +815,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     });
   }
 
-  TSExpression _maybeWrapNativeCall(DartType targetType, TSExpression tsTarget,{bool isStatic:false}) {
+  TSExpression _maybeWrapNativeCall(DartType targetType, TSExpression tsTarget, {bool isStatic: false}) {
     String wrapper;
     if (currentContext.typeProvider.numType == targetType) {
       wrapper = "core.DartNumber";
@@ -832,8 +832,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     if (isStatic) {
       return new TSSimpleExpression(wrapper);
     } else {
-      return new TSInvoke(new TSSimpleExpression(wrapper), [tsTarget])
-        ..asNew = true;
+      return new TSInvoke(new TSSimpleExpression(wrapper), [tsTarget])..asNew = true;
     }
   }
 
@@ -886,7 +885,8 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
         Expression cascadeTarget = findCascadeTarget(node);
         method = _context.typeManager.checkMethod(cascadeTarget.bestType, node.methodName.name, target,
             orElse: () => new TSDotExpression(
-                _maybeWrapNativeCall(cascadeTarget.bestType, safeAccess ? safeTarget : target,isStatic: isStatic(elem)),
+                _maybeWrapNativeCall(cascadeTarget.bestType, safeAccess ? safeTarget : target,
+                    isStatic: isStatic(elem)),
                 _context.typeManager.toTsName(elem)));
       } else if (!TypeManager.isTopLevel(elem) && (elem.enclosingElement is ClassElement)) {
         DartType targetType = node.target?.bestType ?? (elem.enclosingElement as ClassElement).type;
@@ -901,7 +901,8 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
           TSExpression res = _context.processExpression(node.methodName);
           if (node.target != null) {
             res = new TSDotExpression.expr(
-                _maybeWrapNativeCall(node.target?.bestType, safeAccess ? safeTarget : target,isStatic:isStatic(elem)), res);
+                _maybeWrapNativeCall(node.target?.bestType, safeAccess ? safeTarget : target, isStatic: isStatic(elem)),
+                res);
           }
           return res;
         });
@@ -959,13 +960,10 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 }
 
 isStatic(Element elem) {
-  if (elem is MethodElement)
-    return elem.isStatic;
-  if (elem is FieldElement)
-    return elem.isStatic;
+  if (elem is MethodElement) return elem.isStatic;
+  if (elem is FieldElement) return elem.isStatic;
 
-  if (elem is PropertyAccessorElement)
-    return elem.isStatic;
+  if (elem is PropertyAccessorElement) return elem.isStatic;
 
   return false;
 }
@@ -1152,13 +1150,36 @@ class LibraryContext extends TopLevelContext<TSLibrary> {
   TSLibrary tsLibrary;
   Config _config;
 
+  Map<Element, int> elementOrder;
+  Map<TSNode, Element> translated;
+
+  int calcElementOrder(Element e) {
+    int w = elementOrder[e];
+    if (w != null) {
+      return w;
+    }
+    // To avoid cyclic refs
+    elementOrder[e] = -1;
+    if (_libraryElement == e?.library) {
+      if (e is ClassElement) {
+        // calc parent order and add one
+        elementOrder[e] = calcElementOrder(e.supertype.element) + 1;
+      }
+    }
+
+    return elementOrder[e];
+  }
+
   LibraryContext(this._libraryElement, this._overrides, this._config) {}
 
   void translate() {
+    translated = {};
+    elementOrder = {};
     typeManager = new TypeManager(_libraryElement, _overrides,
         modulePrefix: _config.modulePrefix, moduleSuffix: _config.moduleSuffix, sdkPrefix: _config.sdkPrefix);
 
-    tsLibrary = new TSLibrary(_libraryElement.source.uri.toString());
+    tsLibrary = new TSLibrary(_libraryElement.source.uri.toString(),
+        order: (n1, n2) => calcElementOrder(translated[n1]).compareTo(calcElementOrder(translated[n2])));
 
     _libraryElement.units.forEach((cu) => new FileContext(this, cu.computeNode()).translate());
 
@@ -1227,7 +1248,6 @@ class FileContext extends ChildContext<TSLibrary, LibraryContext, TSFile> {
 
   void translate() {
     _tsDeclarations = new List<TSNode>();
-    TSFile tsFile = new TSFile(_compilationUnit, _tsDeclarations);
 
     TopLevelDeclarationVisitor visitor = new TopLevelDeclarationVisitor(this);
     _topLevelContexts = new List();
@@ -1235,10 +1255,14 @@ class FileContext extends ChildContext<TSLibrary, LibraryContext, TSFile> {
 
     _topLevelContexts.forEach((c) => c.translate());
 
+    TSFile tsFile = new TSFile(_compilationUnit, _tsDeclarations);
     parentContext.tsLibrary._children.add(tsFile);
   }
 
-  void addDeclaration(TSNode n) => _tsDeclarations.add(n);
+  void addDeclaration(TSNode n, Element e) {
+    parentContext.translated[n] = e;
+    _tsDeclarations.add(n);
+  }
 
   TSDeclareContext resolveDeclarationContext(List<String> namespace) =>
       parentContext.resolveDeclarationContext(namespace);
@@ -1309,7 +1333,7 @@ class EnumContext extends ChildContext<TSFile, FileContext, TSEnumDeclaration> {
     EnumDeclarationVisitor visitor = new EnumDeclarationVisitor(this);
     enumDeclaration.accept(visitor);
 
-    parentContext.addDeclaration(tsEnumDeclaration);
+    parentContext.addDeclaration(tsEnumDeclaration, enumDeclaration.element);
   }
 
   void addEnumConstant(String name) {
@@ -1337,7 +1361,7 @@ class TopLevelFunctionContext extends FunctionDeclarationContext {
 
   void translate() {
     super.translate();
-    (parentContext as FileContext).addDeclaration(tsFunction);
+    (parentContext as FileContext).addDeclaration(tsFunction, _functionDeclaration.element);
 
     if (hasAnnotation(_functionDeclaration.element.metadata, isOnModuleLoad)) {
       (parentContext as FileContext).addOnModuleLoad(new TSExpressionStatement(
@@ -1362,7 +1386,7 @@ class TopLevelVariableContext extends ChildContext<TSFile, FileContext, TSVariab
       isField: true,
     );
 
-    parentContext.addDeclaration(tsVariableDeclarations);
+    parentContext.addDeclaration(tsVariableDeclarations, _vars.element);
   }
 }
 
@@ -1636,7 +1660,7 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
 
     List<TSStatement> thisInitializers = _tsClass.extractAllInitializerExpressions();
 
-    if (!_declarationMode&&!tsClass.members.any((m) => m is TSFunction && m.constructorType != null)) {
+    if (!_declarationMode && !tsClass.members.any((m) => m is TSFunction && m.constructorType != null)) {
       // Add default constructor if not defined
       tsClass.members.add(new TSFunction(typeManager,
           name: tsClass.name,
@@ -1645,7 +1669,8 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
           parameters: [],
           namedParameters: {},
           body: new TSBody(statements: [], withBrackets: false),
-          callSuper: _classDeclaration.extendsClause!=null /* (_classDeclaration.element.type).superclass != currentContext.typeProvider.objectType*/));
+          callSuper: _classDeclaration.extendsClause !=
+              null /* (_classDeclaration.element.type).superclass != currentContext.typeProvider.objectType*/));
     }
 
     if (thisInitializers.isNotEmpty) {
@@ -1689,7 +1714,7 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
       _registerGlobal(_tsClass);
     } else {
       _tsClass.declared = _declarationMode;
-      parentContext.addDeclaration(_tsClass);
+      parentContext.addDeclaration(_tsClass, _classDeclaration.element);
     }
   }
 
