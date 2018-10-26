@@ -815,7 +815,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     });
   }
 
-  TSExpression _maybeWrapNativeCall(DartType targetType, TSExpression tsTarget) {
+  TSExpression _maybeWrapNativeCall(DartType targetType, TSExpression tsTarget,{bool isStatic:false}) {
     String wrapper;
     if (currentContext.typeProvider.numType == targetType) {
       wrapper = "core.DartNumber";
@@ -829,7 +829,12 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       return tsTarget;
     }
 
-    return new TSInvoke(new TSSimpleExpression(wrapper), [tsTarget])..asNew = true;
+    if (isStatic) {
+      return new TSSimpleExpression(wrapper);
+    } else {
+      return new TSInvoke(new TSSimpleExpression(wrapper), [tsTarget])
+        ..asNew = true;
+    }
   }
 
   static int _safeTargetCount = 1;
@@ -881,7 +886,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
         Expression cascadeTarget = findCascadeTarget(node);
         method = _context.typeManager.checkMethod(cascadeTarget.bestType, node.methodName.name, target,
             orElse: () => new TSDotExpression(
-                _maybeWrapNativeCall(cascadeTarget.bestType, safeAccess ? safeTarget : target),
+                _maybeWrapNativeCall(cascadeTarget.bestType, safeAccess ? safeTarget : target,isStatic: isStatic(elem)),
                 _context.typeManager.toTsName(elem)));
       } else if (!TypeManager.isTopLevel(elem) && (elem.enclosingElement is ClassElement)) {
         DartType targetType = node.target?.bestType ?? (elem.enclosingElement as ClassElement).type;
@@ -896,7 +901,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
           TSExpression res = _context.processExpression(node.methodName);
           if (node.target != null) {
             res = new TSDotExpression.expr(
-                _maybeWrapNativeCall(node.target?.bestType, safeAccess ? safeTarget : target), res);
+                _maybeWrapNativeCall(node.target?.bestType, safeAccess ? safeTarget : target,isStatic:isStatic(elem)), res);
           }
           return res;
         });
@@ -951,6 +956,18 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
     }
     return new TSNativeJs(node.toString(), pieces, expr);
   }
+}
+
+isStatic(Element elem) {
+  if (elem is MethodElement)
+    return elem.isStatic;
+  if (elem is FieldElement)
+    return elem.isStatic;
+
+  if (elem is PropertyAccessorElement)
+    return elem.isStatic;
+
+  return false;
 }
 
 class ArgumentListCollector extends GeneralizingAstVisitor {

@@ -1,3 +1,7 @@
+### v0.9.14
+ - fixed issue with multiple fields init
+ - better handling of static methods on native types
+
 ### v0.9.13
  - fixed string escape nasty bug
 
