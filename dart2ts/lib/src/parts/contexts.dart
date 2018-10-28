@@ -391,8 +391,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
       return new TSPrefixOperandExpression(node.operator.lexeme, _context.processExpression(node.operand));
     }
     TSExpression base = _context.processExpression(node.operand);
-    return new TSBracketExpression(
-        new TSAssignamentExpression(base, makeOperatorExpression(node.operator.type, [base]), '='));
+    return makeOperatorExpression(node.operator.type, [base]);
     //return handlePrefixSuffixExpression(node.operand, node.operator, OperatorType.PREFIX);
   }
 
@@ -1608,6 +1607,15 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
   void translate() {
     _tsClass = new TSClass(library: _classDeclaration.element.librarySource.uri.toString());
     _tsClass.isAbstract = _classDeclaration.isAbstract;
+
+    // Check if parent is native
+    if (_classDeclaration.element.supertype == currentContext.typeProvider.objectType ||
+        hasAnnotation(_classDeclaration.element.supertype.element.metadata, isJS)) {
+      _tsClass.isParentNative = true;
+    } else {
+      _tsClass.isParentNative = false;
+    }
+
     ClassMemberVisitor visitor = new ClassMemberVisitor(this, _tsClass, _declarationMode);
     _tsClass.name = _classDeclaration.name.name;
     _tsClass.members = new List();
@@ -1727,7 +1735,7 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
 
     // If exported add as a normal declaration
     String export = getAnnotation(_classDeclaration.element.metadata, isTS)?.getField('export')?.toStringValue();
-    _tsClass.isNative=_declarationMode;
+    _tsClass.isNative = _declarationMode;
     if (_declarationMode && export == null) {
       //_tsClass.isNative = true;
       _registerGlobal(_tsClass);

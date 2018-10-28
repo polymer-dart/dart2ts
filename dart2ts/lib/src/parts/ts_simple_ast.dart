@@ -153,7 +153,9 @@ class TSClass extends TSNode {
 
   List<TSTypeExpr> mixins = [];
 
-  bool isNative=false;
+  bool isNative = false;
+
+  bool isParentNative = false;
 
   TSClass(
       {this.topLevel: true,
@@ -199,7 +201,7 @@ class TSClass extends TSNode {
       List<TSFunction> constructors = new List.from(members.where(isConstructor));
 
       printer.write("export type Constructors = ");
-      if (superClass != null) {
+      if (superClass != null && !isParentNative) {
         printer.accept(new TSTypeExpr.noTypeParams(superClass));
         printer.write(".Constructors | ");
       }
