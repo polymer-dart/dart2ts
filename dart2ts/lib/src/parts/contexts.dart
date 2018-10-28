@@ -387,7 +387,7 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitPrefixExpression(PrefixExpression node) {
-    if (TypeManager.isNativeType(node.operand.bestType) || true /* <- Prefix ops aren't user definables */) {
+    if (TypeManager.isNativeType(node.operand.bestType) || !node.operator.isUserDefinableOperator) {
       return new TSPrefixOperandExpression(node.operator.lexeme, _context.processExpression(node.operand));
     }
     TSExpression base = _context.processExpression(node.operand);
@@ -427,7 +427,8 @@ class _ExpressionVisitor extends GeneralizingAstVisitor<TSExpression> {
 
   @override
   TSExpression visitPostfixExpression(PostfixExpression node) {
-    if (TypeManager.isNativeType(node.operand.bestType) || true /*postfix op not user definable */) {
+    if (TypeManager.isNativeType(node.operand.bestType) ||
+        !node.operator.isUserDefinableOperator /*postfix op not user definable */) {
       return new TSPostfixOperandExpression(node.operator.lexeme, _context.processExpression(node.operand));
     }
     return makeOperatorExpression(node.operator.type, [_context.processExpression(node.operand)]);
@@ -1221,6 +1222,7 @@ class LibraryContext extends TopLevelContext<TSLibrary> {
             "int",
             "bool",
             "double",
+            "Omit",
           ]))
       ..insert(
           0,
@@ -1725,10 +1727,12 @@ class ClassContext extends ChildContext<TSFile, FileContext, TSClass> {
 
     // If exported add as a normal declaration
     String export = getAnnotation(_classDeclaration.element.metadata, isTS)?.getField('export')?.toStringValue();
-
+    _tsClass.isNative=_declarationMode;
     if (_declarationMode && export == null) {
+      //_tsClass.isNative = true;
       _registerGlobal(_tsClass);
     } else {
+      //_tsClass.isNative = true;
       _tsClass.declared = _declarationMode;
       parentContext.addDeclaration(_tsClass, _classDeclaration.element);
     }

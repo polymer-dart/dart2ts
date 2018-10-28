@@ -153,6 +153,8 @@ class TSClass extends TSNode {
 
   List<TSTypeExpr> mixins = [];
 
+  bool isNative=false;
+
   TSClass(
       {this.topLevel: true,
       this.isInterface: false,
@@ -175,8 +177,55 @@ class TSClass extends TSNode {
             "=")));
   }
 
+  static bool isConstructor(TSNode n) =>
+      (n is TSFunction && (n.constructorType == ConstructorType.DEFAULT || n.constructorType == ConstructorType.NAMED));
+
+  void _writeTypeParameters(IndentingPrinter printer) {
+    if (typeParameters != null && typeParameters.isNotEmpty) {
+      printer.write("<");
+      printer.join(typeParameters);
+      printer.write(">");
+    }
+  }
+
+  void writeInterfaceCode(IndentingPrinter printer) {
+    if (isNative) {
+      return;
+    }
+    printer.writeln("export namespace ${name} {");
+    printer.indented((_) {
+      // Constructors
+
+      List<TSFunction> constructors = new List.from(members.where(isConstructor));
+
+      printer.write("export type Constructors = ");
+      if (superClass != null) {
+        printer.accept(new TSTypeExpr.noTypeParams(superClass));
+        printer.write(".Constructors | ");
+      }
+      printer.joinConsumers(constructors.map((c) => (p) => p.write("'${c.name}'")), delim: ' | ');
+      if (constructors.isEmpty) {
+        printer.write("never");
+        //printer.write("'${name}'");
+      }
+      printer.writeln(';');
+
+      // Interface
+      printer.write("export type Interface");
+      _writeTypeParameters(printer);
+      printer.write(" = Omit<");
+      printer.write(name);
+      _writeTypeParameters(printer);
+      printer.writeln(", Constructors>;");
+    });
+
+    printer.writeln("}");
+  }
+
   @override
   void writeCode(IndentingPrinter printer) {
+    writeInterfaceCode(printer);
+
     if (library != null && !isInterface) {
       printer.writeln('@DartClass');
     }
@@ -217,11 +266,7 @@ class TSClass extends TSNode {
     }
     printer.write(' ${name}');
 
-    if (typeParameters != null && typeParameters.isNotEmpty) {
-      printer.write('<');
-      printer.join(typeParameters);
-      printer.write('> ');
-    }
+    _writeTypeParameters(printer);
 
     if (superClass != null) {
       printer.write(' extends ');
