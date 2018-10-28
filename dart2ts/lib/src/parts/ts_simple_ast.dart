@@ -274,9 +274,10 @@ class TSClass extends TSNode {
       printer.write(' extends ');
       printer.accept(superClass);
     }
-    if (implemented.isNotEmpty /* || mixins.isNotEmpty*/) {
+    if (implemented.isNotEmpty || mixins.isNotEmpty) {
       printer.write(' implements ');
-      printer.join(new List.from([implemented /*, mixins*/].expand((i) => i)));
+      printer
+          .join(new List.from([implemented, mixins].expand((i) => i)).map((intf) => new TSTypeExpr.asInterface(intf)));
     }
     printer.writeln(' {');
     if (members != null)
@@ -309,6 +310,10 @@ abstract class TSType extends TSNode {
   String get name;
 
   TSType(this._isObject);
+
+  void writeAsInterface(IndentingPrinter printer) {
+    this.writeCode(printer);
+  }
 }
 
 class TSSimpleType extends TSType {
@@ -324,17 +329,37 @@ class TSSimpleType extends TSType {
   void writeCode(IndentingPrinter printer) {
     printer.write(_name);
   }
+
+  @override
+  void writeAsInterface(IndentingPrinter printer) {
+    printer.write(_name);
+    printer.write('.Interface');
+  }
+
+
 }
 
 class TSTypeExpr extends TSExpression {
   TSType _type;
-  bool _asDeclaration;
+  bool _asDeclaration = true;
   bool _noTypeParams = false;
+  bool _asInterface = false;
 
   TSTypeExpr(this._type, [this._asDeclaration = true]);
 
   TSTypeExpr.noTypeParams(this._type) {
     _noTypeParams = true;
+  }
+
+  TSTypeExpr.asInterface(something) {
+    if (something is TSType) {
+      this._type = something;
+    } else if (something is TSTypeExpr) {
+      this._type = something._type;
+    } else {
+      throw "Don't know how to deal with ${something}";
+    }
+    _asInterface = true;
   }
 
   @override
@@ -346,7 +371,11 @@ class TSTypeExpr extends TSExpression {
       }
     }
     if (_asDeclaration || _type.isObject) {
-      printer.accept(_type);
+      if (_asInterface) {
+        _type.writeAsInterface(printer);
+      } else {
+        printer.accept(_type);
+      }
     } else {
       printer.write('"');
       printer.accept(_type);
@@ -448,11 +477,22 @@ class TSGenericType extends TSSimpleType {
   @override
   void writeCode(IndentingPrinter printer) {
     super.writeCode(printer);
+    _writeTypeArgs(printer);
+  }
+
+  void _writeTypeArgs(IndentingPrinter printer) {
     if (_typeArguments?.isNotEmpty ?? false) {
       printer.write('<');
       printer.join(_typeArguments);
       printer.write('>');
     }
+  }
+
+  @override
+  void writeAsInterface(IndentingPrinter printer) {
+    super.writeCode(printer);
+    printer.write('.Interface');
+    _writeTypeArgs(printer);
   }
 }
 
@@ -1024,6 +1064,7 @@ class TSFunction extends TSExpression implements TSStatement {
 
   @override
   bool get needsSeparator => true;
+
   @override
   TSStatement inject(TSStatement statement) {
     throw "not implemented";
@@ -1659,6 +1700,7 @@ class TSLazyVariableDeclaration extends TSNode {
   bool isStatic;
   bool isReadonly;
   TSVariableDeclaration _decl;
+
   TSLazyVariableDeclaration(this._decl, [this.isStatic = true, this.isReadonly = false]);
 
   @override
