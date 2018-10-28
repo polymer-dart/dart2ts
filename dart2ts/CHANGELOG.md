@@ -1,3 +1,7 @@
+### v0.9.15
+ - Fixed wrong prefix op overrides (some are user definable ...)
+ - Introduction to class interfaces ( == class interface with no constructors)
+
 ### v0.9.14
  - fixed issue with multiple fields init
  - better handling of static methods on native types
